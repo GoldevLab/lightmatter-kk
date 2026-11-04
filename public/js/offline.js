@@ -448,19 +448,30 @@ enhanceCharts(document);
 
 if (form) {
   form.addEventListener("submit", async (event) => {
-    if (navigator.onLine) {
-      const btn = form.querySelector("button[type='submit']");
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = uiText("working");
-      }
+    event.preventDefault();
+    const btn = form.querySelector("button[type='submit']");
+    const label = btn ? btn.textContent : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = uiText("working");
+    }
+    const restore = () => {
+      if (!btn) return;
+      btn.disabled = false;
+      btn.textContent = label;
+    };
+    if (await serverUp()) {
+      form.submit();
       return;
     }
     if (live) live.hidden = false;
-    event.preventDefault();
-    if (!live) return;
-    if (!adjust) {
+    if (!live) {
+      restore();
+      return;
+    }
+    if (!(await engineReady())) {
       live.innerHTML = `<p class="form-error" role="alert">${uiText("needNet")}</p>`;
+      restore();
       return;
     }
     const data = new FormData(form);
@@ -485,18 +496,21 @@ if (form) {
       temperature: String(data.get("temperature") || ""),
       lang: pageLang(),
     };
+    if (btn) btn.textContent = uiText("local");
     live.innerHTML = `<p class="muted">${uiText("local")}</p>`;
     await new Promise((r) => setTimeout(r, 30));
     let result;
     try {
       result = JSON.parse(adjust(text, JSON.stringify(opts)));
-    } catch (err) {
+    } catch {
       live.textContent = uiText("engine");
+      restore();
       return;
     }
     if (!result.ok) {
       live.innerHTML = "<p class=\"form-error\" role=\"alert\"></p>";
       live.querySelector("p").textContent = result.error || uiText("fail");
+      restore();
       return;
     }
     live.innerHTML = result.html;
@@ -513,6 +527,30 @@ if (form) {
       link.download = `lightmatter.${ext[key] || key}`;
     });
     enhanceCharts(live);
+    restore();
     live.scrollIntoView({ behavior: "smooth", block: "start" });
   });
+}
+
+async function engineReady() {
+  if (adjust) return true;
+  for (let i = 0; i < 40; i += 1) {
+    await new Promise((r) => setTimeout(r, 100));
+    if (adjust) return true;
+  }
+  return false;
+}
+
+async function serverUp() {
+  if (!navigator.onLine) return false;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 2500);
+  try {
+    const res = await fetch("/robots.txt", { cache: "no-store", signal: ctrl.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }

@@ -88,7 +88,20 @@ h2 { margin: 0; font-size: 1.35rem; }
   transform: scale(1.45);
 }
 .site-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0; padding: 0; width: auto; flex: 1; }
-.lang-slot { margin-left: auto; display: flex; align-items: center; }
+.lang-slot { margin-left: auto; display: flex; align-items: center; gap: 0.45rem; }
+.install-app {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.38rem 0.9rem;
+  cursor: pointer;
+}
+.install-app:hover,
+.install-app:focus-visible { background: var(--accent); color: var(--on-primary); }
 .lang-switch {
   display: flex;
   align-items: center;

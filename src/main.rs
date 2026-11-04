@@ -43,7 +43,8 @@ fn chrome(body: View) -> View {
         " — 变分克拉默斯–克罗尼格拟合（Kuzmenko，2005）。计算用 Rust。安装后离线仍可拟合。不是同名的光子计算公司。",
         " — ajuste variacional de Kramers–Kronig (Kuzmenko, 2005). O cálculo é Rust. Instalado, continua ajustando sem rede. Não é a empresa de computação fotônica do mesmo nome.",
     );
-    let languages = lang_switch(lang, &locale::here());
+    let install = tx(lang, "Instalar", "Install", "安装", "Instalar");
+    let languages = lang_switch(lang, &locale::here(), install);
     let vt = view_transition_name(&path);
     view! {
         <div class="app">
@@ -92,7 +93,7 @@ fn chrome(body: View) -> View {
     }
 }
 
-fn lang_switch(current: Lang, path: &str) -> View {
+fn lang_switch(current: Lang, path: &str, install: &'static str) -> View {
     let next = locale::encode(path);
     let aria = tx(current, "Idioma. Español es el de esta página si no eliges otro.", "Language. Spanish is this page’s language until you choose another.", "语言。未另选时，本页为西班牙语。", "Idioma. Espanhol é o desta página se você não escolher outro.");
     let caption = tx(current, "Idioma", "Language", "语言", "Idioma");
@@ -113,11 +114,12 @@ fn lang_switch(current: Lang, path: &str) -> View {
     );
     view! {
         <div class="lang-slot">
+            <button type="button" class="install-app" hidden="">{install}</button>
             <label class="lang-switch" title={aria}>
                 <span>{caption}</span>
                 <select>{options}</select>
             </label>
-            <script src="/js/lang.js?v=2" defer=true></script>
+            <script src="/js/lang.js?v=3" defer=true></script>
         </div>
     }
 }
@@ -213,7 +215,7 @@ async fn main() -> std::io::Result<()> {
                 .cookie("lightmatter_theme")
                 .storage_key("lightmatter-theme"),
         )
-        .with_stylesheet("/images/lightmatter.css?v=20")
+        .with_stylesheet("/images/lightmatter.css?v=21")
         .with_sitemap_exclude(["/admin"])
         .static_asset("/icon.svg", ICON, "image/svg+xml")
         .static_asset("/.well-known/security.txt", security_txt, "text/plain; charset=utf-8")
@@ -226,7 +228,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-34".into(),
+            cache_version: "lm-35".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
@@ -235,15 +237,17 @@ async fn main() -> std::io::Result<()> {
                 "/".into(),
                 "/lab".into(),
                 "/learn".into(),
-                "/images/lightmatter.css?v=20".into(),
-                "/js/lang.js?v=2".into(),
+                "/images/lightmatter.css?v=21".into(),
+                "/js/lang.js?v=3".into(),
+                "/_resuma/ui.css?v=4679afe0d6db98bc".into(),
+                "/_resuma/loader.js?v=2.0.1".into(),
                 "/images/lightmatter-logo.jpg".into(),
                 "/images/learn-kk.jpg".into(),
                 "/images/learn-data.jpg".into(),
                 "/images/learn-triangles.jpg".into(),
                 "/images/learn-fit.jpg".into(),
                 "/images/learn-constants.jpg".into(),
-                "/js/offline.js?v=11".into(),
+                "/js/offline.js?v=12".into(),
                 "/robots.txt".into(),
                 "/llms.txt".into(),
                 "/sitemap.xml".into(),
