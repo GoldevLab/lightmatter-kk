@@ -1,17 +1,29 @@
 use resuma::prelude::*;
 
 pub fn page(_req: FlowRequest) -> View {
-    set_page_title("Lightmatter — ajuste variacional Kramers–Kronig");
-    set_page_description(
-        "Ajuste de espectros con la restricción de Kramers–Kronig de Kuzmenko. El cálculo corre en Rust.",
-    );
+    crate::stats::record_visit("home");
+    set_page_title(crate::seo::HOME_TITLE);
+    set_page_description(crate::seo::HOME_DESCRIPTION);
+    set_page_canonical(crate::seo::canonical("/"));
+    set_page_json_ld(crate::seo::home_json_ld());
+    let faq: Vec<View> = crate::seo::FAQ
+        .iter()
+        .map(|&(q, a)| {
+            view! {
+                <article>
+                    <h3>{q}</h3>
+                    <p>{a}</p>
+                </article>
+            }
+        })
+        .collect();
     view! {
         <main class="home-page">
             <section class="hero">
                 <p class="eyebrow">"Kuzmenko · KK discreto"</p>
                 <h1>"Ajuste variacional Kramers–Kronig"</h1>
                 <p class="hero-lead">
-                    "Carga un espectro, ajusta ε₂ con una base triangular y recupera ε₁ por la transformada discreta. Instálala como aplicación: el mismo motor Rust sigue calculando sin conexión."
+                    "Carga un espectro, ajusta ε₂ con una base triangular y recupera ε₁ por la transformada discreta. Instálala como aplicación: el mismo motor Rust sigue calculando sin conexión. Este Lightmatter es el laboratorio, no la empresa de chips fotónicos."
                 </p>
                 <div class="hero-actions">
                     <NavLink href="/lab" class="btn btn-primary">"Abrir el laboratorio"</NavLink>
@@ -22,18 +34,22 @@ pub fn page(_req: FlowRequest) -> View {
                 <h2 id="method-title">"Qué calcula"</h2>
                 <ol class="howto-grid">
                     <li>
-                        <h3>"ε₂ variacional"</h3>
-                        <p>"Coeficientes sobre triángulos en ω. Levenberg–Marquardt, suavidad y penalización si ε₂ baja de cero."</p>
+                        <h3>"Cargar el espectro"</h3>
+                        <p>"En el laboratorio suelta un archivo o pega ω y la medida. Sirve ε₂, ε₁, n, k, R, α, T o luminiscencia."</p>
                     </li>
                     <li>
-                        <h3>"ε₁ por DKKT"</h3>
-                        <p>"La parte real sale de la transformada de Kramers–Kronig discreta, no de un ajuste independiente."</p>
+                        <h3>"Ajustar con Kuzmenko"</h3>
+                        <p>"Levenberg–Marquardt busca el ε₂ cuya Kramers–Kronig reproduce tu columna. ε₁ no se ajusta aparte."</p>
                     </li>
                     <li>
-                        <h3>"Óptica derivada"</h3>
-                        <p>"A partir de ε₁ y ε₂: n, índice de refracción; k, extinción; R, reflectividad a incidencia normal."</p>
+                        <h3>"Leer las constantes"</h3>
+                        <p>"De ese par salen n, k, R, α, σ₁ y σ₂. Con espesor, T y la absorbancia. La guía está en Aprender."</p>
                     </li>
                 </ol>
+            </section>
+            <section class="panel" aria-labelledby="faq-title">
+                <h2 id="faq-title">"Preguntas"</h2>
+                <div class="faq-list">{faq}</div>
             </section>
         </main>
     }

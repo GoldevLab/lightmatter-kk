@@ -81,7 +81,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         file_name
     };
     let text = if file_text.trim().is_empty() { spectrum } else { file_text };
-    let iter_max = iter.trim().parse::<usize>().unwrap_or(20).clamp(1, 80);
+    let iter_max = iter.trim().parse::<usize>().unwrap_or(20).clamp(1, 240);
     match fit_text(
         &text,
         &TextFit {
@@ -100,11 +100,25 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
             temperature,
         },
     ) {
-        Ok(report) => match store::save_report(&source_name, &report) {
-            Ok(id) => redirect(&format!("/lab?r={id}")),
-            Err(err) => redirect(&format!("/lab?e={}", urlencode(&err))),
-        },
-        Err(err) => redirect(&format!("/lab?e={}", urlencode(&err))),
+        Ok(report) => {
+            crate::stats::record_fit(crate::stats::FitHit {
+                at: 0,
+                source: source_name.clone(),
+                measure: report.measure().key().to_string(),
+                unit: report.options.unit.label().to_string(),
+                points: report.points_used,
+                chisq: report.chisq,
+                converged: report.converged,
+            });
+            match store::save_report(&source_name, &report) {
+                Ok(id) => redirect(&format!("/lab?r={id}")),
+                Err(err) => redirect(&format!("/lab?e={}", urlencode(&err))),
+            }
+        }
+        Err(err) => {
+            crate::stats::record_error();
+            redirect(&format!("/lab?e={}", urlencode(&err)))
+        }
     }
 }
 
@@ -123,13 +137,19 @@ fn send(id: &str, format: &str) -> Response<Body> {
     let Some(loaded) = store::load_report(id) else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    let Some((body, mime, ext)) = export(&loaded.report, format) else {
+    let Some((body, mime, ext)) = export(&loaded.report, format, &loaded.source) else {
         return StatusCode::NOT_FOUND.into_response();
+    };
+    crate::stats::record_download(format);
+    let filename = if format == "informe" {
+        format!("lightmatter-{id}-informe.html")
+    } else {
+        format!("lightmatter-{id}.{ext}")
     };
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, mime)
-        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"lightmatter-{id}.{ext}\""))
+        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{filename}\""))
         .body(Body::from(body))
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }

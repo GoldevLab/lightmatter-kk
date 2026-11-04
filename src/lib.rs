@@ -2,6 +2,7 @@
 
 pub mod chart;
 pub mod fit;
+pub mod informe;
 pub mod measure;
 
 #[cfg(all(feature = "wasm", target_arch = "wasm32"))]

@@ -1,10 +1,15 @@
 use resuma::prelude::*;
 
 pub fn page(_req: FlowRequest) -> View {
-    set_page_title("Aprender — Lightmatter");
-    set_page_description(
-        "Cómo funciona el ajuste variacional de Kramers–Kronig: la medida, ε₁, ε₂, n, k, R, α, σ, T y la luminiscencia.",
-    );
+    crate::stats::record_visit("learn");
+    set_page_title(crate::seo::LEARN_TITLE);
+    set_page_description(crate::seo::LEARN_DESCRIPTION);
+    set_page_canonical(crate::seo::canonical("/learn"));
+    set_page_json_ld(crate::seo::webpage_json_ld(
+        crate::seo::LEARN_TITLE,
+        crate::seo::LEARN_DESCRIPTION,
+        "/learn",
+    ));
     view! {
         <main class="learn-page">
             <section class="hero">
@@ -103,7 +108,8 @@ pub fn page(_req: FlowRequest) -> View {
                 <p>"Si hay un coeficiente por punto, χ²/dof no aplica: un χ² casi cero quiere decir que la curva pasa por tus datos, no que el material haya quedado identificado. Con menos anclas que puntos, χ²/dof parte el χ² por los puntos que sobran."</p>
                 <p>"La suavidad, 0.08 por defecto, frena la segunda diferencia entre anclas interiores: Aₖ₋₁ − 2 Aₖ + Aₖ₊₁. No empuja los extremos hacia cero. 0 deja solo los datos."</p>
                 <p>"Si ε₂ baja de 0, el valor 100 suma un castigo proporcional a ε₂². En un medio pasivo ε₂ es mayor o igual que cero. 0 permite ε₂ negativa."</p>
-                <p>"El paso mezcla el descenso por gradiente y el salto al mínimo de la curvatura. Si el paso mejora, λ se divide entre 10. Si no, se multiplica por 10. Para cuando el objetivo ya no baja un 1 %, o al llegar al máximo de pasos. 20 es el valor del formulario; 80 es el techo."</p>
+                <p>"El paso mezcla el descenso por gradiente y el salto al mínimo de la curvatura. Si el paso mejora, λ se divide entre 10. Si no, se multiplica por 10. Para cuando el objetivo ya no baja un 1 % y ningún punto queda a más del 2 % del rango, o al llegar al máximo de pasos. 20 es el valor del formulario; 240 es el techo."</p>
+                <p>"Una raya de R de pocos cm⁻¹, un reststrahlen, no se cierra subiendo los pasos. La punta sube y se estanca cerca de 0.6 cuando el dato está en 0.97; el valle de al lado se rellena y el χ² puede seguir bajando. La banda ancha, ya ajustada, deja ε₁ positivo en esa frecuencia por Kramers–Kronig. Si la raya es más estrecha que el 8 % de su frecuencia y destaca, el programa prueba un oscilador de Lorentz como fondo. En una raya así de fuerte ese fondo no alcanza para clavarla al dato. Suavidad en 0 y el castigo de ε₂ negativa en 100. El tramo alto, ya lejos de la raya, sí puede quedar sobre los datos."</p>
                 <p>"La barra ±1σ sale de la inversa de la curvatura de los datos solos, con δχ² = 1. Aparece cuando pegaste el error de cada punto. La suavidad no entra en esa barra."</p>
             </section>
 
@@ -150,7 +156,7 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"Lee el aviso de ε∞. Si dice 1 por defecto y mediste α, k o T, fíate de α y de k. ε₁, n, R, la pérdida, la altura de ε₂ y σ₂ esperan a que escribas ε∞."</li>
                     <li>"El panel de datos es tu columna. Los demás paneles son el par (ε₁, ε₂) y lo que se deduce de él."</li>
                     <li>"Pasa el mouse por una gráfica para el punto más cercano. Cada gráfica se baja en SVG o PNG."</li>
-                    <li>"Descargar: .dat y CSV traen ω, ε₁, ε₂, n, k, R, la pérdida y, con unidad, σ₁, σ₂ y α. Con espesor añaden T y A. Datos y ajuste compara tu columna con el modelo. Picos es la tabla. JSON es el informe entero."</li>
+                    <li>"Descargar: .dat y CSV traen ω, ε₁, ε₂, n, k, R, la pérdida y, con unidad, σ₁, σ₂ y α. Con espesor añaden T y A. Datos y ajuste compara tu columna con el modelo. Picos es la tabla. JSON es el informe para procesarlo. Al final, «Descargar todos los resultados» guarda un HTML con el resumen resaltado, los picos y el espectro en tablas."</li>
                 </ol>
                 <p>"La casilla de fuera del rango dibuja ε₁ y ε₂ más allá de tus datos, con la cola lineal de ε₂. Sirve para ver la extrapolación. No añade información experimental."</p>
             </section>

@@ -997,6 +997,26 @@ impl Model<'_> {
         }
     }
 
+    /// Algún punto sigue a más del 2 % del rango de la medida. Ahí el 1 % de χ² no es parada.
+    fn still_far(&self, p: &[f64]) -> bool {
+        let n = self.y.len();
+        if n == 0 {
+            return false;
+        }
+        let mut lo = f64::INFINITY;
+        let mut hi = f64::NEG_INFINITY;
+        let mut worst: f64 = 0.0;
+        for i in 0..n {
+            let y = self.y[i];
+            lo = lo.min(y);
+            hi = hi.max(y);
+            let (q, _, _, _, _) = self.model(i, p);
+            let w = self.inv_var.get(i).copied().unwrap_or(1.0).sqrt();
+            worst = worst.max((y - q).abs() * w);
+        }
+        worst > 0.02 * (hi - lo).max(1e-9)
+    }
+
     fn model(&self, i: usize, p: &[f64]) -> (f64, f64, f64, f64, f64) {
         let (e1, e2) = self.eps(i, p);
         let (q, d1, d2) = quantity_grad(self.measure, e1, e2, self.nu[i], self.d_cm);
@@ -1136,8 +1156,9 @@ fn levenberg<M: SysMat>(
             std::mem::swap(alpha, covar);
             std::mem::swap(&mut beta, &mut da);
             a.copy_from_slice(&atry);
-            // Parada al estilo de Numerical Recipes: la bajada de χ² ya es menor que la tolerancia.
-            if improvement < floor.max(tol * chisq.abs()) {
+            // Una bajada menor que el 1 % cierra el ajuste solo si ya no queda un punto lejos.
+            // Si no, una raya estrecha (el reststrahlen) se abandona cuando la banda ancha ya cuadra.
+            if !model.still_far(a) && improvement < floor.max(tol * chisq.abs()) {
                 done += 1;
             }
         } else {
@@ -1145,10 +1166,14 @@ fn levenberg<M: SysMat>(
             // Si no, λ crecía hasta 1e8 y un ajuste ya exacto se anunciaba como fallo.
             let flat = (chisq - ochisq) <= floor.max(tol * ochisq.abs());
             alamda *= lamda_high;
-            if flat && alamda >= 1.0 {
+            if !model.still_far(a) && flat && alamda >= 1.0 {
                 done += 1;
             } else if alamda > 1.0e8 {
-                done = done.max(1);
+                if model.still_far(a) {
+                    stalled = true;
+                } else {
+                    done = done.max(1);
+                }
                 break;
             }
         }
@@ -1242,6 +1267,155 @@ fn kk_sum(om: f64, anchors: &[f64], a: &[f64], g: &mut [f64]) -> f64 {
 
 fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
     d.map(|d| eps1_drude(om, d) - d.eps_inf).unwrap_or(0.0)
+}
+
+fn lorentz_eps(omega: f64, w0: f64, wp: f64, gamma: f64) -> (f64, f64) {
+    if omega <= 0.0 || w0 <= 0.0 || wp <= 0.0 || gamma <= 0.0 {
+        return (0.0, 0.0);
+    }
+    let dr = w0 * w0 - omega * omega;
+    let di = gamma * omega;
+    let den = dr * dr + di * di;
+    if den <= 1e-300 {
+        return (0.0, 0.0);
+    }
+    let p2 = wp * wp;
+    (p2 * dr / den, p2 * di / den)
+}
+
+/// Raya estrecha de R: (posición, altura, ancho a media prominencia).
+fn sharp_r_lines(x: &[f64], y: &[f64]) -> Vec<(f64, f64, f64)> {
+    let n = x.len().min(y.len());
+    if n < 5 {
+        return Vec::new();
+    }
+    let lo = y[..n].iter().copied().fold(f64::INFINITY, f64::min);
+    let hi = y[..n].iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let span = hi - lo;
+    if !(span > 0.0) {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut i = 1;
+    while i + 1 < n {
+        if y[i] < y[i - 1] || y[i] < y[i + 1] {
+            i += 1;
+            continue;
+        }
+        let mut top = i;
+        while top + 1 < n && y[top + 1] >= y[top] {
+            top += 1;
+        }
+        let mid = (i + top) / 2;
+        let h = y[mid];
+        let mut l = mid;
+        let mut lmin = h;
+        while l > 0 && y[l - 1] <= h {
+            l -= 1;
+            lmin = lmin.min(y[l]);
+        }
+        let mut r = mid;
+        let mut rmin = h;
+        while r + 1 < n && y[r + 1] <= h {
+            r += 1;
+            rmin = rmin.min(y[r]);
+        }
+        let prom = h - lmin.max(rmin);
+        if prom > 0.25 * span && h > 0.45 {
+            let level = h - 0.5 * prom;
+            let mut a = mid;
+            while a > 0 && y[a] > level {
+                a -= 1;
+            }
+            let mut b = mid;
+            while b + 1 < n && y[b] > level {
+                b += 1;
+            }
+            let width = x[b] - x[a];
+            if width > 0.0 && width < 0.08 * x[mid].abs().max(1.0) {
+                out.push((x[mid], prom, width));
+            }
+        }
+        i = r + 1;
+    }
+    out.sort_by(|p, q| q.1.partial_cmp(&p.1).unwrap_or(std::cmp::Ordering::Equal));
+    out.truncate(2);
+    out
+}
+
+fn local_r_sse(w: &[f64], y: &[f64], e1: &[f64], e2: &[f64], center: f64, half: f64) -> f64 {
+    let mut s = 0.0;
+    for i in 0..y.len() {
+        if (w[i] - center).abs() > half {
+            continue;
+        }
+        let (_, _, r) = optics(e1[i], e2[i]);
+        let d = y[i] - r;
+        s += d * d;
+    }
+    s
+}
+
+/// Si R trae una raya de pocos por ciento del eje, un Lorentz ahí entra como fondo.
+/// Sin él, los triángulos dejan una meseta: la Kramers–Kronig de la banda ancha mantiene ε₁ positivo.
+fn add_phonon_seed(w: &[f64], y: &[f64], base: f64, e1: &mut [f64], e2: &mut [f64]) -> Option<String> {
+    let lines = sharp_r_lines(w, y);
+    if lines.is_empty() || e1.len() != w.len() || e2.len() != w.len() {
+        return None;
+    }
+    let mut e1w: Vec<f64> = e1.iter().map(|v| v + base).collect();
+    let mut e2w = e2.to_vec();
+    let mut notes = Vec::new();
+    for (pos, _, width) in lines {
+        let bare = local_r_sse(w, y, &e1w, &e2w, pos, width * 4.0);
+        if !(bare > 0.0) {
+            continue;
+        }
+        let mut best: Option<(f64, f64, f64)> = None;
+        let mut best_cost = bare;
+        for w0s in [0.90_f64, 0.94, 0.97, 1.0, 1.03] {
+            for gs in [0.3_f64, 0.6, 1.0, 1.8] {
+                for wp in [30.0_f64, 70.0, 120.0, 180.0, 260.0, 360.0] {
+                    let w0 = pos * w0s;
+                    let gamma = (width * gs).max(pos.abs() * 1e-4);
+                    let mut s = 0.0;
+                    for i in 0..y.len() {
+                        if (w[i] - pos).abs() > width * 4.0 {
+                            continue;
+                        }
+                        let (a, b) = lorentz_eps(w[i], w0, wp, gamma);
+                        let (_, _, r) = optics(e1w[i] + a, e2w[i] + b);
+                        let d = y[i] - r;
+                        s += d * d;
+                    }
+                    if s < best_cost {
+                        best_cost = s;
+                        best = Some((w0, wp, gamma));
+                    }
+                }
+            }
+        }
+        let Some((w0, wp, gamma)) = best else { continue };
+        if best_cost > bare * 0.75 {
+            continue;
+        }
+        for i in 0..e1.len() {
+            let (a, b) = lorentz_eps(w[i], w0, wp, gamma);
+            e1[i] += a;
+            e2[i] += b;
+            e1w[i] += a;
+            e2w[i] += b;
+        }
+        notes.push(format!("{w0:.1} (ωₚ {wp:.0}, γ {gamma:.1})"));
+    }
+    if notes.is_empty() {
+        None
+    } else {
+        Some(format!(
+            "Raya estrecha de R: quedó un oscilador de Lorentz en {}. Los triángulos ajustan el resto.",
+            notes.join(" y ")
+        ))
+    }
 }
 
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
@@ -1355,8 +1529,8 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
 
     let nu: Vec<f64> = w.iter().map(|&v| phys.unit.wavenumber(v).unwrap_or(0.0)).collect();
     let drude = input.drude.clone();
-    let eps2_mod: Vec<f64> = w.iter().map(|&om| drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0)).collect();
-    let e1_fixed: Vec<f64> = w.iter().map(|&om| drude_eps1_part(om, drude.as_ref())).collect();
+    let mut eps2_mod: Vec<f64> = w.iter().map(|&om| drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0)).collect();
+    let mut e1_fixed: Vec<f64> = w.iter().map(|&om| drude_eps1_part(om, drude.as_ref())).collect();
 
     let given = phys.eps_inf.filter(|v| v.is_finite());
     let guess = guess_eps_inf(measure, &y_data);
@@ -1380,6 +1554,11 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             _ => (1.0, false, "1 por defecto".to_string()),
         },
     };
+    if measure == Measure::R {
+        if let Some(note) = add_phonon_seed(&w, &y_data, base, &mut e1_fixed, &mut eps2_mod) {
+            warnings.push(note);
+        }
+    }
 
     let auto_log = log_mesh && !input.log_mesh;
     // Una ancla por frecuencia medida, hasta el tope de la medida. Así un pico estrecho no cae
@@ -1496,7 +1675,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         negativity,
     };
 
-    let iter_max = input.iter_max.clamp(1, 80);
+    let iter_max = input.iter_max.clamp(1, 240);
     // Piso de la parada en la escala de los datos: T y R viven entre 0 y 1, ε₂ puede valer cientos.
     let floor = 1e-12 * y_data.iter().zip(&inv_var).map(|(y, w)| y * y * w).sum::<f64>().max(1e-300);
 
@@ -1644,9 +1823,9 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         warnings.push(
             "El paso se frenó (λ demasiado grande o un χ² no finito). En pantalla está el mejor espectro aceptado.".into(),
         );
-    } else if !converged {
+    } else if !converged && iters_used >= iter_max {
         warnings.push(format!(
-            "Llegó a los {iter_max} pasos sin la bajada del 1 %. En pantalla está el mejor espectro aceptado."
+            "Llegó a los {iter_max} pasos y algún punto sigue lejos. En pantalla está el mejor espectro aceptado."
         ));
     }
 
@@ -1936,7 +2115,7 @@ pub fn fit_text(text: &str, opts: &TextFit) -> Result<FitReport, String> {
     run_fit(&FitRequest {
         x,
         y,
-        iter_max: opts.iter_max.clamp(1, 80),
+        iter_max: opts.iter_max.clamp(1, 240),
         log_mesh: opts.log_mesh,
         drude,
         smoothness: finite_nonneg(opts.smoothness, 0.08),
@@ -2093,13 +2272,14 @@ pub fn report_json(report: &FitReport) -> String {
 }
 
 /// Un archivo de descarga por formato: (contenido, tipo MIME, extensión).
-pub fn export(report: &FitReport, format: &str) -> Option<(String, &'static str, &'static str)> {
+pub fn export(report: &FitReport, format: &str, source: &str) -> Option<(String, &'static str, &'static str)> {
     match format {
         "dat" => Some((report_dat(report), "text/plain; charset=utf-8", "dat")),
         "csv" => Some((report_csv(report), "text/csv; charset=utf-8", "csv")),
         "ajuste" => Some((fit_csv(report), "text/csv; charset=utf-8", "ajuste.csv")),
         "picos" if !report.peaks.is_empty() => Some((peaks_csv(report), "text/csv; charset=utf-8", "picos.csv")),
         "json" => Some((report_json(report), "application/json; charset=utf-8", "json")),
+        "informe" => Some((crate::informe::html(report, source), "text/html; charset=utf-8", "html")),
         _ => None,
     }
 }

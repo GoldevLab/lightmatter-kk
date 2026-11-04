@@ -14,21 +14,229 @@ import("/images/lightmatter.js")
     adjust = null;
   });
 
+const MEASURE_LABEL = { eps2: "ε₂", eps1: "ε₁", n: "n", k: "k", r: "R", alpha: "α", t: "T", lum: "I" };
+const UNIT_LABEL = { cm: "cm⁻¹", ev: "eV", nm: "nm", otra: "ω" };
+
+function parseColumns(text) {
+  const xs = [];
+  const ys = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || "#*!%".includes(t[0])) continue;
+    const parts = t.split(/[\s,;]+/).filter(Boolean);
+    if (parts.length < 2) continue;
+    const a = Number(parts[0]);
+    const b = Number(parts[1]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+    xs.push(a);
+    ys.push(b);
+  }
+  return { xs, ys };
+}
+
+function axisName(select, table, fallback) {
+  const key = select ? select.value : "";
+  return table[key] || fallback;
+}
+
+function niceStep(span, count) {
+  const raw = span / Math.max(1, count);
+  if (!(raw > 0)) return 1;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const n = raw / p;
+  const f = n < 1.5 ? 1 : n < 3 ? 2 : n < 7 ? 5 : 10;
+  return f * p;
+}
+
+function thinSeries(xs, ys, cap) {
+  const n = xs.length;
+  if (n <= cap) return [xs, ys];
+  const keep = new Uint8Array(n);
+  keep[0] = 1;
+  keep[n - 1] = 1;
+  for (let i = 1; i < n - 1; i++) {
+    const left = ys[i] - ys[i - 1];
+    const right = ys[i + 1] - ys[i];
+    if (left * right < 0) keep[i] = 1;
+  }
+  const step = Math.ceil(n / cap);
+  for (let i = 0; i < n; i += step) keep[i] = 1;
+  const ox = [];
+  const oy = [];
+  for (let i = 0; i < n; i++) {
+    if (keep[i]) {
+      ox.push(xs[i]);
+      oy.push(ys[i]);
+    }
+  }
+  if (ox.length <= cap * 2) return [ox, oy];
+  const stride = Math.ceil(ox.length / cap);
+  const tx = [];
+  const ty = [];
+  for (let i = 0; i < ox.length; i += stride) {
+    tx.push(ox[i]);
+    ty.push(oy[i]);
+  }
+  tx.push(ox[ox.length - 1]);
+  ty.push(oy[oy.length - 1]);
+  return [tx, ty];
+}
+
+function drawPreview() {
+  const figure = document.querySelector("[data-lm-preview]");
+  const slot = document.querySelector("[data-lm-preview-slot]");
+  const meta = document.querySelector("[data-lm-preview-meta]");
+  const box = form ? form.querySelector("textarea[name='spectrum']") : null;
+  if (!figure || !slot || !box) return;
+  figure.querySelectorAll(".chart-tip, .chart-tools").forEach((node) => node.remove());
+  delete figure.dataset.lmReady;
+  const { xs, ys } = parseColumns(box.value);
+  const yName = axisName(form && form.querySelector("select[name='measure']"), MEASURE_LABEL, "medida");
+  const xName = axisName(form && form.querySelector("select[name='unit']"), UNIT_LABEL, "ω");
+  const caption = figure.querySelector("figcaption");
+  if (caption) caption.textContent = "Gráfica";
+  if (xs.length < 2) {
+    slot.innerHTML = "<p class=\"preview-empty\">La curva de lo que cargues aparece aquí, sin esperar al ajuste.</p>";
+    if (meta) meta.textContent = xs.length === 1 ? "Hace falta otra fila numérica." : "";
+    return;
+  }
+  const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b] || a - b);
+  const sx = order.map((i) => xs[i]);
+  const sy = order.map((i) => ys[i]);
+  let xmin = sx[0];
+  let xmax = sx[sx.length - 1];
+  let ymin = sy[0];
+  let ymax = sy[0];
+  for (const v of sy) {
+    if (v < ymin) ymin = v;
+    if (v > ymax) ymax = v;
+  }
+  const yRawLo = ymin;
+  const yRawHi = ymax;
+  if (xmax - xmin < 1e-12) xmax = xmin + 1;
+  const nonneg = ymin >= 0;
+  if (ymax - ymin < 1e-12) {
+    const half = Math.max(Math.abs(ymax) * 0.1, 0.5);
+    ymin -= half;
+    ymax += half;
+  }
+  const pad = (ymax - ymin) * 0.08;
+  ymin -= pad;
+  ymax += pad;
+  if (nonneg) ymin = Math.max(0, ymin);
+  const log = xmin > 0 && xmax / xmin > 20;
+  const width = 720;
+  const height = 340;
+  const left = 74;
+  const right = 18;
+  const top = 36;
+  const bottom = 48;
+  const pw = width - left - right;
+  const ph = height - top - bottom;
+  const xOf = (x) => {
+    if (log) return left + ((Math.log(x) - Math.log(xmin)) / (Math.log(xmax) - Math.log(xmin))) * pw;
+    return left + ((x - xmin) / (xmax - xmin)) * pw;
+  };
+  const yOf = (y) => top + (1 - (y - ymin) / (ymax - ymin)) * ph;
+  const [dx, dy] = thinSeries(sx, sy, 1500);
+  let d = "";
+  for (let i = 0; i < dx.length; i++) {
+    const px = xOf(dx[i]);
+    const py = yOf(dy[i]);
+    if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+    d += `${d ? "L" : "M"}${px.toFixed(2)},${py.toFixed(2)}`;
+  }
+  const parts = [
+    `<rect width="720" height="340" fill="#07141b"/>`,
+    `<line x1="${left}" y1="${top}" x2="${left}" y2="${top + ph}" stroke="rgba(143,184,176,0.35)"/>`,
+    `<line x1="${left}" y1="${top + ph}" x2="${left + pw}" y2="${top + ph}" stroke="rgba(143,184,176,0.35)"/>`,
+  ];
+  const xTicks = log
+    ? (() => {
+        const out = [];
+        for (let e = Math.ceil(Math.log10(xmin)); e <= Math.floor(Math.log10(xmax)); e++) out.push(10 ** e);
+        return out.length >= 2 ? out : [xmin, xmax];
+      })()
+    : (() => {
+        const step = niceStep(xmax - xmin, 5);
+        const out = [];
+        for (let v = Math.ceil(xmin / step) * step; v <= xmax + step * 1e-6; v += step) out.push(v);
+        return out;
+      })();
+  const yStep = niceStep(ymax - ymin, 4);
+  for (let v = Math.ceil(ymin / yStep) * yStep; v <= ymax + yStep * 1e-6; v += yStep) {
+    const py = yOf(v);
+    if (py < top - 1 || py > top + ph + 1) continue;
+    parts.push(`<line x1="${left}" y1="${py.toFixed(1)}" x2="${left + pw}" y2="${py.toFixed(1)}" stroke="rgba(143,184,176,0.12)"/>`);
+    parts.push(`<text x="${left - 8}" y="${(py + 4).toFixed(1)}" fill="#8fb8b0" font-size="11" text-anchor="end" font-family="ui-monospace,monospace">${fmt(v)}</text>`);
+  }
+  for (const v of xTicks) {
+    if (!(v > 0) && log) continue;
+    const px = xOf(v);
+    if (px < left - 1 || px > left + pw + 1) continue;
+    parts.push(`<text x="${px.toFixed(1)}" y="${top + ph + 18}" fill="#8fb8b0" font-size="11" text-anchor="middle" font-family="ui-monospace,monospace">${fmt(v)}</text>`);
+  }
+  parts.push(`<text x="${left + pw / 2}" y="${height - 8}" fill="#8fb8b0" font-size="12" text-anchor="middle">${xName}</text>`);
+  parts.push(`<text x="16" y="${top + ph / 2}" fill="#8fb8b0" font-size="12" text-anchor="middle" transform="rotate(-90 16 ${top + ph / 2})">${yName}</text>`);
+  parts.push(`<path data-series="datos" fill="none" stroke="#9aa7b2" stroke-width="1.6" d="${d}"/>`);
+  slot.innerHTML =
+    `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Datos cargados" data-xmin="${xmin}" data-xmax="${xmax}" data-log="${log ? 1 : 0}" data-ymin="${ymin}" data-ymax="${ymax}" data-left="${left}" data-top="${top}" data-pw="${pw}" data-ph="${ph}" data-xlabel="${xName}">${parts.join("")}</svg>`;
+  if (meta) {
+    meta.textContent = `${xs.length} puntos · ${xName} ${fmt(sx[0])} … ${fmt(sx[sx.length - 1])} · ${yName} ${fmt(yRawLo)} … ${fmt(yRawHi)}${log ? " · eje log" : ""}`;
+  }
+  enhanceChart(figure);
+}
+
 const drop = document.querySelector("[data-lm-drop]");
-if (drop) {
+if (drop && form) {
   const input = drop.querySelector("input[type='file']");
   const name = drop.querySelector("[data-lm-file]");
+  const box = form.querySelector("textarea[name='spectrum']");
   const idle = name ? name.textContent : "";
-  const show = () => {
-    const file = input && input.files && input.files[0];
-    drop.classList.toggle("has-file", Boolean(file));
-    if (!name) return;
-    name.textContent = file ? `${file.name} · ${(file.size / 1024).toFixed(1)} kB · este archivo manda` : idle;
+  const meta = document.querySelector("[data-lm-preview-meta]");
+  const showIdle = () => {
+    drop.classList.remove("has-file");
+    if (name) name.textContent = idle;
   };
-  if (input) input.addEventListener("change", show);
+  if (input) {
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (file.size > 4_000_000) {
+        if (meta) meta.textContent = "El archivo supera 4 MB.";
+        input.value = "";
+        return;
+      }
+      let text = "";
+      try {
+        text = await file.text();
+      } catch {
+        if (meta) meta.textContent = "No pude leer ese archivo.";
+        return;
+      }
+      if (box) box.value = text;
+      drop.classList.add("has-file");
+      if (name) name.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} kB · ya está en el cuadro`;
+      input.value = "";
+      drawPreview();
+    });
+  }
   ["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, () => drop.classList.add("is-over")));
   ["dragleave", "drop"].forEach((type) => drop.addEventListener(type, () => drop.classList.remove("is-over")));
-  if (form) form.addEventListener("reset", () => setTimeout(show));
+  if (box) {
+    let timer = 0;
+    box.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(drawPreview, 120);
+      showIdle();
+    });
+  }
+  form.addEventListener("reset", () => setTimeout(() => { showIdle(); drawPreview(); }));
+  const measureSelect = form.querySelector("select[name='measure']");
+  const unitSelect = form.querySelector("select[name='unit']");
+  if (measureSelect) measureSelect.addEventListener("change", drawPreview);
+  if (unitSelect) unitSelect.addEventListener("change", drawPreview);
+  drawPreview();
 }
 
 const measure = form ? form.querySelector("select[name='measure']") : null;
@@ -222,7 +430,15 @@ enhanceCharts(document);
 
 if (form) {
   form.addEventListener("submit", async (event) => {
-    if (navigator.onLine) return;
+    if (navigator.onLine) {
+      const btn = form.querySelector("button[type='submit']");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Calculando…";
+      }
+      return;
+    }
+    if (live) live.hidden = false;
     event.preventDefault();
     if (!live) return;
     if (!adjust) {
@@ -265,8 +481,8 @@ if (form) {
       return;
     }
     live.innerHTML = result.html;
-    const ext = { dat: "dat", csv: "csv", ajuste: "ajuste.csv", picos: "picos.csv", json: "json" };
-    const mime = { json: "application/json;charset=utf-8", dat: "text/plain;charset=utf-8" };
+    const ext = { dat: "dat", csv: "csv", ajuste: "ajuste.csv", picos: "picos.csv", json: "json", informe: "informe.html" };
+    const mime = { json: "application/json;charset=utf-8", dat: "text/plain;charset=utf-8", informe: "text/html;charset=utf-8" };
     live.querySelectorAll("[data-lm-file]").forEach((link) => {
       const key = link.getAttribute("data-lm-file");
       const body = result.files && result.files[key];

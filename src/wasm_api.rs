@@ -4,6 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::chart::result_markup;
 use crate::fit::{fit_csv, fit_text, peaks_csv, report_csv, report_dat, report_json, TextFit};
+use crate::informe;
 
 #[wasm_bindgen]
 pub fn adjust(text: &str, opts_json: &str) -> String {
@@ -20,6 +21,7 @@ pub fn adjust(text: &str, opts_json: &str) -> String {
                     "ajuste": fit_csv(&report),
                     "picos": if report.peaks.is_empty() { String::new() } else { peaks_csv(&report) },
                     "json": report_json(&report),
+                    "informe": informe::html(&report, "este aparato"),
                 }
             })
             .to_string()

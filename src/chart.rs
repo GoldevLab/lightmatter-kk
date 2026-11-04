@@ -320,8 +320,24 @@ fn downloads(download_href: &str, has_peaks: bool) -> String {
             ));
         }
     }
+    out.push_str("<a class=\"btn btn-ghost btn-small\" href=\"#ajuste\">Ajustar otra vez</a>");
     out.push_str("</div>");
     out
+}
+
+/// Botón final: un solo HTML con el resumen, los picos y el espectro.
+fn report_button(download_href: &str) -> String {
+    let link = if download_href == "#" {
+        "<a class=\"btn btn-primary\" href=\"#\" data-lm-file=\"informe\">Descargar todos los resultados</a>".to_string()
+    } else {
+        format!(
+            "<a class=\"btn btn-primary\" href=\"{}/informe\">Descargar todos los resultados</a>",
+            escape(download_href)
+        )
+    };
+    format!(
+        "<div class=\"report-download\"><div><p class=\"eyebrow\">Archivo completo</p><h3>Informe del ajuste</h3><p>Un solo HTML, con las condiciones, los resultados resaltados, los avisos, los picos y cada punto del espectro en tablas. Se abre en el navegador y se imprime.</p></div>{link}</div>"
+    )
 }
 
 fn push_tauc_facts(items: &mut Vec<(String, String)>, report: &FitReport) {
@@ -460,7 +476,7 @@ fn luminescence_markup(source: &str, report: &FitReport, download_href: &str) ->
         ""
     };
     format!(
-        "<section class=\"panel results\"><div class=\"result-head\"><div><p class=\"eyebrow\">Resultado · luminiscencia</p><h2>{n} picos</h2><p class=\"muted\">{meta}</p><p>La luminiscencia es emisión: no hay Kramers–Kronig que darle. Salen los picos, sus anchos y áreas, el centroide y, con unidades de energía, la temperatura de la cola alta y la forma de la absorción.</p></div>{downloads}</div>{warns}{facts}{table}<ul class=\"glossary\"><li><strong>Pico</strong> Máximo local cuya prominencia (altura sobre el valle más alto a sus lados) pasa del 5 % del rango. Se listan los 12 más prominentes.</li><li><strong>FWHM</strong> Ancho a media altura sobre esa base local, interpolado. «Abierto» si la mitad no se alcanza dentro del rango.</li><li><strong>Área</strong> Integral del pico sobre su base, por trapecios; el porcentaje es sobre la suma de los picos.</li><li><strong>Centroide</strong> Σ x·I / Σ I del espectro entero.</li>{nm_note}<li><strong>T de la cola alta</strong> Del lado de alta energía, I ∝ E²·α·e^(−E/kT). Si α casi no cambia allí, la pendiente de ln(I/E²) da T. Es la temperatura efectiva de los portadores; mayor que la de la muestra si están calientes.</li><li><strong>van Roosbroeck–Shockley</strong> En equilibrio, α ∝ I·e^(E/kT)/E². Da la forma de la absorción, sin escala, con la T de la muestra que escribiste. Por encima del borde amplifica el ruido.</li></ul>{data}{vrs}</section>",
+        "<section class=\"panel results\"><div class=\"result-head\"><div><p class=\"eyebrow\">Resultado · luminiscencia</p><h2>{n} picos</h2><p class=\"muted\">{meta}</p><p>La luminiscencia es emisión: no hay Kramers–Kronig que darle. Salen los picos, sus anchos y áreas, el centroide y, con unidades de energía, la temperatura de la cola alta y la forma de la absorción.</p></div>{downloads}</div>{warns}{facts}{table}{data}{vrs}<ul class=\"glossary\"><li><strong>Pico</strong> Máximo local cuya prominencia (altura sobre el valle más alto a sus lados) pasa del 5 % del rango. Se listan los 12 más prominentes.</li><li><strong>FWHM</strong> Ancho a media altura sobre esa base local, interpolado. «Abierto» si la mitad no se alcanza dentro del rango.</li><li><strong>Área</strong> Integral del pico sobre su base, por trapecios; el porcentaje es sobre la suma de los picos.</li><li><strong>Centroide</strong> Σ x·I / Σ I del espectro entero.</li>{nm_note}<li><strong>T de la cola alta</strong> Del lado de alta energía, I ∝ E²·α·e^(−E/kT). Si α casi no cambia allí, la pendiente de ln(I/E²) da T. Es la temperatura efectiva de los portadores; mayor que la de la muestra si están calientes.</li><li><strong>van Roosbroeck–Shockley</strong> En equilibrio, α ∝ I·e^(E/kT)/E². Da la forma de la absorción, sin escala, con la T de la muestra que escribiste. Por encima del borde amplifica el ruido.</li></ul>{informe}</section>",
         n = report.peaks.len(),
         meta = escape(&format!("{} puntos · {} · {}", report.points_used, unit.label(), source)),
         downloads = downloads(download_href, !report.peaks.is_empty()),
@@ -469,6 +485,7 @@ fn luminescence_markup(source: &str, report: &FitReport, download_href: &str) ->
         table = peaks_table(&report.peaks, unit, "la intensidad"),
         data = wrap(data),
         vrs = wrap(vrs),
+        informe = report_button(download_href),
     )
 }
 
@@ -638,22 +655,22 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str) -> S
             None,
         )
     };
-    let budget = report.options.iter_max.clamp(1, 80);
+    let budget = report.options.iter_max.clamp(1, 240);
     let steps = if report.converged {
         report.iters_used.saturating_sub(1).max(1).min(budget)
     } else {
         report.iters_used.min(budget)
     };
     let status = if report.converged && report.chisq < 1e-8 {
-        format!("Usó {steps} de {budget} pasos. Paró porque el objetivo ya no bajaba un 1 %, y el ajuste pasa por los datos.")
+        format!("Usó {steps} de {budget} pasos. Paró porque el objetivo ya no bajaba un 1 % y los puntos ya quedan cerca.")
     } else if report.converged {
         format!(
-            "Usó {steps} de {budget} pasos. No se acabaron: paró porque el objetivo ya no bajaba un 1 %. Más pasos no dibujan una punta que las anclas no tocan, ni un valle bajo cero mientras el castigo de ε₂ negativa sea mayor que 0. Para seguir los datos al pie, pon Suavidad y ese castigo en 0."
+            "Usó {steps} de {budget} pasos. Paró porque el objetivo ya no bajaba un 1 % y ningún punto queda a más del 2 % del rango."
         )
     } else if report.iters_used == 0 {
         "Sin pasos registrados.".into()
     } else if steps >= budget {
-        format!("Llegó a los {budget} pasos sin el criterio del 1 %. En pantalla está el mejor espectro aceptado.")
+        format!("Llegó a los {budget} pasos y algún punto sigue lejos. En pantalla está el mejor espectro aceptado.")
     } else {
         format!("Paró a los {steps} de {budget} pasos. En pantalla está el mejor espectro aceptado.")
     };
@@ -696,7 +713,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str) -> S
         "<li><strong>Unidades</strong> Con ω en cm⁻¹, eV o nm salen además α, σ₁, σ₂ y la brecha de Tauc. T y A piden además el espesor.</li>"
     };
     format!(
-        "<section class=\"panel results\"><div class=\"result-head\"><div><p class=\"eyebrow\">Resultado · {label}</p><h2>{score}</h2><p class=\"muted\">{meta}</p><p>{status}</p></div>{downloads}</div>{warns}{facts}{table}<ul class=\"glossary\"><li><strong>χ²</strong> Suma de ((dato − modelo) / error)², solo de {sym}. Sin tercera columna el error vale 1. La suavidad y el castigo de ε₂ negativa no entran en este número; sí entran en la parada.</li><li><strong>χ²/dof</strong> {dof_help}</li><li><strong>±1σ</strong> Barra de confianza. Es la raíz de la diagonal de la covarianza, la inversa de la curvatura de los datos. Aparece cuando pegas el error de cada punto. La suavidad no entra en esa barra.</li><li><strong>Datos</strong> <span class=\"swatch swatch-data\"></span> {measure_note}</li><li><strong>ε₂</strong> <span class=\"swatch swatch-e2\"></span> Lo que ajusta la base triangular. En los extremos medidos puede valer lo que mediste; un poco más allá baja en línea recta hasta cero.</li><li><strong>ε₁</strong> <span class=\"swatch swatch-e1\"></span> ε∞ más la Kramers–Kronig de ε₂, incluida esa cola. No es un segundo ajuste.</li><li><strong>n</strong> índice de refracción. <strong>k</strong> extinción, con el signo de ε₂, de modo que n² − k² = ε₁ y 2nk = ε₂. <strong>R</strong> reflectividad de un medio semi-infinito a incidencia normal, calculada con esos n y k. No es la de una película sobre un sustrato. <strong>−Im(1/ε)</strong> función de pérdida: sus picos marcan los modos longitudinales y el plasmón.</li>{units_note}<li><strong>Picos</strong> Máximos locales de ε₂ cuya prominencia pasa del 5 % del rango. Si ε₂ sigue subiendo al final de la ventana, ese máximo es el borde de absorción y no entra como pico cerrado.</li><li><strong>Gráficas</strong> Pasa el mouse para leer el valor exacto del punto más cercano de cada curva. Cada gráfica se baja en SVG o PNG con los botones de debajo.</li></ul>{fit}{eps2}{eps1}{diff}{nk}{refl}{loss}{alpha}{sigma}{sigma2}{trans}{absorb}{ext}</section>",
+        "<section class=\"panel results\"><div class=\"result-head\"><div><p class=\"eyebrow\">Resultado · {label}</p><h2>{score}</h2><p class=\"muted\">{meta}</p><p>{status}</p></div>{downloads}</div>{warns}{facts}{table}{fit}{eps2}{eps1}{diff}{nk}{refl}{loss}{alpha}{sigma}{sigma2}{trans}{absorb}{ext}<ul class=\"glossary\"><li><strong>χ²</strong> Suma de ((dato − modelo) / error)², solo de {sym}. Sin tercera columna el error vale 1. La suavidad y el castigo de ε₂ negativa no entran en este número; sí entran en la parada.</li><li><strong>χ²/dof</strong> {dof_help}</li><li><strong>±1σ</strong> Barra de confianza. Es la raíz de la diagonal de la covarianza, la inversa de la curvatura de los datos. Aparece cuando pegas el error de cada punto. La suavidad no entra en esa barra.</li><li><strong>Datos</strong> <span class=\"swatch swatch-data\"></span> {measure_note}</li><li><strong>ε₂</strong> <span class=\"swatch swatch-e2\"></span> Lo que ajusta la base triangular. En los extremos medidos puede valer lo que mediste; un poco más allá baja en línea recta hasta cero.</li><li><strong>ε₁</strong> <span class=\"swatch swatch-e1\"></span> ε∞ más la Kramers–Kronig de ε₂, incluida esa cola. No es un segundo ajuste.</li><li><strong>n</strong> índice de refracción. <strong>k</strong> extinción, con el signo de ε₂, de modo que n² − k² = ε₁ y 2nk = ε₂. <strong>R</strong> reflectividad de un medio semi-infinito a incidencia normal, calculada con esos n y k. No es la de una película sobre un sustrato. <strong>−Im(1/ε)</strong> función de pérdida: sus picos marcan los modos longitudinales y el plasmón.</li>{units_note}<li><strong>Picos</strong> Máximos locales de ε₂ cuya prominencia pasa del 5 % del rango. Si ε₂ sigue subiendo al final de la ventana, ese máximo es el borde de absorción y no entra como pico cerrado.</li><li><strong>Gráficas</strong> Pasa el mouse para leer el valor exacto del punto más cercano de cada curva. Cada gráfica se baja en SVG o PNG con los botones de debajo.</li></ul>{informe}</section>",
         label = escape(measure.symbol()),
         meta = escape(&format!("{} puntos · {} coeficientes · {} · {}", report.points_used, report.mfit, unit.label(), source)),
         downloads = downloads(download_href, !report.peaks.is_empty()),
@@ -719,6 +736,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str) -> S
         trans = wrap(trans_panel),
         absorb = wrap(absorb_panel),
         ext = wrap(ext),
+        informe = report_button(download_href),
     )
 }
 

@@ -9,6 +9,7 @@ impl FlowPageRegistry for PagesRegistry {
             ("/", "index"),
             ("/lab", "lab"),
             ("/learn", "learn"),
+            ("/admin", "admin"),
         ]
     }
 
@@ -21,6 +22,7 @@ impl FlowPageRegistry for PagesRegistry {
             "index" => Some(super::index::page(req)),
             "lab" => Some(super::lab::page(req)),
             "learn" => Some(super::learn::page(req)),
+            "admin" => Some(super::admin::page(req)),
             _ => None,
         }
     }
