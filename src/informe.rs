@@ -1,24 +1,46 @@
 //! Informe HTML de un ajuste: un solo archivo, con las tablas del resultado.
 
 use crate::fit::FitReport;
+use crate::i18n::{tx, Lang};
 use crate::measure::{Measure, Peak, Unit, HC_EV_NM};
 
 pub fn html(report: &FitReport, source: &str) -> String {
+    page(report, source, Lang::Es)
+}
+
+pub fn page(report: &FitReport, source: &str, lang: Lang) -> String {
     let measure = report.measure();
     let unit = report.options.unit;
     let mut out = String::with_capacity(64 * 1024);
-    out.push_str(&head(&title(measure)));
+    let title = title(measure, lang);
+    out.push_str(&head(&title, lang));
     out.push_str("<main>");
-    out.push_str("<p class=\"kicker\">Lightmatter · Kramers–Kronig variacional</p>");
+    out.push_str(&format!(
+        "<p class=\"kicker\">Lightmatter · {}</p>",
+        tx(lang, "Kramers–Kronig variacional", "variational Kramers–Kronig", "变分克拉默斯–克罗尼格", "Kramers–Kronig variacional")
+    ));
     out.push_str("<h1>");
-    out.push_str(&esc(&title(measure)));
+    out.push_str(&esc(&title));
     out.push_str("</h1>");
-    out.push_str("<p class=\"lead\">Restricción variacional de Kuzmenko, <cite>Phys. Rev. B</cite> <b>71</b>, 245112 (2005). ");
-    out.push_str("ε₂ es una suma de triángulos; ε₁ es ε∞ más la transformada discreta de Kramers–Kronig de esos triángulos. ");
+    out.push_str("<p class=\"lead\">");
+    out.push_str(tx(
+        lang,
+        "Restricción variacional de Kuzmenko, Review of Scientific Instruments 76, 083108 (2005). ",
+        "Kuzmenko’s variational constraint, Review of Scientific Instruments 76, 083108 (2005). ",
+        "Kuzmenko 的变分约束，Review of Scientific Instruments 76, 083108 (2005)。",
+        "Restrição variacional de Kuzmenko, Review of Scientific Instruments 76, 083108 (2005). ",
+    ));
+    out.push_str(tx(
+        lang,
+        "ε₂ es una suma de triángulos; ε₁ es ε∞ más la transformada discreta de Kramers–Kronig de esos triángulos. ",
+        "ε₂ is a sum of triangles; ε₁ is ε∞ plus the discrete Kramers–Kronig transform of those triangles. ",
+        "ε₂ 是三角基之和；ε₁ 是 ε∞ 加上这些三角的离散克拉默斯–克罗尼格变换。",
+        "ε₂ é uma soma de triângulos; ε₁ é ε∞ mais a transformada discreta de Kramers–Kronig desses triângulos. ",
+    ));
     if measure == Measure::Lum {
-        out.push_str("Esta medida es emisión: no pasa por Kramers–Kronig.");
+        out.push_str(tx(lang, "Esta medida es emisión: no pasa por Kramers–Kronig.", "This measurement is emission: it does not go through Kramers–Kronig.", "这项测量是发射：不经过克拉默斯–克罗尼格。", "Esta medida é emissão: não passa por Kramers–Kronig."));
     } else {
-        out.push_str("El ajuste compara la magnitud medida, no ε₂, salvo que se haya medido ε₂.");
+        out.push_str(tx(lang, "El ajuste compara la magnitud medida, no ε₂, salvo que se haya medido ε₂.", "The fit compares the measured quantity, not ε₂, unless ε₂ was what you measured.", "拟合比较的是测量量，不是 ε₂，除非测量的就是 ε₂。", "O ajuste compara a grandeza medida, não ε₂, salvo que se tenha medido ε₂."));
     }
     out.push_str("</p>");
     out.push_str("<p class=\"meta\">");
@@ -26,42 +48,60 @@ pub fn html(report: &FitReport, source: &str) -> String {
     if !source.trim().is_empty() {
         out.push_str(" · ");
     }
-    out.push_str(&esc(&format!("{} · {}", measure.label(), unit.label())));
+    out.push_str(&esc(&format!(
+        "{} · {}",
+        crate::i18n::measure_name(lang, measure.key()),
+        crate::i18n::unit_name(lang, unit.key())
+    )));
     out.push_str("</p>");
     out.push_str("<p class=\"note\">");
-    out.push_str(axis_note(unit));
+    out.push_str(axis_note(unit, lang));
     out.push_str("</p>");
 
     let mut n = 0u32;
-    conditions(&mut out, report, &mut n);
-    highlights(&mut out, report, &mut n);
-    warnings(&mut out, report, &mut n);
-    peaks(&mut out, report, &mut n);
+    conditions(&mut out, report, &mut n, lang);
+    highlights(&mut out, report, &mut n, lang);
+    warnings(&mut out, report, &mut n, lang);
+    peaks(&mut out, report, &mut n, lang);
     if measure == Measure::Lum {
-        luminescence_spectrum(&mut out, report, &mut n);
+        luminescence_spectrum(&mut out, report, &mut n, lang);
     } else {
-        comparison(&mut out, report, &mut n);
-        optics(&mut out, report, &mut n);
-        extended(&mut out, report, &mut n);
+        comparison(&mut out, report, &mut n, lang);
+        optics(&mut out, report, &mut n, lang);
+        extended(&mut out, report, &mut n, lang);
     }
-    definitions(&mut out, report, &mut n);
-    out.push_str("<footer><p>Lightmatter. El cálculo es el del laboratorio: Rust, sin cuenta. Este archivo no es la empresa de computación fotónica del mismo nombre.</p></footer>");
+    definitions(&mut out, report, &mut n, lang);
+    out.push_str(&format!(
+        "<footer><p>{}</p></footer>",
+        tx(
+            lang,
+            "Lightmatter. El cálculo es el del laboratorio: Rust, sin cuenta. Este archivo no es la empresa de computación fotónica del mismo nombre.",
+            "Lightmatter. The calculation is the laboratory’s: Rust, no account. This file is not the photonic-computing company of the same name.",
+            "Lightmatter。计算就是实验室里的：Rust，无需账户。本文件不是同名的光子计算公司。",
+            "Lightmatter. O cálculo é o do laboratório: Rust, sem conta. Este arquivo não é a empresa de computação fotônica do mesmo nome.",
+        )
+    ));
     out.push_str("</main></body></html>");
     out
 }
 
-fn title(measure: Measure) -> String {
+fn title(measure: Measure, lang: Lang) -> String {
     if measure == Measure::Lum {
-        "Informe de luminiscencia".into()
+        tx(lang, "Informe de luminiscencia", "Luminescence report", "发光报告", "Relatório de luminescência").into()
     } else {
-        format!("Informe del ajuste de {}", measure.symbol())
+        format!(
+            "{} {}",
+            tx(lang, "Informe del ajuste de", "Fit report for", "拟合报告：", "Relatório do ajuste de"),
+            measure.symbol()
+        )
     }
 }
 
-fn head(title: &str) -> String {
+fn head(title: &str, lang: Lang) -> String {
+    let lang = lang.html();
     format!(
         r#"<!DOCTYPE html>
-<html lang="es">
+<html lang="{lang}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -111,10 +151,10 @@ fn h2(out: &mut String, n: &mut u32, title: &str) {
     out.push_str("</h2>");
 }
 
-fn conditions(out: &mut String, report: &FitReport, n: &mut u32) {
+fn conditions(out: &mut String, report: &FitReport, n: &mut u32, lang: Lang) {
     let measure = report.measure();
     let o = &report.options;
-    h2(out, n, "Condiciones del cálculo");
+    h2(out, n, tx(lang, "Condiciones del cálculo", "Conditions of the calculation", "计算条件", "Condições do cálculo"));
     out.push_str("<table><thead><tr><th class=\"text\">Condición</th><th>Valor</th></tr></thead><tbody>");
     kv(out, "Medida", measure.label(), false);
     kv(out, "Unidad del archivo", o.unit.label(), false);
@@ -147,9 +187,9 @@ fn conditions(out: &mut String, report: &FitReport, n: &mut u32) {
     out.push_str("</tbody></table>");
 }
 
-fn highlights(out: &mut String, report: &FitReport, n: &mut u32) {
+fn highlights(out: &mut String, report: &FitReport, n: &mut u32, lang: Lang) {
     let measure = report.measure();
-    h2(out, n, "Resultados principales");
+    h2(out, n, tx(lang, "Resultados principales", "Main results", "主要结果", "Resultados principais"));
     out.push_str("<table><thead><tr><th class=\"text\">Resultado</th><th>Valor</th></tr></thead><tbody>");
     if measure == Measure::Lum {
         kv(out, "Picos", &report.peaks.len().to_string(), true);
@@ -218,8 +258,8 @@ fn highlights(out: &mut String, report: &FitReport, n: &mut u32) {
     out.push_str("<p class=\"note\">Las filas en verde son las que resumen el ajuste. El resto del archivo es el detalle, punto a punto.</p>");
 }
 
-fn warnings(out: &mut String, report: &FitReport, n: &mut u32) {
-    h2(out, n, "Avisos");
+fn warnings(out: &mut String, report: &FitReport, n: &mut u32, lang: Lang) {
+    h2(out, n, tx(lang, "Avisos", "Warnings", "提示", "Avisos"));
     if report.warnings.is_empty() {
         out.push_str("<p>Ninguno.</p>");
         return;
@@ -233,9 +273,9 @@ fn warnings(out: &mut String, report: &FitReport, n: &mut u32) {
     out.push_str("</ul>");
 }
 
-fn peaks(out: &mut String, report: &FitReport, n: &mut u32) {
+fn peaks(out: &mut String, report: &FitReport, n: &mut u32, lang: Lang) {
     let what = if report.measure() == Measure::Lum { "la intensidad" } else { "ε₂" };
-    h2(out, n, "Picos");
+    h2(out, n, tx(lang, "Picos", "Peaks", "峰", "Picos"));
     if report.peaks.is_empty() {
         out.push_str("<p>Ningún máximo local pasa del 5 % de prominencia.</p>");
         return;
@@ -273,13 +313,13 @@ fn peaks(out: &mut String, report: &FitReport, n: &mut u32) {
     out.push_str(" cuya prominencia pasa del 5 % del rango. La fila verde es el más alto. FWHM es el ancho a media altura sobre la base local; «abierto» si esa mitad no se alcanza dentro del rango. El área es la integral del pico sobre su base.</caption></table>");
 }
 
-fn comparison(out: &mut String, report: &FitReport, section: &mut u32) {
+fn comparison(out: &mut String, report: &FitReport, section: &mut u32, lang: Lang) {
     let n = report.data_x.len();
     let sym = report.measure().symbol();
     let model = model_of(report);
     let with_sigma = report.data_sigma.len() == n && report.errors_given;
     let with_err = report.q_err.len() == n;
-    h2(out, section, "Datos y ajuste");
+    h2(out, section, tx(lang, "Datos y ajuste", "Data and fit", "数据与拟合", "Dados e ajuste"));
     out.push_str("<table><thead><tr><th class=\"text\">");
     out.push_str(&esc(report.options.unit.axis()));
     out.push_str("</th><th>");
@@ -316,7 +356,7 @@ fn comparison(out: &mut String, report: &FitReport, section: &mut u32) {
     out.push_str("</tbody><caption>Cada fila es un punto medido. La columna del ajuste es la magnitud pedida, calculada desde el par (ε₁, ε₂). La diferencia es ajuste menos dato, en las mismas unidades. ±1σ sale de la covarianza de los datos y solo aparece si el archivo traía la tercera columna.</caption></table>");
 }
 
-fn optics(out: &mut String, report: &FitReport, section: &mut u32) {
+fn optics(out: &mut String, report: &FitReport, section: &mut u32, lang: Lang) {
     let n = report.omega.len();
     if n == 0 || report.eps1.len() != n || report.eps2.len() != n {
         return;
@@ -326,7 +366,7 @@ fn optics(out: &mut String, report: &FitReport, section: &mut u32) {
     let with_err = report.coef_err.len() == n;
     let with_units = report.sigma1.len() == n && report.sigma2.len() == n && report.absorption.len() == n;
     let with_film = report.transmittance.len() == n && report.absorbance.len() == n;
-    h2(out, section, "Constantes ópticas");
+    h2(out, section, tx(lang, "Constantes ópticas", "Optical constants", "光学常数", "Constantes ópticas"));
     out.push_str("<table><thead><tr><th class=\"text\">");
     out.push_str(&esc(report.options.unit.axis()));
     out.push_str("</th><th>ε₁</th><th>ε₂</th>");
@@ -376,12 +416,12 @@ fn optics(out: &mut String, report: &FitReport, section: &mut u32) {
     out.push_str("</tbody><caption>Valores en las anclas del modelo. σ₁ y σ₂ están en Ω⁻¹ cm⁻¹, α en cm⁻¹. T es la transmitancia de una lámina en aire y A = −log₁₀(T); salen cuando hay espesor y unidad de ω. R es la reflectividad de un medio semi-infinito a incidencia normal.</caption></table>");
 }
 
-fn extended(out: &mut String, report: &FitReport, section: &mut u32) {
+fn extended(out: &mut String, report: &FitReport, section: &mut u32, lang: Lang) {
     let n = report.ext_omega.len();
     if n == 0 || report.ext_eps1.len() != n || report.ext_eps2.len() != n {
         return;
     }
-    h2(out, section, "Fuera del rango medido");
+    h2(out, section, tx(lang, "Fuera del rango medido", "Outside the measured range", "测量范围之外", "Fora da faixa medida"));
     out.push_str("<table><thead><tr><th class=\"text\">");
     out.push_str(&esc(report.options.unit.axis()));
     out.push_str("</th><th>ε₁</th><th>ε₂</th></tr></thead><tbody>");
@@ -395,10 +435,10 @@ fn extended(out: &mut String, report: &FitReport, section: &mut u32) {
     out.push_str("</tbody><caption>Extrapolación. ε₂ baja en línea recta hasta cero fuera de la ventana medida, y esa cola ya entró en ε₁. No son datos nuevos.</caption></table>");
 }
 
-fn luminescence_spectrum(out: &mut String, report: &FitReport, section: &mut u32) {
+fn luminescence_spectrum(out: &mut String, report: &FitReport, section: &mut u32, lang: Lang) {
     let n = report.data_x.len();
     let with_vrs = report.vrs_y.len() == n;
-    h2(out, section, "Espectro");
+    h2(out, section, tx(lang, "Espectro", "Spectrum", "光谱", "Espectro"));
     out.push_str("<table><thead><tr><th class=\"text\">");
     out.push_str(&esc(report.options.unit.axis()));
     out.push_str("</th><th>I</th>");
@@ -422,8 +462,8 @@ fn luminescence_spectrum(out: &mut String, report: &FitReport, section: &mut u32
     out.push_str(".</caption></table>");
 }
 
-fn definitions(out: &mut String, report: &FitReport, section: &mut u32) {
-    h2(out, section, "Definiciones");
+fn definitions(out: &mut String, report: &FitReport, section: &mut u32, lang: Lang) {
+    h2(out, section, tx(lang, "Definiciones", "Definitions", "定义", "Definições"));
     out.push_str("<ul>");
     if report.measure() == Measure::Lum {
         item(out, "Pico. Máximo local cuya prominencia —altura sobre el valle más alto a los lados— pasa del 5 % del rango. Se listan hasta 12.");
@@ -517,12 +557,12 @@ fn lambda_note(unit: Unit, x: f64) -> String {
         .unwrap_or_default()
 }
 
-fn axis_note(unit: Unit) -> &'static str {
+fn axis_note(unit: Unit, lang: Lang) -> &'static str {
     match unit {
-        Unit::Nm => "El archivo estaba en nm. Las tablas usan E = 1239,84193 / λ, en eV.",
-        Unit::Cm => "El eje es el número de onda, en cm⁻¹.",
-        Unit::Ev => "El eje es la energía, en eV.",
-        Unit::Other => "El eje no tiene unidad física. No hay α, conductividad ni brecha de Tauc.",
+        Unit::Nm => tx(lang, "El archivo estaba en nm. Las tablas usan E = 1239,84193 / λ, en eV.", "The file was in nm. The tables use E = 1239.84193 / λ, in eV.", "文件原来是 nm。表格使用 E = 1239.84193 / λ，单位 eV。", "O arquivo estava em nm. As tabelas usam E = 1239,84193 / λ, em eV."),
+        Unit::Cm => tx(lang, "El eje es el número de onda, en cm⁻¹.", "The axis is the wavenumber, in cm⁻¹.", "坐标轴是波数，单位 cm⁻¹。", "O eixo é o número de onda, em cm⁻¹."),
+        Unit::Ev => tx(lang, "El eje es la energía, en eV.", "The axis is the energy, in eV.", "坐标轴是能量，单位 eV。", "O eixo é a energia, em eV."),
+        Unit::Other => tx(lang, "El eje no tiene unidad física. No hay α, conductividad ni brecha de Tauc.", "The axis has no physical unit. There is no α, conductivity, or Tauc gap.", "坐标轴没有物理单位。没有 α、电导率或 Tauc 带隙。", "O eixo não tem unidade física. Não há α, condutividade nem lacuna de Tauc."),
     }
 }
 

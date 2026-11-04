@@ -137,7 +137,20 @@ fn send(id: &str, format: &str) -> Response<Body> {
     let Some(loaded) = store::load_report(id) else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    let Some((body, mime, ext)) = export(&loaded.report, format, &loaded.source) else {
+    deliver(id, &loaded.source, &loaded.report, format)
+}
+
+pub fn deliver(id: &str, source: &str, report: &lightmatter::fit::FitReport, format: &str) -> Response<Body> {
+    let Some((body, mime, ext)) = (if format == "informe" {
+        let lang = crate::locale::current();
+        Some((
+            lightmatter::informe::page(report, source, lang),
+            "text/html; charset=utf-8",
+            "html",
+        ))
+    } else {
+        export(report, format, source)
+    }) else {
         return StatusCode::NOT_FOUND.into_response();
     };
     crate::stats::record_download(format);

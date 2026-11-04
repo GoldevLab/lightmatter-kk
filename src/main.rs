@@ -2,14 +2,17 @@
 
 mod admin_auth;
 mod http;
+mod locale;
 mod pages;
 mod seo;
+mod shelf;
 mod stats;
 mod store;
 
 use std::net::SocketAddr;
 
 use axum::routing::{get, post};
+use lightmatter::i18n::{tx, Lang};
 use pages::PagesRegistry;
 use resuma::prelude::*;
 use resuma::SeoKit;
@@ -20,12 +23,27 @@ fn view_transition_name(path: &str) -> String {
 }
 
 fn chrome(body: View) -> View {
+    let lang = locale::current();
+    set_page_lang(lang.html());
     let path = current_request().map(|r| r.path).unwrap_or_else(|| "/".into());
-    let admin_link = if admin_auth::request_is_admin() {
-        view! { <NavLink href="/admin" class="site-nav-link" activeClass="is-active">"Admin"</NavLink> }
-    } else {
-        view! { <span hidden=""></span> }
-    };
+    let nav_aria = tx(lang, "Secciones", "Sections", "栏目", "Seções");
+    let home = tx(lang, "Inicio", "Home", "首页", "Início");
+    let lab = tx(lang, "Laboratorio", "Laboratory", "实验室", "Laboratório");
+    let learn = tx(lang, "Aprender", "Learn", "学习", "Aprender");
+    let shelf_nav = tx(lang, "Estante", "Shelf", "书架", "Estante");
+    let foot_lab = tx(lang, "Laboratorio Kramers–Kronig", "Kramers–Kronig laboratory", "克拉默斯–克罗尼格实验室", "Laboratório Kramers–Kronig");
+    let foot_guide = tx(lang, "Guía del análisis", "Guide to the analysis", "分析指南", "Guia da análise");
+    let foot_method = tx(lang, "El método", "The method", "方法", "O método");
+    let foot_const = tx(lang, "Constantes ópticas", "Optical constants", "光学常数", "Constantes ópticas");
+    let foot_lum = tx(lang, "Luminiscencia", "Luminescence", "发光", "Luminescência");
+    let blurb = tx(
+        lang,
+        " — ajuste variacional de Kramers–Kronig (Kuzmenko, 2005). El cálculo es Rust. Se instala y sigue ajustando sin red. No es la empresa de chips fotónicos del mismo nombre.",
+        " — variational Kramers–Kronig fit (Kuzmenko, 2005). The calculation is Rust. Install it and it keeps fitting offline. It is not the photonic-computing company of the same name.",
+        " — 变分克拉默斯–克罗尼格拟合（Kuzmenko，2005）。计算用 Rust。安装后离线仍可拟合。不是同名的光子计算公司。",
+        " — ajuste variacional de Kramers–Kronig (Kuzmenko, 2005). O cálculo é Rust. Instalado, continua ajustando sem rede. Não é a empresa de computação fotônica do mesmo nome.",
+    );
+    let languages = lang_switch(lang, &locale::here());
     let vt = view_transition_name(&path);
     view! {
         <div class="app">
@@ -37,14 +55,15 @@ fn chrome(body: View) -> View {
             <header class="site-header">
                 <div class="header-inner">
                     <NavLink href="/" class="brand" activeClass="is-active" exact=true>
-                        <span class="brand-mark" aria-hidden="true">"Lm"</span>
+                        <span class="brand-mark"><img src="/images/lightmatter-logo.jpg" alt="" width="256" height="256" /></span>
                         <span class="brand-name">"Lightmatter"</span>
                     </NavLink>
-                    <nav class="site-nav" aria-label="Secciones">
-                        <NavLink href="/" class="site-nav-link" activeClass="is-active" exact=true>"Inicio"</NavLink>
-                        <NavLink href="/lab" class="site-nav-link" activeClass="is-active">"Laboratorio"</NavLink>
-                        <NavLink href="/learn" class="site-nav-link" activeClass="is-active">"Aprender"</NavLink>
-                    {admin_link}
+                    <nav class="site-nav" aria-label={nav_aria}>
+                        <NavLink href="/" class="site-nav-link" activeClass="is-active" exact=true>{home}</NavLink>
+                        <NavLink href="/lab" class="site-nav-link" activeClass="is-active">{lab}</NavLink>
+                        <NavLink href="/shelf" class="site-nav-link" activeClass="is-active">{shelf_nav}</NavLink>
+                        <NavLink href="/learn" class="site-nav-link" activeClass="is-active">{learn}</NavLink>
+                        {languages}
                     </nav>
                 </div>
                 <span class="nav-progress" aria-hidden="true"></span>
@@ -52,23 +71,53 @@ fn chrome(body: View) -> View {
             {with_view_transition(vt, vec![Child::View(body)])}
             <footer class="site-footer">
                 <nav class="seo-links" aria-label="Lightmatter">
-                    <NavLink href="/">"Inicio"</NavLink>
+                    <NavLink href="/">{home}</NavLink>
                     <span aria-hidden="true">" · "</span>
-                    <NavLink href="/lab">"Laboratorio Kramers–Kronig"</NavLink>
+                    <NavLink href="/lab">{foot_lab}</NavLink>
                     <span aria-hidden="true">" · "</span>
-                    <NavLink href="/learn">"Guía del análisis"</NavLink>
+                    <NavLink href="/learn">{foot_guide}</NavLink>
                     <span aria-hidden="true">" · "</span>
-                    <a href="/learn#metodo">"El método"</a>
+                    <a href="/learn#metodo">{foot_method}</a>
                     <span aria-hidden="true">" · "</span>
-                    <a href="/learn#constantes">"Constantes ópticas"</a>
+                    <a href="/learn#constantes">{foot_const}</a>
                     <span aria-hidden="true">" · "</span>
-                    <a href="/learn#luminiscencia">"Luminiscencia"</a>
+                    <a href="/learn#luminiscencia">{foot_lum}</a>
                 </nav>
                 <p>
                     <strong>"Lightmatter"</strong>
-                    " — ajuste variacional de Kramers–Kronig (Kuzmenko, 2005). El cálculo es Rust. Se instala y sigue ajustando sin red. No es la empresa de chips fotónicos del mismo nombre."
+                    {blurb}
                 </p>
             </footer>
+        </div>
+    }
+}
+
+fn lang_switch(current: Lang, path: &str) -> View {
+    let next = locale::encode(path);
+    let aria = tx(current, "Idioma. Español es el de esta página si no eliges otro.", "Language. Spanish is this page’s language until you choose another.", "语言。未另选时，本页为西班牙语。", "Idioma. Espanhol é o desta página se você não escolher outro.");
+    let caption = tx(current, "Idioma", "Language", "语言", "Idioma");
+    let options = View::fragment(
+        Lang::ALL
+            .into_iter()
+            .map(|lang| {
+                let href = format!("/lang/{}?next={next}", lang.code());
+                let label = lang.menu_label();
+                let node = if lang == current {
+                    view! { <option value={href} selected=true>{label}</option> }
+                } else {
+                    view! { <option value={href}>{label}</option> }
+                };
+                Child::View(node)
+            })
+            .collect(),
+    );
+    view! {
+        <div class="lang-slot">
+            <label class="lang-switch" title={aria}>
+                <span>{caption}</span>
+                <select>{options}</select>
+            </label>
+            <script src="/js/lang.js?v=2" defer=true></script>
         </div>
     }
 }
@@ -79,11 +128,21 @@ fn RootLayout() -> View {
 }
 
 fn not_found() -> View {
+    let lang = locale::current();
+    let title = tx(lang, "No está esa ruta", "That page is not here", "没有这个页面", "Essa página não está aqui");
+    let lead = tx(
+        lang,
+        "Lightmatter tiene la portada, el laboratorio y la guía.",
+        "Lightmatter has the home page, the laboratory, and the guide.",
+        "Lightmatter 有首页、实验室和指南。",
+        "Lightmatter tem a página inicial, o laboratório e o guia.",
+    );
+    let back = tx(lang, "Volver", "Back", "返回", "Voltar");
     chrome(view! {
         <main class="panel">
-            <h1>"No está esa ruta"</h1>
-            <p class="hero-lead">"Lightmatter tiene la portada, el laboratorio y la guía."</p>
-            <NavLink href="/" class="btn btn-primary">"Volver"</NavLink>
+            <h1>{title}</h1>
+            <p class="hero-lead">{lead}</p>
+            <NavLink href="/" class="btn btn-primary">{back}</NavLink>
         </main>
     })
 }
@@ -105,8 +164,8 @@ fn seo_kit() -> SeoKit {
         )
         .with_llms_section(
             "Páginas",
-            "Portada /. Laboratorio /lab (ahí se pega el espectro). Guía /learn, con anclas #dato #eje #medidas #metodo #ajuste #constantes #lectura #luminiscencia #limites. \
-             Un resultado concreto vive en /lab?r= y no se indexa. /lab/run y /lab/download son el cálculo y la descarga, no páginas. /admin es privado.",
+            "Portada /. Laboratorio /lab (ahí se pega el espectro). Estante /shelf, cada ficha en /shelf/id. Guía /learn, con anclas #dato #medidas #metodo #ajuste #constantes #lectura #luminiscencia #limites. \
+             Un resultado concreto vive en /lab?r= y no se indexa. /lab/run y /lab/download son el cálculo y la descarga, no páginas.",
         )
         .with_llms_section(
             "Cómo se ajusta",
@@ -126,12 +185,12 @@ fn seo_kit() -> SeoKit {
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/icon.svg\" type=\"image/svg+xml\" />";
+    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" />";
     const ICON: &[u8] = include_bytes!("icon.svg");
     let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("public");
     let origin = seo::origin();
     let security_txt = format!(
-        "Canonical: {origin}/.well-known/security.txt\nPreferred-Languages: es, en\nExpires: 2027-12-31T23:59:59Z\n"
+        "Canonical: {origin}/.well-known/security.txt\nPreferred-Languages: es, en, zh, pt\nExpires: 2027-12-31T23:59:59Z\n"
     );
     let security_txt: &'static [u8] = Box::leak(security_txt.into_bytes().into_boxed_slice());
     let mut serve = FlowServeOptions::default();
@@ -143,8 +202,8 @@ async fn main() -> std::io::Result<()> {
     serve.security.csp.worker_src = vec!["'self'".into()];
 
     FlowApp::new()
-        .with_title(seo::HOME_TITLE)
-        .with_description(seo::HOME_DESCRIPTION)
+        .with_title(seo::home_title(lightmatter::i18n::Lang::Es))
+        .with_description(seo::home_description(lightmatter::i18n::Lang::Es))
         .with_site_url(origin)
         .with_head(head)
         .with_seo_kit(seo_kit())
@@ -154,7 +213,7 @@ async fn main() -> std::io::Result<()> {
                 .cookie("lightmatter_theme")
                 .storage_key("lightmatter-theme"),
         )
-        .with_stylesheet("/images/lightmatter.css?v=14")
+        .with_stylesheet("/images/lightmatter.css?v=20")
         .with_sitemap_exclude(["/admin"])
         .static_asset("/icon.svg", ICON, "image/svg+xml")
         .static_asset("/.well-known/security.txt", security_txt, "text/plain; charset=utf-8")
@@ -167,12 +226,28 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-27".into(),
+            cache_version: "lm-34".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
             icon_char: Some("L".into()),
-            precache_paths: vec!["/".into(), "/lab".into(), "/learn".into(), "/images/lightmatter.css?v=14".into(), "/js/offline.js?v=10".into(), "/robots.txt".into(), "/llms.txt".into(), "/sitemap.xml".into()],
+            precache_paths: vec![
+                "/".into(),
+                "/lab".into(),
+                "/learn".into(),
+                "/images/lightmatter.css?v=20".into(),
+                "/js/lang.js?v=2".into(),
+                "/images/lightmatter-logo.jpg".into(),
+                "/images/learn-kk.jpg".into(),
+                "/images/learn-data.jpg".into(),
+                "/images/learn-triangles.jpg".into(),
+                "/images/learn-fit.jpg".into(),
+                "/images/learn-constants.jpg".into(),
+                "/js/offline.js?v=11".into(),
+                "/robots.txt".into(),
+                "/llms.txt".into(),
+                "/sitemap.xml".into(),
+            ],
             shortcuts: vec![PwaShortcut {
                 name: "Laboratorio".into(),
                 short_name: "Lab".into(),
@@ -185,6 +260,10 @@ async fn main() -> std::io::Result<()> {
         .route("/lab/run", post(http::run_lab))
         .route("/lab/download/{id}", get(http::download))
         .route("/lab/download/{id}/{format}", get(http::download_as))
+        .route("/shelf/publish", post(shelf::publish_form))
+        .route("/shelf/{id}/download", get(shelf::download))
+        .route("/shelf/{id}/download/{format}", get(shelf::download_as))
+        .route("/lang/{code}", get(locale::set_lang))
         .route("/admin/login", post(admin_auth::login))
         .route("/admin/logout", post(admin_auth::logout))
         .not_found(not_found)

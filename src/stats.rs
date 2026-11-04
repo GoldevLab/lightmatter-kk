@@ -8,6 +8,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
+use lightmatter::i18n::{tx, Lang};
+
 const MAX_RECENT: usize = 40;
 
 static BOOK: Mutex<Option<Book>> = Mutex::new(None);
@@ -198,20 +200,27 @@ pub fn grouped(n: u64) -> String {
     out
 }
 
-pub fn ago(secs: u64) -> String {
+pub fn ago(secs: u64, lang: Lang) -> String {
     if secs == 0 {
         return "—".into();
     }
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let age = now.saturating_sub(secs);
     if age < 60 {
-        "ahora".into()
-    } else if age < 3_600 {
-        format!("hace {} min", age / 60)
+        return tx(lang, "ahora", "now", "刚刚", "agora").into();
+    }
+    let (n, unit_es, unit_en, unit_zh, unit_pt) = if age < 3_600 {
+        (age / 60, "min", "min", "分钟", "min")
     } else if age < 86_400 {
-        format!("hace {} h", age / 3_600)
+        (age / 3_600, "h", "h", "小时", "h")
     } else {
-        format!("hace {} d", age / 86_400)
+        (age / 86_400, "d", "d", "天", "d")
+    };
+    match lang {
+        Lang::Es => format!("hace {n} {unit_es}"),
+        Lang::En => format!("{n} {unit_en} ago"),
+        Lang::Zh => format!("{n} {unit_zh}前"),
+        Lang::Pt => format!("há {n} {unit_pt}"),
     }
 }
 

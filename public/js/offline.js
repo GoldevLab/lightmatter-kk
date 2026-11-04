@@ -17,6 +17,24 @@ import("/images/lightmatter.js")
 const MEASURE_LABEL = { eps2: "ε₂", eps1: "ε₁", n: "n", k: "k", r: "R", alpha: "α", t: "T", lum: "I" };
 const UNIT_LABEL = { cm: "cm⁻¹", ev: "eV", nm: "nm", otra: "ω" };
 
+function pageLang() {
+  const tag = (document.documentElement.lang || "es").toLowerCase();
+  if (tag.startsWith("zh")) return "zh";
+  if (tag.startsWith("pt")) return "pt";
+  if (tag.startsWith("en")) return "en";
+  return "es";
+}
+
+function uiText(key) {
+  const pack = {
+    es: { chart: "Gráfica", empty: "La curva de lo que cargues aparece aquí, sin esperar al ajuste.", needRow: "Hace falta otra fila numérica.", tooBig: "El archivo supera 4 MB.", unread: "No pude leer ese archivo.", working: "Calculando…", local: "Calculando en este aparato…", needNet: "Abre la app una vez con red para guardar el motor Rust en el aparato.", engine: "El motor Rust no pudo leer ese espectro.", fail: "No se pudo ajustar.", save: "Bajar gráfica:", svg: "Vectorial, editable en Inkscape o Illustrator", png: "Imagen a doble resolución" },
+    en: { chart: "Plot", empty: "The curve of what you load appears here, before the fit.", needRow: "Another numeric row is needed.", tooBig: "The file is over 4 MB.", unread: "That file could not be read.", working: "Fitting…", local: "Fitting on this device…", needNet: "Open the app once online so the Rust engine is saved on this device.", engine: "The Rust engine could not read that spectrum.", fail: "The fit did not run.", save: "Save plot:", svg: "Vector file, editable in Inkscape or Illustrator", png: "Image at double resolution" },
+    zh: { chart: "图", empty: "载入的曲线会出现在这里，不必等待拟合。", needRow: "还需要一行数字。", tooBig: "文件超过 4 MB。", unread: "无法读取这个文件。", working: "正在拟合…", local: "正在本机拟合…", needNet: "请先联网打开一次，以便把 Rust 引擎存到这台设备。", engine: "Rust 引擎无法读取这份光谱。", fail: "未能完成拟合。", save: "保存图：", svg: "矢量图，可在 Inkscape 或 Illustrator 中编辑", png: "双倍分辨率图像" },
+    pt: { chart: "Gráfico", empty: "A curva do que você carregar aparece aqui, sem esperar o ajuste.", needRow: "Falta outra linha numérica.", tooBig: "O arquivo passa de 4 MB.", unread: "Não consegui ler esse arquivo.", working: "Ajustando…", local: "Ajustando neste aparelho…", needNet: "Abra o app uma vez com rede para guardar o motor Rust neste aparelho.", engine: "O motor Rust não conseguiu ler esse espectro.", fail: "Não foi possível ajustar.", save: "Baixar gráfico:", svg: "Vetorial, editável no Inkscape ou no Illustrator", png: "Imagem em dobro da resolução" },
+  };
+  return (pack[pageLang()] || pack.es)[key];
+}
+
 function parseColumns(text) {
   const xs = [];
   const ys = [];
@@ -94,10 +112,10 @@ function drawPreview() {
   const yName = axisName(form && form.querySelector("select[name='measure']"), MEASURE_LABEL, "medida");
   const xName = axisName(form && form.querySelector("select[name='unit']"), UNIT_LABEL, "ω");
   const caption = figure.querySelector("figcaption");
-  if (caption) caption.textContent = "Gráfica";
+  if (caption) caption.textContent = uiText("chart");
   if (xs.length < 2) {
-    slot.innerHTML = "<p class=\"preview-empty\">La curva de lo que cargues aparece aquí, sin esperar al ajuste.</p>";
-    if (meta) meta.textContent = xs.length === 1 ? "Hace falta otra fila numérica." : "";
+    slot.innerHTML = `<p class="preview-empty">${uiText("empty")}</p>`;
+    if (meta) meta.textContent = xs.length === 1 ? uiText("needRow") : "";
     return;
   }
   const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b] || a - b);
@@ -203,7 +221,7 @@ if (drop && form) {
       const file = input.files && input.files[0];
       if (!file) return;
       if (file.size > 4_000_000) {
-        if (meta) meta.textContent = "El archivo supera 4 MB.";
+        if (meta) meta.textContent = uiText("tooBig");
         input.value = "";
         return;
       }
@@ -211,7 +229,7 @@ if (drop && form) {
       try {
         text = await file.text();
       } catch {
-        if (meta) meta.textContent = "No pude leer ese archivo.";
+        if (meta) meta.textContent = uiText("unread");
         return;
       }
       if (box) box.value = text;
@@ -393,12 +411,12 @@ function enhanceChart(figure) {
   const svgBtn = document.createElement("button");
   svgBtn.type = "button";
   svgBtn.textContent = "SVG";
-  svgBtn.title = "Vectorial, editable en Inkscape o Illustrator";
+  svgBtn.title = uiText("svg");
   svgBtn.addEventListener("click", () => save(new Blob([serialize()], { type: "image/svg+xml;charset=utf-8" }), `lightmatter-${slug}.svg`));
   const pngBtn = document.createElement("button");
   pngBtn.type = "button";
   pngBtn.textContent = "PNG";
-  pngBtn.title = "Imagen a doble resolución";
+  pngBtn.title = uiText("png");
   pngBtn.addEventListener("click", () => {
     const img = new Image();
     const url = URL.createObjectURL(new Blob([serialize()], { type: "image/svg+xml;charset=utf-8" }));
@@ -416,7 +434,7 @@ function enhanceChart(figure) {
     img.src = url;
   });
   const label = document.createElement("span");
-  label.textContent = "Bajar gráfica:";
+  label.textContent = uiText("save");
   tools.append(label, svgBtn, pngBtn);
   figure.appendChild(tools);
 }
@@ -434,7 +452,7 @@ if (form) {
       const btn = form.querySelector("button[type='submit']");
       if (btn) {
         btn.disabled = true;
-        btn.textContent = "Calculando…";
+        btn.textContent = uiText("working");
       }
       return;
     }
@@ -442,7 +460,7 @@ if (form) {
     event.preventDefault();
     if (!live) return;
     if (!adjust) {
-      live.innerHTML = "<p class=\"form-error\" role=\"alert\">Abre la app una vez con red para guardar el motor Rust en el aparato.</p>";
+      live.innerHTML = `<p class="form-error" role="alert">${uiText("needNet")}</p>`;
       return;
     }
     const data = new FormData(form);
@@ -465,19 +483,20 @@ if (form) {
       unit: String(data.get("unit") || "otra"),
       thickness: String(data.get("thickness") || ""),
       temperature: String(data.get("temperature") || ""),
+      lang: pageLang(),
     };
-    live.innerHTML = "<p class=\"muted\">Calculando en este aparato…</p>";
+    live.innerHTML = `<p class="muted">${uiText("local")}</p>`;
     await new Promise((r) => setTimeout(r, 30));
     let result;
     try {
       result = JSON.parse(adjust(text, JSON.stringify(opts)));
     } catch (err) {
-      live.textContent = "El motor Rust no pudo leer ese espectro.";
+      live.textContent = uiText("engine");
       return;
     }
     if (!result.ok) {
       live.innerHTML = "<p class=\"form-error\" role=\"alert\"></p>";
-      live.querySelector("p").textContent = result.error || "No se pudo ajustar.";
+      live.querySelector("p").textContent = result.error || uiText("fail");
       return;
     }
     live.innerHTML = result.html;

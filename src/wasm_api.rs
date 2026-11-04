@@ -4,6 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::chart::result_markup;
 use crate::fit::{fit_csv, fit_text, peaks_csv, report_csv, report_dat, report_json, TextFit};
+use crate::i18n::{tx, Lang};
 use crate::informe;
 
 #[wasm_bindgen]
@@ -11,7 +12,9 @@ pub fn adjust(text: &str, opts_json: &str) -> String {
     let opts = text_fit_from_json(opts_json);
     match fit_text(text, &opts) {
         Ok(report) => {
-            let html = result_markup("este aparato", &report, "#");
+            let lang = opt_lang(opts_json);
+            let here = tx(lang, "este aparato", "this device", "本机", "este aparelho");
+            let html = result_markup(here, &report, "#", lang);
             serde_json::json!({
                 "ok": true,
                 "html": html,
@@ -21,13 +24,18 @@ pub fn adjust(text: &str, opts_json: &str) -> String {
                     "ajuste": fit_csv(&report),
                     "picos": if report.peaks.is_empty() { String::new() } else { peaks_csv(&report) },
                     "json": report_json(&report),
-                    "informe": informe::html(&report, "este aparato"),
+                    "informe": informe::page(&report, here, lang),
                 }
             })
             .to_string()
         }
         Err(error) => serde_json::json!({ "ok": false, "error": error }).to_string(),
     }
+}
+
+fn opt_lang(raw: &str) -> Lang {
+    let v = serde_json::from_str::<serde_json::Value>(raw).unwrap_or(serde_json::Value::Null);
+    Lang::from_code(v.get("lang").and_then(|x| x.as_str()).unwrap_or("")).unwrap_or(Lang::Es)
 }
 
 fn text_fit_from_json(raw: &str) -> TextFit {

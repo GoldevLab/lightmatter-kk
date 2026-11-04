@@ -9,6 +9,8 @@ impl FlowPageRegistry for PagesRegistry {
             ("/", "index"),
             ("/lab", "lab"),
             ("/learn", "learn"),
+            ("/shelf", "shelf"),
+            ("/shelf/:id", "shelf_one"),
             ("/admin", "admin"),
         ]
     }
@@ -22,6 +24,8 @@ impl FlowPageRegistry for PagesRegistry {
             "index" => Some(super::index::page(req)),
             "lab" => Some(super::lab::page(req)),
             "learn" => Some(super::learn::page(req)),
+            "shelf" => Some(super::shelf::page(req)),
+            "shelf_one" => Some(super::shelf::one(req)),
             "admin" => Some(super::admin::page(req)),
             _ => None,
         }
