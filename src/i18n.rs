@@ -1,5 +1,5 @@
-//! Idioma de la interfaz. La elección guardada manda; si no hay, se negocia
-//! `Accept-Language` (RFC 9110). Lo que no está entre estos cuatro cae en español.
+//! Idioma de la interfaz. Sale de `Accept-Language` (RFC 9110).
+//! Lo que no está entre estos cuatro cae en español.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lang {
@@ -70,26 +70,9 @@ pub fn tx(lang: Lang, es: &'static str, en: &'static str, zh: &'static str, pt: 
     }
 }
 
-/// Cookie `lm_lang` si es uno de los cuatro. Si no, `Accept-Language`.
-pub fn resolve(cookie_header: Option<&str>, accept_language: Option<&str>) -> Lang {
-    if let Some(lang) = cookie_pick(cookie_header) {
-        return lang;
-    }
+/// El idioma sale del navegador (`Accept-Language`). Si no coincide, español.
+pub fn resolve(_cookie_header: Option<&str>, accept_language: Option<&str>) -> Lang {
     negotiate(accept_language.unwrap_or(""))
-}
-
-fn cookie_pick(header: Option<&str>) -> Option<Lang> {
-    let header = header?;
-    for part in header.split(';') {
-        let part = part.trim();
-        let Some(value) = part.strip_prefix("lm_lang=") else {
-            continue;
-        };
-        if let Some(lang) = Lang::from_code(value.trim()) {
-            return Some(lang);
-        }
-    }
-    None
 }
 
 /// Elige el idioma de mayor calidad (`q`) que esta app tenga.
@@ -175,10 +158,10 @@ mod tests {
     }
 
     #[test]
-    fn cookie_wins_over_the_browser() {
+    fn the_browser_decides() {
         assert_eq!(
             resolve(Some("lm_lang=zh; lm_admin=no"), Some("en-US,en;q=0.9")),
-            Lang::Zh
+            Lang::En
         );
         assert_eq!(resolve(Some("theme=dark"), Some("pt-PT,en;q=0.4")), Lang::Pt);
     }

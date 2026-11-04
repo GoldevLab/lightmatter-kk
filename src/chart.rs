@@ -91,7 +91,7 @@ pub fn line_chart(
 
     // La escala va en el SVG: el cliente invierte el mapeo para leer el valor exacto bajo el mouse.
     let mut svg = format!(
-        "<figure class=\"chart\"><figcaption>{}</figcaption><svg viewBox=\"0 0 {width} {height}\" role=\"img\" aria-label=\"{}\" data-xmin=\"{xmin}\" data-xmax=\"{xmax}\" data-log=\"{}\" data-ymin=\"{ymin}\" data-ymax=\"{ymax}\" data-left=\"{left}\" data-top=\"{top}\" data-pw=\"{plot_w}\" data-ph=\"{plot_h}\" data-xlabel=\"{}\"><rect width=\"720\" height=\"340\" fill=\"#07141b\"/>",
+        "<figure class=\"chart\"><figcaption>{}</figcaption><svg viewBox=\"0 0 {width} {height}\" role=\"img\" aria-label=\"{}\" data-xmin=\"{xmin}\" data-xmax=\"{xmax}\" data-log=\"{}\" data-ymin=\"{ymin}\" data-ymax=\"{ymax}\" data-left=\"{left}\" data-top=\"{top}\" data-pw=\"{plot_w}\" data-ph=\"{plot_h}\" data-xlabel=\"{}\"><rect width=\"720\" height=\"340\" fill=\"var(--chart-bg)\"/>",
         escape(title),
         escape(title),
         if use_log { 1 } else { 0 },
@@ -99,7 +99,7 @@ pub fn line_chart(
     );
     let y0 = mapy(0.0).clamp(top, top + plot_h);
     svg.push_str(&format!(
-        "<line x1=\"{left}\" y1=\"{y0:.2}\" x2=\"{:.2}\" y2=\"{y0:.2}\" stroke=\"rgba(62,224,197,0.28)\"/>",
+        "<line x1=\"{left}\" y1=\"{y0:.2}\" x2=\"{:.2}\" y2=\"{y0:.2}\" stroke=\"var(--chart-axis)\"/>",
         left + plot_w
     ));
     let tick = |v: f64| -> String {
@@ -124,7 +124,7 @@ pub fn line_chart(
     for v in [ymax, (ymin + ymax) * 0.5, ymin] {
         let yy = mapy(v);
         svg.push_str(&format!(
-            "<line x1=\"{left}\" y1=\"{yy:.2}\" x2=\"{:.2}\" y2=\"{yy:.2}\" stroke=\"rgba(143,184,176,0.16)\"/><text x=\"{:.0}\" y=\"{:.1}\" fill=\"#8fb8b0\" font-size=\"11\" text-anchor=\"end\" font-family=\"Segoe UI,sans-serif\">{}</text>",
+            "<line x1=\"{left}\" y1=\"{yy:.2}\" x2=\"{:.2}\" y2=\"{yy:.2}\" stroke=\"var(--chart-grid)\"/><text x=\"{:.0}\" y=\"{:.1}\" fill=\"var(--chart-ink)\" font-size=\"11\" text-anchor=\"end\" font-family=\"Segoe UI,sans-serif\">{}</text>",
             left + plot_w,
             left - 8.0,
             yy + 4.0,
@@ -154,10 +154,10 @@ pub fn line_chart(
             }
             d.push('Z');
             svg.push_str(&format!(
-                "<path d=\"{d}\" fill=\"rgba(62,224,197,0.18)\" stroke=\"none\"/>"
+                "<path d=\"{d}\" fill=\"var(--chart-band)\" stroke=\"none\"/>"
             ));
             svg.push_str(
-                "<rect x=\"374\" y=\"10\" width=\"10\" height=\"10\" rx=\"2\" fill=\"rgba(62,224,197,0.45)\"/><text x=\"390\" y=\"19\" fill=\"#d7f6f0\" font-size=\"12\" font-family=\"Segoe UI,sans-serif\">±1σ</text>",
+                "<rect x=\"374\" y=\"10\" width=\"10\" height=\"10\" rx=\"2\" fill=\"rgba(62,224,197,0.45)\"/><text x=\"390\" y=\"19\" fill=\"var(--chart-label)\" font-size=\"12\" font-family=\"Segoe UI,sans-serif\">±1σ</text>",
             );
         }
     }
@@ -182,7 +182,7 @@ pub fn line_chart(
         ));
         let lx = left + idx as f64 * 150.0;
         svg.push_str(&format!(
-            "<rect x=\"{lx:.0}\" y=\"10\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{}\"/><text x=\"{:.0}\" y=\"19\" fill=\"#d7f6f0\" font-size=\"12\" font-family=\"Segoe UI,sans-serif\">{}</text>",
+            "<rect x=\"{lx:.0}\" y=\"10\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{}\"/><text x=\"{:.0}\" y=\"19\" fill=\"var(--chart-label)\" font-size=\"12\" font-family=\"Segoe UI,sans-serif\">{}</text>",
             s.color,
             lx + 16.0,
             escape(s.name)
@@ -213,20 +213,20 @@ pub fn line_chart(
     for x in x_ticks {
         let px = mapx(x);
         svg.push_str(&format!(
-            "<text x=\"{px:.1}\" y=\"{}\" fill=\"#8fb8b0\" font-size=\"11\" text-anchor=\"middle\" font-family=\"Segoe UI,sans-serif\">{}</text>",
+            "<text x=\"{px:.1}\" y=\"{}\" fill=\"var(--chart-ink)\" font-size=\"11\" text-anchor=\"middle\" font-family=\"Segoe UI,sans-serif\">{}</text>",
             height - 22.0,
             tick(x)
         ));
     }
     svg.push_str(&format!(
-        "<text x=\"{:.1}\" y=\"{}\" fill=\"#d7f6f0\" font-size=\"12\" text-anchor=\"middle\" font-family=\"Segoe UI,sans-serif\">{}{}</text>",
+        "<text x=\"{:.1}\" y=\"{}\" fill=\"var(--chart-label)\" font-size=\"12\" text-anchor=\"middle\" font-family=\"Segoe UI,sans-serif\">{}{}</text>",
         left + plot_w / 2.0,
         height - 6.0,
         escape(x_label),
         if use_log { "  (escala log)" } else { "" }
     ));
     svg.push_str(&format!(
-        "<text x=\"8\" y=\"28\" fill=\"#d7f6f0\" font-size=\"12\" font-family=\"Segoe UI,sans-serif\">{}</text></svg></figure>",
+        "<text x=\"8\" y=\"28\" fill=\"var(--chart-label)\" font-size=\"12\" font-family=\"Segoe UI,sans-serif\">{}</text></svg></figure>",
         escape(y_label)
     ));
     svg

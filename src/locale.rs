@@ -1,4 +1,4 @@
-//! Idioma de esta petición: cookie `lm_lang`, y si no existe, Accept-Language.
+//! Idioma de esta petición: `Accept-Language`. Español si el navegador no coincide.
 
 use axum::body::Body;
 use axum::extract::{Path, Query};
@@ -15,44 +15,17 @@ pub fn current() -> Lang {
     i18n::resolve(cookie, accept)
 }
 
-/// Ruta actual, con la consulta, para volver después de elegir idioma.
-pub fn here() -> String {
-    let Some(req) = resuma::prelude::current_request() else {
-        return "/".into();
-    };
-    if req.query.is_empty() {
-        return req.path.clone();
-    }
-    let mut query = String::new();
-    for (key, value) in &req.query {
-        if !query.is_empty() {
-            query.push('&');
-        }
-        query.push_str(&encode(key));
-        query.push('=');
-        query.push_str(&encode(value));
-    }
-    if query.is_empty() {
-        req.path.clone()
-    } else {
-        format!("{}?{query}", req.path)
-    }
-}
-
 #[derive(Deserialize)]
 pub struct NextQuery {
     next: Option<String>,
 }
 
 pub async fn set_lang(Path(code): Path<String>, Query(q): Query<NextQuery>) -> Response<Body> {
-    let Some(lang) = Lang::from_code(&code) else {
+    let Some(_lang) = Lang::from_code(&code) else {
         return StatusCode::NOT_FOUND.into_response();
     };
     let next = safe_next(q.next.as_deref().unwrap_or("/"));
-    let mut cookie = format!(
-        "lm_lang={}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax",
-        lang.code()
-    );
+    let mut cookie = "lm_lang=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax".to_string();
     if crate::stats::site_is_https() {
         cookie.push_str("; Secure");
     }
@@ -76,17 +49,4 @@ fn safe_next(raw: &str) -> String {
     } else {
         "/".into()
     }
-}
-
-pub fn encode(s: &str) -> String {
-    let mut out = String::new();
-    for b in s.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'/' => {
-                out.push(b as char);
-            }
-            _ => out.push_str(&format!("%{b:02X}")),
-        }
-    }
-    out
 }

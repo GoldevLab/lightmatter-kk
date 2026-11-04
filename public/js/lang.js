@@ -1,9 +1,3 @@
-document.addEventListener("change", (event) => {
-  const el = event.target;
-  if (!(el instanceof HTMLSelectElement) || !el.closest(".lang-switch")) return;
-  if (el.value) window.location.assign(el.value);
-});
-
 const installBtn = document.querySelector(".install-app");
 if (installBtn) {
   const standalone =

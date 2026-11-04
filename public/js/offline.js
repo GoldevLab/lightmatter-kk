@@ -165,9 +165,9 @@ function drawPreview() {
     d += `${d ? "L" : "M"}${px.toFixed(2)},${py.toFixed(2)}`;
   }
   const parts = [
-    `<rect width="720" height="340" fill="#07141b"/>`,
-    `<line x1="${left}" y1="${top}" x2="${left}" y2="${top + ph}" stroke="rgba(143,184,176,0.35)"/>`,
-    `<line x1="${left}" y1="${top + ph}" x2="${left + pw}" y2="${top + ph}" stroke="rgba(143,184,176,0.35)"/>`,
+    `<rect width="720" height="340" fill="var(--chart-bg)"/>`,
+    `<line x1="${left}" y1="${top}" x2="${left}" y2="${top + ph}" stroke="var(--chart-grid)"/>`,
+    `<line x1="${left}" y1="${top + ph}" x2="${left + pw}" y2="${top + ph}" stroke="var(--chart-grid)"/>`,
   ];
   const xTicks = log
     ? (() => {
@@ -185,17 +185,17 @@ function drawPreview() {
   for (let v = Math.ceil(ymin / yStep) * yStep; v <= ymax + yStep * 1e-6; v += yStep) {
     const py = yOf(v);
     if (py < top - 1 || py > top + ph + 1) continue;
-    parts.push(`<line x1="${left}" y1="${py.toFixed(1)}" x2="${left + pw}" y2="${py.toFixed(1)}" stroke="rgba(143,184,176,0.12)"/>`);
-    parts.push(`<text x="${left - 8}" y="${(py + 4).toFixed(1)}" fill="#8fb8b0" font-size="11" text-anchor="end" font-family="ui-monospace,monospace">${fmt(v)}</text>`);
+    parts.push(`<line x1="${left}" y1="${py.toFixed(1)}" x2="${left + pw}" y2="${py.toFixed(1)}" stroke="var(--chart-grid)"/>`);
+    parts.push(`<text x="${left - 8}" y="${(py + 4).toFixed(1)}" fill="var(--chart-ink)" font-size="11" text-anchor="end" font-family="ui-monospace,monospace">${fmt(v)}</text>`);
   }
   for (const v of xTicks) {
     if (!(v > 0) && log) continue;
     const px = xOf(v);
     if (px < left - 1 || px > left + pw + 1) continue;
-    parts.push(`<text x="${px.toFixed(1)}" y="${top + ph + 18}" fill="#8fb8b0" font-size="11" text-anchor="middle" font-family="ui-monospace,monospace">${fmt(v)}</text>`);
+    parts.push(`<text x="${px.toFixed(1)}" y="${top + ph + 18}" fill="var(--chart-ink)" font-size="11" text-anchor="middle" font-family="ui-monospace,monospace">${fmt(v)}</text>`);
   }
-  parts.push(`<text x="${left + pw / 2}" y="${height - 8}" fill="#8fb8b0" font-size="12" text-anchor="middle">${xName}</text>`);
-  parts.push(`<text x="16" y="${top + ph / 2}" fill="#8fb8b0" font-size="12" text-anchor="middle" transform="rotate(-90 16 ${top + ph / 2})">${yName}</text>`);
+  parts.push(`<text x="${left + pw / 2}" y="${height - 8}" fill="var(--chart-ink)" font-size="12" text-anchor="middle">${xName}</text>`);
+  parts.push(`<text x="16" y="${top + ph / 2}" fill="var(--chart-ink)" font-size="12" text-anchor="middle" transform="rotate(-90 16 ${top + ph / 2})">${yName}</text>`);
   parts.push(`<path data-series="datos" fill="none" stroke="#9aa7b2" stroke-width="1.6" d="${d}"/>`);
   slot.innerHTML =
     `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Datos cargados" data-xmin="${xmin}" data-xmax="${xmax}" data-log="${log ? 1 : 0}" data-ymin="${ymin}" data-ymax="${ymax}" data-left="${left}" data-top="${top}" data-pw="${pw}" data-ph="${ph}" data-xlabel="${xName}">${parts.join("")}</svg>`;
@@ -313,7 +313,7 @@ function enhanceChart(figure) {
 
   const ns = "http://www.w3.org/2000/svg";
   const cursor = document.createElementNS(ns, "line");
-  cursor.setAttribute("stroke", "rgba(231,246,242,0.45)");
+  cursor.setAttribute("stroke", "var(--chart-label)");
   cursor.setAttribute("stroke-dasharray", "3 3");
   cursor.setAttribute("y1", top);
   cursor.setAttribute("y2", top + ph);
@@ -323,7 +323,7 @@ function enhanceChart(figure) {
     const c = document.createElementNS(ns, "circle");
     c.setAttribute("r", "3.5");
     c.setAttribute("fill", s.color);
-    c.setAttribute("stroke", "#07141b");
+    c.setAttribute("stroke", "var(--chart-bg)");
     c.setAttribute("stroke-width", "1.5");
     c.style.display = "none";
     svg.appendChild(c);
@@ -425,7 +425,8 @@ function enhanceChart(figure) {
       canvas.width = 1440;
       canvas.height = 680;
       const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#07141b";
+      const ink = getComputedStyle(document.documentElement).getPropertyValue("--chart-bg").trim() || "#07141b";
+      ctx.fillStyle = ink;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);

@@ -12,7 +12,7 @@ mod store;
 use std::net::SocketAddr;
 
 use axum::routing::{get, post};
-use lightmatter::i18n::{tx, Lang};
+use lightmatter::i18n::tx;
 use pages::PagesRegistry;
 use resuma::prelude::*;
 use resuma::SeoKit;
@@ -44,7 +44,7 @@ fn chrome(body: View) -> View {
         " — ajuste variacional de Kramers–Kronig (Kuzmenko, 2005). O cálculo é Rust. Instalado, continua ajustando sem rede. Não é a empresa de computação fotônica do mesmo nome.",
     );
     let install = tx(lang, "Instalar", "Install", "安装", "Instalar");
-    let languages = lang_switch(lang, &locale::here(), install);
+    let tools = nav_tools(lang, install);
     let vt = view_transition_name(&path);
     view! {
         <div class="app">
@@ -60,11 +60,10 @@ fn chrome(body: View) -> View {
                         <span class="brand-name">"Lightmatter"</span>
                     </NavLink>
                     <nav class="site-nav" aria-label={nav_aria}>
-                        <NavLink href="/" class="site-nav-link" activeClass="is-active" exact=true>{home}</NavLink>
                         <NavLink href="/lab" class="site-nav-link" activeClass="is-active">{lab}</NavLink>
                         <NavLink href="/shelf" class="site-nav-link" activeClass="is-active">{shelf_nav}</NavLink>
                         <NavLink href="/learn" class="site-nav-link" activeClass="is-active">{learn}</NavLink>
-                        {languages}
+                        {tools}
                     </nav>
                 </div>
                 <span class="nav-progress" aria-hidden="true"></span>
@@ -93,33 +92,18 @@ fn chrome(body: View) -> View {
     }
 }
 
-fn lang_switch(current: Lang, path: &str, install: &'static str) -> View {
-    let next = locale::encode(path);
-    let aria = tx(current, "Idioma. Español es el de esta página si no eliges otro.", "Language. Spanish is this page’s language until you choose another.", "语言。未另选时，本页为西班牙语。", "Idioma. Espanhol é o desta página se você não escolher outro.");
-    let caption = tx(current, "Idioma", "Language", "语言", "Idioma");
-    let options = View::fragment(
-        Lang::ALL
-            .into_iter()
-            .map(|lang| {
-                let href = format!("/lang/{}?next={next}", lang.code());
-                let label = lang.menu_label();
-                let node = if lang == current {
-                    view! { <option value={href} selected=true>{label}</option> }
-                } else {
-                    view! { <option value={href}>{label}</option> }
-                };
-                Child::View(node)
-            })
-            .collect(),
-    );
+fn nav_tools(lang: lightmatter::i18n::Lang, install: &'static str) -> View {
+    let theme_aria = tx(lang, "Tema", "Theme", "主题", "Tema");
+    let day = tx(lang, "Claro", "Light", "浅色", "Claro");
+    let night = tx(lang, "Oscuro", "Dark", "深色", "Escuro");
     view! {
-        <div class="lang-slot">
+        <div class="nav-tools">
+            <div class="theme-pair" role="group" aria-label={theme_aria}>
+                <ThemeSwitch id="day">{day}</ThemeSwitch>
+                <ThemeSwitch id="night">{night}</ThemeSwitch>
+            </div>
             <button type="button" class="install-app" hidden="">{install}</button>
-            <label class="lang-switch" title={aria}>
-                <span>{caption}</span>
-                <select>{options}</select>
-            </label>
-            <script src="/js/lang.js?v=3" defer=true></script>
+            <script src="/js/lang.js?v=4" defer=true></script>
         </div>
     }
 }
@@ -210,12 +194,12 @@ async fn main() -> std::io::Result<()> {
         .with_head(head)
         .with_seo_kit(seo_kit())
         .with_html_theme(
-            HtmlTheme::new(["spectrometer"])
-                .dark(["spectrometer"])
+            HtmlTheme::new(["day", "night"])
+                .dark(["night"])
                 .cookie("lightmatter_theme")
                 .storage_key("lightmatter-theme"),
         )
-        .with_stylesheet("/images/lightmatter.css?v=21")
+        .with_stylesheet("/images/lightmatter.css?v=24")
         .with_sitemap_exclude(["/admin"])
         .static_asset("/icon.svg", ICON, "image/svg+xml")
         .static_asset("/.well-known/security.txt", security_txt, "text/plain; charset=utf-8")
@@ -228,7 +212,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-35".into(),
+            cache_version: "lm-38".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
@@ -237,8 +221,8 @@ async fn main() -> std::io::Result<()> {
                 "/".into(),
                 "/lab".into(),
                 "/learn".into(),
-                "/images/lightmatter.css?v=21".into(),
-                "/js/lang.js?v=3".into(),
+                "/images/lightmatter.css?v=24".into(),
+                "/js/lang.js?v=4".into(),
                 "/_resuma/ui.css?v=4679afe0d6db98bc".into(),
                 "/_resuma/loader.js?v=2.0.1".into(),
                 "/images/lightmatter-logo.jpg".into(),
@@ -247,7 +231,7 @@ async fn main() -> std::io::Result<()> {
                 "/images/learn-triangles.jpg".into(),
                 "/images/learn-fit.jpg".into(),
                 "/images/learn-constants.jpg".into(),
-                "/js/offline.js?v=12".into(),
+                "/js/offline.js?v=13".into(),
                 "/robots.txt".into(),
                 "/llms.txt".into(),
                 "/sitemap.xml".into(),
