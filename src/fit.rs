@@ -1541,9 +1541,9 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             Measure::R => {
                 let v = guess.unwrap_or(1.0);
                 warnings.push(format!(
-                    "ε∞ vacío: se tomó {v:.3} de R en el extremo alto. Con solo R, ε₂ depende mucho de ε∞ y de lo que haya fuera del rango; si lo conoces, escríbelo."
+                    "ε∞ vacío: se inicia en {v:.3} a partir de R en el extremo alto y se ajusta junto con ε₂. Con solo R, la solución sigue dependiendo de lo que haya fuera del rango; si conoces ε∞, escríbelo para fijarlo."
                 ));
-                (v, false, "estimado de R en el extremo alto".to_string())
+                (v, true, "estimado de R en el extremo alto y ajustado junto con ε₂".to_string())
             }
             Measure::K | Measure::Alpha | Measure::T => {
                 warnings.push(format!(
@@ -2455,6 +2455,7 @@ mod tests {
             (Measure::Alpha, Some(2.5), 0.0, 0.03),
             (Measure::T, Some(2.5), 2.0, 0.05),
             (Measure::R, Some(2.5), 0.0, 0.05),
+            (Measure::R, None, 0.0, 0.05),
             (Measure::N, None, 0.0, 0.15),
         ] {
             let (report, err) = recover(m, eps_inf, d);
