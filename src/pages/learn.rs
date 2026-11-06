@@ -100,7 +100,7 @@ pub fn page(_req: FlowRequest) -> View {
                     tx(lang, "La integral cerrada de un triángulo", "The closed integral of a triangle", "一个三角的封闭积分", "A integral fechada de um triângulo"),
                     proof_g(lang),
                 )}
-                <p>"A la izquierda de la primera ancla medida y a la derecha de la última hay un ancla extra con coeficiente cero. Entre el extremo medido y esa ancla, ε₂ baja en línea recta hasta cero. Esa cola entra en ε₁. Si ε₂ se obligara a cero justo en el primer y el último dato, faltaría peso espectral y ε₁ saldría mal. La casilla de dibujar fuera del rango muestra esa prolongación: no son datos nuevos."</p>
+                <p>"A la izquierda de la primera ancla medida y a la derecha de la última hay un ancla extra con coeficiente cero. Entre el extremo medido y esa ancla, ε₂ baja en línea recta hasta cero. Los datos no fijan esa cola y la elección puede cambiar ε₁ dentro del rango. La tesis contempla añadir un oscilador fuera de la ventana si hace falta; esta app no ofrece ese control. La casilla de dibujar fuera del rango muestra la extrapolación: no son datos nuevos."</p>
                 <p>"Esta es la restricción variacional de Kuzmenko (2005). El triángulo es flexible: no supone que el material sea un oscilador de Lorentz, ni un Tauc–Lorentz, ni un Fano. Esos modelos siguen siendo útiles para interpretar, pero aquí no se imponen."</p>
                 <h3>"ε∞"</h3>
                 <p>"ε∞ es ε₁ por encima de tu ventana, la contribución de todo lo que no mediste a más alta frecuencia. No es un segundo ajuste de la curva."</p>
@@ -427,10 +427,10 @@ fn proof_lm(lang: lightmatter::i18n::Lang) -> View {
     );
     let d = tx(
         lang,
-        "Si χ² baja, λ se divide entre 10. Si no baja, el paso se deshace y λ se multiplica por 10. Se para cuando χ² ya no baja un 1 % y ningún punto queda a más del 2 % del rango de los datos, o al llegar al tope de pasos. La barra ±1σ es la raíz de la diagonal de α⁻¹, con δχ² = 1, usando solo la curvatura de los datos.",
-        "If χ² falls, λ is divided by 10. If it does not, the step is undone and λ is multiplied by 10. It stops when χ² no longer falls by 1% and no point is farther than 2% of the data span, or when the step cap is reached. The ±1σ bar is the square root of the diagonal of α⁻¹, with δχ² = 1, using only the curvature of the data.",
-        "若 χ² 下降，λ 除以 10。若没有下降，这一步撤销，λ 乘以 10。当 χ² 不再下降 1%，且没有点离开数据范围的 2% 以上时停止，或者到达步数上限。±1σ 是 α⁻¹ 对角元的平方根，δχ² = 1，只用数据的曲率。",
-        "Se χ² desce, λ divide-se por 10. Se não desce, o passo desfaz-se e λ multiplica-se por 10. Para quando χ² já não desce 1% e nenhum ponto fica a mais de 2% do intervalo dos dados, ou ao chegar ao teto de passos. A barra ±1σ é a raiz da diagonal de α⁻¹, com δχ² = 1, usando só a curvatura dos dados.",
+        "Si χ² baja, λ se divide entre 10. Si no baja, el paso se deshace y λ se multiplica por 10. Se para cuando χ² ya no baja un 1 % y ningún punto queda a más del 2 % del rango, al llegar al tope de pasos o si λ supera 10⁸ sin progreso (se informa como frenado si aún quedan puntos lejos). La barra ±1σ es la raíz de la diagonal de α⁻¹, con δχ² = 1, usando solo la curvatura de los datos.",
+        "If χ² falls, λ is divided by 10. If it does not, the step is undone and λ is multiplied by 10. It stops when χ² no longer falls by 1% and no point is farther than 2% of the data span, at the step cap, or if λ exceeds 10⁸ without progress (reported as stalled if points remain far). The ±1σ bar is the square root of the diagonal of α⁻¹, with δχ² = 1, using only the curvature of the data.",
+        "若 χ² 下降，λ 除以 10；若没有下降，则撤销这一步并将 λ 乘以 10。当 χ² 不再下降 1% 且没有点偏离数据范围超过 2%、达到步数上限，或 λ 超过 10⁸ 且无进展时停止（若仍有点偏远则报告为停滞）。±1σ 是 α⁻¹ 对角元的平方根，δχ² = 1，只用数据的曲率。",
+        "Se χ² desce, λ divide-se por 10. Se não desce, o passo é desfeito e λ multiplica-se por 10. Para quando χ² já não desce 1% e nenhum ponto fica a mais de 2% do intervalo, ao chegar ao teto de passos ou se λ supera 10⁸ sem progresso (informado como travado se ainda houver pontos distantes). A barra ±1σ é a raiz da diagonal de α⁻¹, com δχ² = 1, usando só a curvatura dos dados.",
     );
     view! {
         <p>{a}</p>

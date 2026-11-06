@@ -407,61 +407,6 @@ fn logspace(lo: f64, hi: f64, n: usize) -> Vec<f64> {
     (0..n).map(|i| (ln_lo + i as f64 * step).exp()).collect()
 }
 
-fn span_of(anchors: &[f64]) -> f64 {
-    match (anchors.first(), anchors.last()) {
-        (Some(lo), Some(hi)) => (hi - lo).max(0.0),
-        _ => 0.0,
-    }
-}
-
-/// En una malla logarítmica el hueco lineal de la década alta se come el triángulo.
-/// Se rellenan los huecos mayores que tres veces el paso medio, sin pasar de `cap`.
-fn fill_wide_gaps(anchors: Vec<f64>, max_gap: f64, cap: usize) -> Vec<f64> {
-    if anchors.len() < 2 || !(max_gap > 0.0) || cap < 2 {
-        return anchors;
-    }
-    let end = *anchors.last().unwrap();
-    let mut refined = Vec::with_capacity(anchors.len());
-    refined.push(anchors[0]);
-    for &next in anchors.iter().skip(1) {
-        let prev = *refined.last().unwrap();
-        let gap = next - prev;
-        if gap > max_gap {
-            let want = (gap / max_gap).ceil() as usize;
-            let room = cap.saturating_sub(refined.len() + 1);
-            let n_fill = want.saturating_sub(1).min(room);
-            if n_fill > 0 {
-                let step = gap / (n_fill as f64 + 1.0);
-                for k in 1..=n_fill {
-                    refined.push(prev + k as f64 * step);
-                }
-            }
-        }
-        if refined.len() >= cap {
-            break;
-        }
-        refined.push(next);
-    }
-    if refined.last().copied() != Some(end) {
-        if refined.len() >= cap {
-            if let Some(last) = refined.last_mut() {
-                *last = end;
-            }
-        } else {
-            refined.push(end);
-        }
-    }
-    refined
-}
-
-fn linspace(lo: f64, hi: f64, n: usize) -> Vec<f64> {
-    if n < 2 {
-        return vec![lo];
-    }
-    let step = (hi - lo) / (n - 1) as f64;
-    (0..n).map(|i| lo + i as f64 * step).collect()
-}
-
 fn tri_basis(omega: f64, j: usize, anch: &[f64]) -> f64 {
     if j == 0 || j + 1 >= anch.len() {
         return 0.0;
@@ -589,245 +534,192 @@ impl Cov {
     }
 
     /// √(rowᵀ C row).
-                let rj = row.val[jj];
-                if rj == 0.0 {
-                    continue;
+    fn quad(&self, row: &Row) -> f64 {
+        let mut v = 0.0;
+        for p in 0..row.idx.len() {
+            let (j, rj) = (row.idx[p], row.val[p]);
+            for q in 0..row.idx.len() {
+                let (k, rk) = (row.idx[q], row.val[q]);
+                let c = match self {
+                    Cov::Dense(c) => c[j][k],
+                    Cov::Band { diag, off } => {
+                        if j == k {
+                            diag[j]
+                        } else if j + 1 == k {
+                            off[j]
+                        } else if k + 1 == j {
+                            off[k]
+                        } else {
+                            0.0
+                        }
+                    }
+                };
+                v += rj * c * rk;
+            }
+        }
+        v.max(0.0).sqrt()
+    }
+}
+
+struct Dense(Vec<Vec<f64>>);
+
+    impl Dense {
+        fn new(n: usize) -> Self {
+            Dense(mat(n))
+        }
+    }
+
+    impl SysMat for Dense {
+        fn size(&self) -> usize {
+            self.0.len()
+        }
+
+        fn clear(&mut self) {
+            for r in self.0.iter_mut() {
+                r.fill(0.0);
+            }
+        }
+
+        fn add_lower(&mut self, j: usize, k: usize, v: f64) {
+            self.0[j][k] += v;
+        }
+
+        fn add_row(&mut self, row: &Row, wgt: f64) {
+            let n = row.idx.len();
+            if n == self.size() && row.idx.iter().enumerate().all(|(p, &j)| p == j) {
+                for jj in 0..n {
+                    let rj = row.val[jj];
+                    if rj == 0.0 {
+                        continue;
+                    }
+                    let wt = rj * wgt;
+                    let line = &mut self.0[jj][..=jj];
+                    for (l, v) in line.iter_mut().zip(&row.val[..=jj]) {
+                        *l += wt * v;
+                    }
                 }
-                let wt = rj * wgt;
-                let line = &mut self.0[jj][..=jj];
-                for (l, v) in line.iter_mut().zip(&row.val[..=jj]) {
-                    *l += wt * v;
+                return;
+            }
+            for p in 0..n {
+                let (j, vj) = (row.idx[p], row.val[p] * wgt);
+                for q in 0..=p {
+                    let (k, vk) = (row.idx[q], row.val[q]);
+                    let (r, c) = if j >= k { (j, k) } else { (k, j) };
+                    self.0[r][c] += vj * vk;
                 }
             }
-            return;
         }
-        for p in 0..n {
-            let (j, vj) = (row.idx[p], row.val[p] * wgt);
-            for q in 0..=p {
-                let (k, vk) = (row.idx[q], row.val[q]);
-                let (r, c) = if j >= k { (j, k) } else { (k, j) };
-                self.0[r][c] += vj * vk;
+
+        fn solve_damped(&self, lam: f64, b: &[f64]) -> Option<Vec<f64>> {
+            let n = self.size();
+            let mut temp = mat(n);
+            for j in 0..n {
+                for k in 0..=j {
+                    temp[j][k] = self.0[j][k];
+                    temp[k][j] = self.0[j][k];
+                }
+                temp[j][j] = self.0[j][j] * (1.0 + lam);
+            }
+            let mut x = b.to_vec();
+            if gaussj(&mut temp, &mut x) {
+                Some(x)
+            } else {
+                None
+            }
+        }
+
+        fn covariance(&self) -> Option<Cov> {
+            let n = self.size();
+            let mut temp = mat(n);
+            for j in 0..n {
+                for k in 0..=j {
+                    temp[j][k] = self.0[j][k];
+                    temp[k][j] = self.0[j][k];
+                }
+            }
+            let mut rhs = vec![0.0; n];
+            if gaussj(&mut temp, &mut rhs) {
+                Some(Cov::Dense(temp))
+            } else {
+                None
             }
         }
     }
 
-    fn solve_damped(&self, lam: f64, b: &[f64]) -> Option<Vec<f64>> {
+/// Banda simétrica: `rows[j][d]` guarda A[j][j − d]. Con ε₂ cada dato toca dos anclas vecinas
+/// y la suavidad une j − 1, j, j + 1, así que la banda es 2 y el paso cuesta O(n).
+struct Band {
+    rows: Vec<Vec<f64>>,
+    bw: usize,
+}
+
+impl Band {
+    fn new(n: usize) -> Self {
+        Band { rows: vec![vec![0.0; 3]; n], bw: 2 }
+    }
+
+    fn at(&self, j: usize, d: usize) -> f64 {
+        self.rows[j].get(d).copied().unwrap_or(0.0)
+    }
+
+    /// L D Lᵀ sin pivotes: la matriz es semidefinida positiva más la diagonal amortiguada.
+    fn factor(&self, lam: f64) -> Option<(Vec<Vec<f64>>, Vec<f64>)> {
         let n = self.size();
-        let mut temp = mat(n);
+        let bw = self.bw;
+        let mut l = vec![vec![0.0; bw + 1]; n];
+        let mut d = vec![0.0; n];
         for j in 0..n {
-            for k in 0..=j {
-                temp[j][k] = self.0[j][k];
-                temp[k][j] = self.0[j][k];
+            let mut dj = self.at(j, 0) * (1.0 + lam);
+            for k in j.saturating_sub(bw)..j {
+                let ljk = l[j][j - k];
+                dj -= ljk * ljk * d[k];
             }
-            temp[j][j] = self.0[j][j] * (1.0 + lam);
-        }
-        fn quad(&self, row: &Row) -> f64 {
-            let mut v = 0.0;
-            for p in 0..row.idx.len() {
-                let (j, rj) = (row.idx[p], row.val[p]);
-                for q in 0..row.idx.len() {
-                    let (k, rk) = (row.idx[q], row.val[q]);
-                    let c = match self {
-                        Cov::Dense(c) => c[j][k],
-                        Cov::Band { diag, off } => {
-                            if j == k {
-                                diag[j]
-                            } else if j + 1 == k {
-                                off[j]
-                            } else if k + 1 == j {
-                                off[k]
-                            } else {
-                                0.0
-                            }
-                        }
-                    };
-                    v += rj * c * rk;
+            if !(dj > 1e-300) || !dj.is_finite() {
+                return None;
+            }
+            d[j] = dj;
+            for i in j + 1..(j + bw + 1).min(n) {
+                let mut v = self.at(i, i - j);
+                for k in i.saturating_sub(bw)..j {
+                    v -= l[i][i - k] * l[j][j - k] * d[k];
                 }
+                l[i][i - j] = v / dj;
             }
-            v.max(0.0).sqrt()
+        }
+        Some((l, d))
+    }
+
+    fn solve_with(l: &[Vec<f64>], d: &[f64], bw: usize, b: &[f64]) -> Vec<f64> {
+        let n = b.len();
+        let mut y = b.to_vec();
+        for i in 0..n {
+            for k in i.saturating_sub(bw)..i {
+                y[i] -= l[i][i - k] * y[k];
+            }
+        }
+        for i in 0..n {
+            y[i] /= d[i];
+        }
+        for i in (0..n).rev() {
+            for k in i + 1..(i + bw + 1).min(n) {
+                y[i] -= l[k][k - i] * y[k];
+            }
+        }
+        y
+    }
+}
+
+impl SysMat for Band {
+    fn size(&self) -> usize {
+        self.rows.len()
+    }
+
+    fn clear(&mut self) {
+        for r in self.rows.iter_mut() {
+            r.fill(0.0);
         }
     }
 
-    struct Dense(Vec<Vec<f64>>);
-
-    impl Dense {
-        fn new(n: usize) -> Self {
-            Dense(mat(n))
-        }
-    }
-
-    impl SysMat for Dense {
-        fn size(&self) -> usize {
-            self.0.len()
-        }
-
-        fn clear(&mut self) {
-            for r in self.0.iter_mut() {
-                r.fill(0.0);
-            }
-        }
-
-        fn add_lower(&mut self, j: usize, k: usize, v: f64) {
-            self.0[j][k] += v;
-        }
-
-        fn add_row(&mut self, row: &Row, wgt: f64) {
-            let n = row.idx.len();
-            if n == self.size() && row.idx.iter().enumerate().all(|(p, &j)| p == j) {
-                for jj in 0..n {
-                    let rj = row.val[jj];
-                    if rj == 0.0 {
-                        continue;
-                    }
-                    let wt = rj * wgt;
-                    let line = &mut self.0[jj][..=jj];
-                    for (l, v) in line.iter_mut().zip(&row.val[..=jj]) {
-                        *l += wt * v;
-                    }
-                }
-                return;
-            }
-            for p in 0..n {
-                let (j, vj) = (row.idx[p], row.val[p] * wgt);
-                for q in 0..=p {
-                    let (k, vk) = (row.idx[q], row.val[q]);
-                    let (r, c) = if j >= k { (j, k) } else { (k, j) };
-                    self.0[r][c] += vj * vk;
-                }
-            }
-        }
-
-        fn solve_damped(&self, lam: f64, b: &[f64]) -> Option<Vec<f64>> {
-            let n = self.size();
-            let mut temp = mat(n);
-            for j in 0..n {
-                for k in 0..=j {
-                    temp[j][k] = self.0[j][k];
-                    temp[k][j] = self.0[j][k];
-                }
-                temp[j][j] = self.0[j][j] * (1.0 + lam);
-            }
-            let mut x = b.to_vec();
-            if gaussj(&mut temp, &mut x) {
-                Some(x)
-            } else {
-                None
-            }
-        }
-
-        fn covariance(&self) -> Option<Cov> {
-            let n = self.size();
-            let mut temp = mat(n);
-            for j in 0..n {
-                for k in 0..=j {
-                    temp[j][k] = self.0[j][k];
-                    temp[k][j] = self.0[j][k];
-                }
-            }
-            let mut rhs = vec![0.0; n];
-            if gaussj(&mut temp, &mut rhs) {
-                Some(Cov::Dense(temp))
-            } else {
-                None
-            }
-        }
-    }
-                            } else {
-                                0.0
-                            }
-                        }
-                    };
-                    v += rj * c * rk;
-                }
-            }
-            v.max(0.0).sqrt()
-        }
-    }
-
-    struct Dense(Vec<Vec<f64>>);
-
-    impl Dense {
-        fn new(n: usize) -> Self {
-            Dense(mat(n))
-        }
-    }
-
-    impl SysMat for Dense {
-        fn size(&self) -> usize {
-            self.0.len()
-        }
-
-        fn clear(&mut self) {
-            for r in self.0.iter_mut() {
-                r.fill(0.0);
-            }
-        }
-
-        fn add_lower(&mut self, j: usize, k: usize, v: f64) {
-            self.0[j][k] += v;
-        }
-
-        fn add_row(&mut self, row: &Row, wgt: f64) {
-            let n = row.idx.len();
-            if n == self.size() && row.idx.iter().enumerate().all(|(p, &j)| p == j) {
-                for jj in 0..n {
-                    let rj = row.val[jj];
-                    if rj == 0.0 {
-                        continue;
-                    }
-                    let wt = rj * wgt;
-                    let line = &mut self.0[jj][..=jj];
-                    for (l, v) in line.iter_mut().zip(&row.val[..=jj]) {
-                        *l += wt * v;
-                    }
-                }
-                return;
-            }
-            for p in 0..n {
-                let (j, vj) = (row.idx[p], row.val[p] * wgt);
-                for q in 0..=p {
-                    let (k, vk) = (row.idx[q], row.val[q]);
-                    let (r, c) = if j >= k { (j, k) } else { (k, j) };
-                    self.0[r][c] += vj * vk;
-                }
-            }
-        }
-
-        fn solve_damped(&self, lam: f64, b: &[f64]) -> Option<Vec<f64>> {
-            let n = self.size();
-            let mut temp = mat(n);
-            for j in 0..n {
-                for k in 0..=j {
-                    temp[j][k] = self.0[j][k];
-                    temp[k][j] = self.0[j][k];
-                }
-                temp[j][j] = self.0[j][j] * (1.0 + lam);
-            }
-            let mut x = b.to_vec();
-            if gaussj(&mut temp, &mut x) {
-                Some(x)
-            } else {
-                None
-            }
-        }
-
-        fn covariance(&self) -> Option<Cov> {
-            let n = self.size();
-            let mut temp = mat(n);
-            for j in 0..n {
-                for k in 0..=j {
-                    temp[j][k] = self.0[j][k];
-                    temp[k][j] = self.0[j][k];
-                }
-            }
-            let mut rhs = vec![0.0; n];
-            if gaussj(&mut temp, &mut rhs) {
-                Some(Cov::Dense(temp))
-            } else {
-                None
-            }
-        }
-    }
     fn add_lower(&mut self, j: usize, k: usize, v: f64) {
         let d = j - k;
         if d > self.bw {
@@ -1355,11 +1247,9 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     if anchors.last().is_none_or(|v| *v < w_hi * (1.0 - 1e-12)) {
         anchors.push(w_hi);
     }
-    if measure == Measure::R {
-        warnings.push(
-            "Fuera del rango medido, ε₂ no queda determinada por R. Aquí la malla cae linealmente a cero en los nodos de borde; esa extrapolación afecta ε₁ dentro del rango.".into(),
-        );
-    }
+    warnings.push(
+        "Fuera del rango medido, ε₂ no queda fijada por los datos. El modelo la lleva linealmente a cero en los nodos de borde; esa extrapolación puede cambiar ε₁ dentro del rango.".into(),
+    );
     let ma = anchors.len();
     let mut active = vec![true; ma + 1];
     active[0] = false;
@@ -2223,6 +2113,10 @@ mod tests {
         ] {
             let (report, err) = recover(m, eps_inf, d);
             assert_eq!(report.model_q.len(), report.data_x.len());
+            assert!(
+                report.warnings.iter().any(|w| w.contains("ε₂ no queda fijada por los datos")),
+                "{m:?}: {:?}", report.warnings
+            );
             if m == Measure::R {
                 assert!(report.chisq < 1e-3, "R χ² {} pasos {}", report.chisq, report.iters_used);
                 assert_eq!(report.n_anchor, report.points_used);
@@ -2536,6 +2430,7 @@ mod tests {
             physics: Physics::default(),
         })
         .unwrap();
+        assert!(report.warnings.iter().any(|w| w.contains("ε₂ no queda fijada por los datos")));
         assert!(report.chisq < 1e-8, "χ² de datos {}", report.chisq);
         assert!((report.eps2[0] - y[0]).abs() < 1e-6);
         assert!((report.eps2.last().copied().unwrap() - y[7]).abs() < 1e-6);

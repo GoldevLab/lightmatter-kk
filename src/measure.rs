@@ -547,7 +547,7 @@ pub fn tauc_gap(e: &[f64], alpha: &[f64], p: f64) -> Option<f64> {
     }
 }
 
-/// El mismo corte, más el R² de (αE)^p entre el 15 % y el 85 % del máximo.
+/// Compara la linealidad de ambos exponentes en la misma ventana del borde.
 pub fn tauc_edge(e: &[f64], alpha: &[f64], p: f64) -> Option<TaucEdge> {
     let gap = tauc_gap(e, alpha, p)?;
     Some(TaucEdge { gap, r2: flank_r2(e, alpha, p).unwrap_or(0.0) })
@@ -558,14 +558,14 @@ fn flank_r2(e: &[f64], alpha: &[f64], p: f64) -> Option<f64> {
     if n < 5 {
         return None;
     }
-    let t: Vec<f64> = (0..n).map(|k| (alpha[k].max(0.0) * e[k]).powf(p)).collect();
-    let (kmax, tmax) = t.iter().copied().enumerate().fold((0, f64::NEG_INFINITY), |acc, (k, v)| if v > acc.1 { (k, v) } else { acc });
-    if !(tmax > 0.0) || kmax < 4 {
+    let base: Vec<f64> = (0..n).map(|k| alpha[k].max(0.0) * e[k]).collect();
+    let (kmax, base_max) = base.iter().copied().enumerate().fold((0, f64::NEG_INFINITY), |acc, (k, v)| if v > acc.1 { (k, v) } else { acc });
+    if !(base_max > 0.0) || kmax < 4 {
         return None;
     }
     let pts: Vec<(f64, f64)> = (0..kmax)
-        .filter(|&k| t[k] >= 0.15 * tmax && t[k] <= 0.85 * tmax)
-        .map(|k| (e[k], t[k]))
+        .filter(|&k| base[k] >= 0.05 * base_max && base[k] <= 0.70 * base_max)
+        .map(|k| (e[k], base[k].powf(p)))
         .collect();
     if pts.len() < 5 {
         return None;
