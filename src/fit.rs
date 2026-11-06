@@ -869,9 +869,9 @@ impl Model<'_> {
             if self.negativity > 0.0 && e2 < 0.0 {
                 chi2 += self.negativity * e2 * e2;
                 self.row(i, 0.0, 1.0, &mut row);
-                out_a.add_row(&row, 2.0 * self.negativity);
+                out_a.add_row(&row, self.negativity);
                 for (p, &jj) in row.idx.iter().enumerate() {
-                    out_b[jj] += -2.0 * self.negativity * e2 * row.val[p];
+                    out_b[jj] += -self.negativity * e2 * row.val[p];
                 }
             }
         }
@@ -885,7 +885,7 @@ impl Model<'_> {
                 }
                 let d2 = p[j - 1] - 2.0 * p[j] + p[j + 1];
                 chi2 += self.smoothness * d2 * d2;
-                let grad = 2.0 * self.smoothness * d2;
+                let grad = self.smoothness * d2;
                 let pairs = [(j - 1, 1.0), (j, -2.0), (j + 1, 1.0)];
                 for a in 0..3 {
                     let (ja, ca) = pairs[a];
@@ -895,7 +895,7 @@ impl Model<'_> {
                         let (jb, cb) = pairs[b];
                         let Some(pb) = self.active_pos[jb] else { continue };
                         let (r, c) = if pa >= pb { (pa, pb) } else { (pb, pa) };
-                        out_a.add_lower(r, c, 2.0 * self.smoothness * ca * cb);
+                        out_a.add_lower(r, c, self.smoothness * ca * cb);
                     }
                 }
             }

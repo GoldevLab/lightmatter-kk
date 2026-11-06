@@ -82,24 +82,29 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
     };
     let text = if file_text.trim().is_empty() { spectrum } else { file_text };
     let iter_max = iter.trim().parse::<usize>().unwrap_or(20).clamp(1, 1000);
-    match fit_text(
-        &text,
-        &TextFit {
-            iter_max,
-            log_mesh,
-            extended,
-            drude_on,
-            eps_inf,
-            omega_p,
-            gamma,
-            smoothness: parse_nonneg(&smooth, 0.08),
-            negativity: parse_nonneg(&neg, 100.0),
-            measure,
-            unit,
-            thickness,
-            temperature,
-        },
-    ) {
+    let options = TextFit {
+        iter_max,
+        log_mesh,
+        extended,
+        drude_on,
+        eps_inf,
+        omega_p,
+        gamma,
+        smoothness: parse_nonneg(&smooth, 0.08),
+        negativity: parse_nonneg(&neg, 100.0),
+        measure,
+        unit,
+        thickness,
+        temperature,
+    };
+    let fit = match tokio::task::spawn_blocking(move || fit_text(&text, &options)).await {
+        Ok(result) => result,
+        Err(_) => {
+            crate::stats::record_error();
+            return redirect("/lab?e=El%20servidor%20no%20pudo%20completar%20el%20ajuste");
+        }
+    };
+    match fit {
         Ok(report) => {
             crate::stats::record_fit(crate::stats::FitHit {
                 at: 0,

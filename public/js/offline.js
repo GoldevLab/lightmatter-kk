@@ -453,6 +453,7 @@ enhanceCharts(document);
 
 if (form) {
   form.addEventListener("submit", async (event) => {
+    if (event.submitter?.name === "execution" && event.submitter.value === "server") return;
     event.preventDefault();
     const btn = form.querySelector("button[type='submit']");
     const label = btn ? btn.textContent : "";
@@ -465,10 +466,6 @@ if (form) {
       btn.disabled = false;
       btn.textContent = label;
     };
-    if (await serverUp()) {
-      form.submit();
-      return;
-    }
     if (live) live.hidden = false;
     if (!live) {
       restore();
@@ -546,16 +543,3 @@ async function engineReady() {
   return false;
 }
 
-async function serverUp() {
-  if (!navigator.onLine) return false;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 2500);
-  try {
-    const res = await fetch("/robots.txt", { cache: "no-store", signal: ctrl.signal });
-    return res.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}

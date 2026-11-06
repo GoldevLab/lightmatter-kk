@@ -232,6 +232,7 @@ pub fn page(req: FlowRequest) -> View {
     let neg = tx(lang, "Si ε₂ baja de 0", "If ε₂ goes below 0", "若 ε₂ 低于 0", "Se ε₂ fica abaixo de 0");
     let neg_help = tx(lang, "Castiga ε₂ negativa. 0 = se permite. En un medio pasivo ε₂ es mayor o igual que 0.", "Penalizes negative ε₂. 0 = allowed. In a passive medium ε₂ is greater than or equal to 0.", "惩罚负的 ε₂。0 = 允许。无源介质中 ε₂ 大于或等于 0。", "Penaliza ε₂ negativa. 0 = permitida. Num meio passivo ε₂ é maior ou igual a 0.");
     let submit = tx(lang, "Analizar la medida", "Fit the measurement", "分析测量", "Analisar a medida");
+    let submit_server = tx(lang, "Analizar en el servidor", "Fit on server", "在服务器上分析", "Analisar no servidor");
     view! {
         <main class={page_class}>
             <section class="panel">
@@ -291,7 +292,10 @@ pub fn page(req: FlowRequest) -> View {
                             <label>{neg}<input name="neg" type="number" value={form.neg.clone()} min="0" max="1000000" step="any" /><span class="help">{neg_help}</span></label>
                         </div>
                     </fieldset>
-                    <button class="btn btn-primary" type="submit">{submit}</button>
+                    <div class="hero-actions">
+                        <button class="btn btn-primary" type="submit">{submit}</button>
+                        <button class="btn btn-ghost" type="submit" name="execution" value="server" formaction="/lab/run">{submit_server}</button>
+                    </div>
                 </form>
             </section>
             {result}
