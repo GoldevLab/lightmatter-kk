@@ -217,6 +217,9 @@ if (drop && form) {
     if (name) name.textContent = idle;
   };
   if (input) {
+    drop.addEventListener("click", (event) => {
+      if (event.target !== input) input.click();
+    });
     input.addEventListener("change", async () => {
       const file = input.files && input.files[0];
       if (!file) return;
@@ -230,6 +233,7 @@ if (drop && form) {
         text = await file.text();
       } catch {
         if (meta) meta.textContent = uiText("unread");
+        input.value = "";
         return;
       }
       if (box) box.value = text;

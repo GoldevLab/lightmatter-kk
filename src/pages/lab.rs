@@ -251,15 +251,15 @@ pub fn page(req: FlowRequest) -> View {
                         </div>
                         {axis_note}
                         <p class="help">{help2}</p>
-                        <label class="dropzone" data-lm-drop="">
+                        <div class="dropzone" data-lm-drop="" role="group" aria-label={drop_title}>
                             <input class="file-input" name="file" type="file" accept=".dat,.txt,.csv,text/plain" />
                             <span class="drop-icon" aria-hidden="true">"↥"</span>
                             <span class="drop-text">
                                 <span class="drop-title">{drop_title}</span>
                                 <span class="drop-name" data-lm-file="">{drop_name}</span>
                             </span>
-                            <span class="drop-btn">{drop_btn}</span>
-                        </label>
+                            <button class="drop-btn" type="button">{drop_btn}</button>
+                        </div>
                         <div class="spectrum-split">
                             <label class="grow">
                                 {data_label}
