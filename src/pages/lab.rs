@@ -286,7 +286,7 @@ pub fn page(req: FlowRequest) -> View {
                             <label>"ε∞"<input name="eps_inf" type="text" inputmode="decimal" placeholder="1" value={form.eps_inf.clone()} /><span class="help">{eps_help}</span></label>
                             <label>"ωₚ"<input name="omega_p" type="text" inputmode="decimal" placeholder="auto" value={form.omega_p.clone()} /><span class="help">{wp_help}</span></label>
                             <label>"γ"<input name="gamma" type="text" inputmode="decimal" placeholder="auto" value={form.gamma.clone()} /><span class="help">{gamma_help}</span></label>
-                            <label>{steps}<input name="iter" type="number" value={form.iter.clone()} min="1" max="500" /><span class="help">{steps_help}</span></label>
+                            <label>{steps}<input name="iter" type="number" value={form.iter.clone()} min="1" max="1000" /><span class="help">{steps_help}</span></label>
                             <label>{smooth}<input name="smooth" type="number" value={form.smooth.clone()} min="0" max="1000000" step="any" /><span class="help">{smooth_help}</span></label>
                             <label>{neg}<input name="neg" type="number" value={form.neg.clone()} min="0" max="1000000" step="any" /><span class="help">{neg_help}</span></label>
                         </div>
