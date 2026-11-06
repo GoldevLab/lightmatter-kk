@@ -1269,171 +1269,6 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
     d.map(|d| eps1_drude(om, d) - d.eps_inf).unwrap_or(0.0)
 }
 
-fn lorentz_eps(omega: f64, w0: f64, wp: f64, gamma: f64) -> (f64, f64) {
-    if omega <= 0.0 || w0 <= 0.0 || wp <= 0.0 || gamma <= 0.0 {
-        return (0.0, 0.0);
-    }
-    let dr = w0 * w0 - omega * omega;
-    let di = gamma * omega;
-    let den = dr * dr + di * di;
-    if den <= 1e-300 {
-        return (0.0, 0.0);
-    }
-    let p2 = wp * wp;
-    (p2 * dr / den, p2 * di / den)
-}
-
-fn lorentz_sum(omega: f64, lines: &[(f64, f64, f64)]) -> (f64, f64) {
-    lines.iter().fold((0.0, 0.0), |(re, im), &(w0, wp, gamma)| {
-        let (add_re, add_im) = lorentz_eps(omega, w0, wp, gamma);
-        (re + add_re, im + add_im)
-    })
-}
-
-/// Raya estrecha de R: (posición, altura, ancho a media prominencia).
-fn sharp_r_lines(x: &[f64], y: &[f64]) -> Vec<(f64, f64, f64)> {
-    let n = x.len().min(y.len());
-    if n < 5 {
-        return Vec::new();
-    }
-    let lo = y[..n].iter().copied().fold(f64::INFINITY, f64::min);
-    let hi = y[..n].iter().copied().fold(f64::NEG_INFINITY, f64::max);
-    let span = hi - lo;
-    if !(span > 0.0) {
-        return Vec::new();
-    }
-    let mut out = Vec::new();
-    let mut i = 1;
-    while i + 1 < n {
-        if y[i] < y[i - 1] || y[i] < y[i + 1] {
-            i += 1;
-            continue;
-        }
-        let mut top = i;
-        while top + 1 < n && y[top + 1] >= y[top] {
-            top += 1;
-        }
-        let mid = (i + top) / 2;
-        let h = y[mid];
-        let mut l = mid;
-        let mut lmin = h;
-        while l > 0 && y[l - 1] <= h {
-            l -= 1;
-            lmin = lmin.min(y[l]);
-        }
-        let mut r = mid;
-        let mut rmin = h;
-        while r + 1 < n && y[r + 1] <= h {
-            r += 1;
-            rmin = rmin.min(y[r]);
-        }
-        let prom = h - lmin.max(rmin);
-        if prom > 0.25 * span && h > 0.45 {
-            let level = h - 0.5 * prom;
-            let mut a = mid;
-            while a > 0 && y[a] > level {
-                a -= 1;
-            }
-            let mut b = mid;
-            while b + 1 < n && y[b] > level {
-                b += 1;
-            }
-            let width = x[b] - x[a];
-            if width > 0.0 && width < 0.08 * x[mid].abs().max(1.0) {
-                out.push((x[mid], prom, width));
-            }
-        }
-        i = r + 1;
-    }
-    out.sort_by(|p, q| q.1.partial_cmp(&p.1).unwrap_or(std::cmp::Ordering::Equal));
-    out.truncate(2);
-    out
-}
-
-fn local_r_sse(w: &[f64], y: &[f64], e1: &[f64], e2: &[f64], center: f64, half: f64) -> f64 {
-    let mut s = 0.0;
-    for i in 0..y.len() {
-        if (w[i] - center).abs() > half {
-            continue;
-        }
-        let (_, _, r) = optics(e1[i], e2[i]);
-        let d = y[i] - r;
-        s += d * d;
-    }
-    s
-}
-
-/// Si R trae una raya de pocos por ciento del eje, un Lorentz ahí entra como fondo.
-/// Sin él, los triángulos dejan una meseta: la Kramers–Kronig de la banda ancha mantiene ε₁ positivo.
-fn add_phonon_seed(
-    w: &[f64],
-    y: &[f64],
-    base: f64,
-    e1: &mut [f64],
-    e2: &mut [f64],
-) -> (Vec<(f64, f64, f64)>, Option<String>) {
-    let lines = sharp_r_lines(w, y);
-    if lines.is_empty() || e1.len() != w.len() || e2.len() != w.len() {
-        return (Vec::new(), None);
-    }
-    let mut e1w: Vec<f64> = e1.iter().map(|v| v + base).collect();
-    let mut e2w = e2.to_vec();
-    let mut notes = Vec::new();
-    let mut fitted_lines = Vec::new();
-    for (pos, _, width) in lines {
-        let bare = local_r_sse(w, y, &e1w, &e2w, pos, width * 4.0);
-        if !(bare > 0.0) {
-            continue;
-        }
-        let mut best: Option<(f64, f64, f64)> = None;
-        let mut best_cost = bare;
-        for w0s in [0.90_f64, 0.94, 0.97, 1.0, 1.03] {
-            for gs in [0.3_f64, 0.6, 1.0, 1.8] {
-                for wp in [30.0_f64, 70.0, 120.0, 180.0, 260.0, 360.0] {
-                    let w0 = pos * w0s;
-                    let gamma = (width * gs).max(pos.abs() * 1e-4);
-                    let mut s = 0.0;
-                    for i in 0..y.len() {
-                        if (w[i] - pos).abs() > width * 4.0 {
-                            continue;
-                        }
-                        let (a, b) = lorentz_eps(w[i], w0, wp, gamma);
-                        let (_, _, r) = optics(e1w[i] + a, e2w[i] + b);
-                        let d = y[i] - r;
-                        s += d * d;
-                    }
-                    if s < best_cost {
-                        best_cost = s;
-                        best = Some((w0, wp, gamma));
-                    }
-                }
-            }
-        }
-        let Some((w0, wp, gamma)) = best else { continue };
-        if best_cost > bare * 0.75 {
-            continue;
-        }
-        for i in 0..e1.len() {
-            let (a, b) = lorentz_eps(w[i], w0, wp, gamma);
-            e1[i] += a;
-            e2[i] += b;
-            e1w[i] += a;
-            e2w[i] += b;
-        }
-        notes.push(format!("{w0:.1} (ωₚ {wp:.0}, γ {gamma:.1})"));
-        fitted_lines.push((w0, wp, gamma));
-    }
-    let note = if notes.is_empty() {
-        None
-    } else {
-        Some(format!(
-            "Raya estrecha de R: quedó un oscilador de Lorentz en {}. Los triángulos ajustan el resto.",
-            notes.join(" y ")
-        ))
-    };
-    (fitted_lines, note)
-}
-
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let phys = &input.physics;
     let measure = phys.measure;
@@ -1545,8 +1380,8 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
 
     let nu: Vec<f64> = w.iter().map(|&v| phys.unit.wavenumber(v).unwrap_or(0.0)).collect();
     let drude = input.drude.clone();
-    let mut eps2_mod: Vec<f64> = w.iter().map(|&om| drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0)).collect();
-    let mut e1_fixed: Vec<f64> = w.iter().map(|&om| drude_eps1_part(om, drude.as_ref())).collect();
+    let eps2_mod: Vec<f64> = w.iter().map(|&om| drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0)).collect();
+    let e1_fixed: Vec<f64> = w.iter().map(|&om| drude_eps1_part(om, drude.as_ref())).collect();
 
     let given = phys.eps_inf.filter(|v| v.is_finite());
     let guess = guess_eps_inf(measure, &y_data);
@@ -1570,15 +1405,6 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             _ => (1.0, false, "1 por defecto".to_string()),
         },
     };
-    let (phonon_lines, phonon_note) = if measure == Measure::R {
-        add_phonon_seed(&w, &y_data, base, &mut e1_fixed, &mut eps2_mod)
-    } else {
-        (Vec::new(), None)
-    };
-    if let Some(note) = phonon_note {
-        warnings.push(note);
-    }
-
     let auto_log = log_mesh && !input.log_mesh;
     // Una ancla por frecuencia medida, hasta el tope de la medida. Así un pico estrecho no cae
     // entre dos triángulos. Si hay más puntos que anclas, se reparten y se añaden los extremos.
@@ -1743,12 +1569,8 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let mut gbuf = vec![0.0; ma];
     for i in 0..n_inner {
         let om = anchors[i + 1];
-        let (phonon_e1, phonon_e2) = lorentz_sum(om, &phonon_lines);
-        let e2 = a[i + 1] + drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0) + phonon_e2;
-        let e1 = base
-            + drude_eps1_part(om, drude.as_ref())
-            + phonon_e1
-            + kk_sum(om, &anchors, &a[..ma], &mut gbuf);
+        let e2 = a[i + 1] + drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0);
+        let e1 = base + drude_eps1_part(om, drude.as_ref()) + kk_sum(om, &anchors, &a[..ma], &mut gbuf);
         let (ni, ki, r) = optics(e1, e2);
         omega.push(om);
         eps1.push(e1);
@@ -1779,14 +1601,10 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         for om in logspace(lo, hi, 96) {
             let e2_var = (1..ma - 1).map(|j| a[j] * tri_basis(om, j, &anchors)).sum::<f64>();
             let e2_m = drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0);
-            let (phonon_e1, phonon_e2) = lorentz_sum(om, &phonon_lines);
-            let e1 = base
-                + drude_eps1_part(om, drude.as_ref())
-                + phonon_e1
-                + kk_sum(om, &anchors, &a[..ma], &mut gbuf);
+            let e1 = base + drude_eps1_part(om, drude.as_ref()) + kk_sum(om, &anchors, &a[..ma], &mut gbuf);
             ext_omega.push(om);
             ext_eps1.push(e1);
-            ext_eps2.push(e2_var + e2_m + phonon_e2);
+            ext_eps2.push(e2_var + e2_m);
         }
     }
 
@@ -2492,19 +2310,24 @@ mod tests {
     }
 
     #[test]
-    fn narrow_r_phonon_is_included_in_reported_optics() {
-        let x: Vec<f64> = (0..281).map(|i| 120.0 + 0.25 * i as f64).collect();
+    fn narrow_triangular_r_is_fitted_by_the_variational_mesh() {
+        let x: Vec<f64> = (0..41).map(|i| 120.0 + 1.75 * i as f64).collect();
+        let eps2: Vec<f64> = x
+            .iter()
+            .map(|&om| 3.0 * (1.0 - (om - 155.0).abs() / 7.0).max(0.0))
+            .collect();
         let y: Vec<f64> = x
             .iter()
-            .map(|&om| {
-                let (e1, e2) = lorentz_eps(om, 155.0, 180.0, 3.0);
-                quantity(Measure::R, 5.73 + e1, e2, om, 0.0)
+            .zip(&eps2)
+            .map(|(&om, &e2)| {
+                let e1 = 2.5 + dkkt_eps1(om, &x, &eps2) - 1.0;
+                quantity(Measure::R, e1, e2, om, 0.0)
             })
             .collect();
         let report = run_fit(&FitRequest {
             x,
-            y,
-            iter_max: 20,
+            y: y.clone(),
+            iter_max: 240,
             log_mesh: false,
             drude: None,
             smoothness: 0.0,
@@ -2515,16 +2338,20 @@ mod tests {
             physics: Physics {
                 measure: Measure::R,
                 unit: Unit::Cm,
-                eps_inf: Some(5.73),
+                eps_inf: Some(2.5),
                 ..Physics::default()
             },
         })
         .unwrap();
-        assert!(report.warnings.iter().any(|w| w.contains("Raya estrecha de R")));
-        assert_eq!(report.model_q.len(), report.reflectivity.len());
-        for (fitted, reconstructed) in report.model_q.iter().zip(&report.reflectivity) {
-            assert!((fitted - reconstructed).abs() < 1e-6, "{fitted} != {reconstructed}");
-        }
+        let rms = (report
+            .model_q
+            .iter()
+            .zip(&y)
+            .map(|(fit, data)| (fit - data).powi(2))
+            .sum::<f64>()
+            / report.points_used as f64)
+            .sqrt();
+        assert!(rms < 0.02, "R RMS {rms}, χ² {}", report.chisq);
     }
 
     #[test]
