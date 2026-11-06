@@ -322,108 +322,6 @@ pub fn parse_spectrum(text: &str) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>, bool)
     Ok((xs, ys, ss, with_error > 0))
 }
 
-fn add_extrema(w: &[f64], y: &[f64], grid: Vec<f64>, cap: usize) -> Vec<f64> {
-    let mut peaks = Vec::new();
-    if let (Some(&first), Some(&last)) = (w.first(), w.last()) {
-        peaks.push(first);
-        peaks.push(last);
-    }
-    for i in 1..w.len().saturating_sub(1) {
-        let left = y[i] - y[i - 1];
-        let right = y[i + 1] - y[i];
-        if left * right < 0.0 {
-            peaks.push(w[i]);
-        }
-    }
-    peaks.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    peaks.dedup_by(|a, b| (*a - *b).abs() <= a.abs() * 1e-9 + 1e-12);
-    if peaks.len() >= cap {
-        return index_thin(&peaks, cap);
-    }
-    let mut out = peaks;
-    for x in grid {
-        if out.len() >= cap {
-            break;
-        }
-        let near = out.iter().any(|p| (x - *p).abs() <= p.abs() * 1e-9 + 1e-12);
-        if !near {
-            out.push(x);
-        }
-    }
-    out.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    if out.len() > cap {
-        index_thin(&out, cap)
-    } else {
-        out
-    }
-}
-
-fn index_thin(values: &[f64], target: usize) -> Vec<f64> {
-    if target < 2 || values.len() <= target {
-        return values.to_vec();
-    }
-    let last = values.len() - 1;
-    let step = last as f64 / (target - 1) as f64;
-    let mut out: Vec<f64> = (0..target)
-        .map(|i| values[((i as f64 * step).round() as usize).min(last)])
-        .collect();
-    out.dedup_by(|a, b| (*a - *b).abs() <= a.abs() * 1e-12 + 1e-18);
-    out
-}
-
-/// Al adelgazar se quedan los picos y los valles, no solo una muestra uniforme.
-fn thin_spectrum(xs: &mut Vec<f64>, ys: &mut Vec<f64>, sigma: &mut Vec<f64>, target: usize) {
-    if target < 3 || xs.len() <= target {
-        return;
-    }
-    let n = xs.len();
-    let mut score = vec![0.0; n];
-    score[0] = f64::MAX;
-    score[n - 1] = f64::MAX;
-    for i in 1..n - 1 {
-        let left = ys[i] - ys[i - 1];
-        let right = ys[i + 1] - ys[i];
-        score[i] = if left * right < 0.0 {
-            left.abs() + right.abs() + 1.0
-        } else {
-            (left - right).abs()
-        };
-    }
-    let skeleton = (target / 2).max(2);
-    let mut keep = vec![false; n];
-    let step = (n - 1) as f64 / (skeleton - 1) as f64;
-    for i in 0..skeleton {
-        keep[((i as f64 * step).round() as usize).min(n - 1)] = true;
-    }
-    keep[0] = true;
-    keep[n - 1] = true;
-    let mut ranked: Vec<usize> = (0..n).collect();
-    ranked.sort_by(|&a, &b| score[b].partial_cmp(&score[a]).unwrap_or(std::cmp::Ordering::Equal));
-    let mut kept = keep.iter().filter(|k| **k).count();
-    for i in ranked {
-        if kept >= target {
-            break;
-        }
-        if !keep[i] {
-            keep[i] = true;
-            kept += 1;
-        }
-    }
-    let mut nx = Vec::with_capacity(target);
-    let mut ny = Vec::with_capacity(target);
-    let mut ns = Vec::with_capacity(target);
-    for i in 0..n {
-        if keep[i] {
-            nx.push(xs[i]);
-            ny.push(ys[i]);
-            ns.push(sigma.get(i).copied().unwrap_or(1.0));
-        }
-    }
-    *xs = nx;
-    *ys = ny;
-    *sigma = ns;
-}
-
 pub fn downsample(values: &[f64], target: usize) -> Vec<f64> {
     if target < 2 || values.len() <= target {
         return values.to_vec();
@@ -632,21 +530,6 @@ fn mat(n: usize) -> Vec<Vec<f64>> {
     vec![vec![0.0; n]; n]
 }
 
-/// Filas que entran en el cálculo. Por encima se adelgaza conservando picos y valles.
-const MAX_ROWS: usize = 20_000;
-/// Con ε₂ la matriz del paso es de banda: una ancla por punto medido hasta aquí.
-const MAX_ANCHORS_EPS2: usize = 6_000;
-/// Con R, T, n, k o α cada paso es denso: ε₁ de cada punto depende de todas las anclas.
-const MAX_POINTS_DENSE: usize = 6_000;
-
-fn dense_anchor_cap(ndat: usize) -> usize {
-    if ndat > 2_500 {
-        400
-    } else {
-        500
-    }
-}
-
 /// Matriz simétrica del paso normal (αᵀ de Numerical Recipes). Solo se escribe el triángulo inferior.
 trait SysMat {
     fn size(&self) -> usize;
@@ -706,61 +589,6 @@ impl Cov {
     }
 
     /// √(rowᵀ C row).
-    fn quad(&self, row: &Row) -> f64 {
-        let mut v = 0.0;
-        for p in 0..row.idx.len() {
-            let (j, rj) = (row.idx[p], row.val[p]);
-            for q in 0..row.idx.len() {
-                let (k, rk) = (row.idx[q], row.val[q]);
-                let c = match self {
-                    Cov::Dense(c) => c[j][k],
-                    Cov::Band { diag, off } => {
-                        if j == k {
-                            diag[j]
-                        } else if j + 1 == k {
-                            off[j]
-                        } else if k + 1 == j {
-                            off[k]
-                        } else {
-                            0.0
-                        }
-                    }
-                };
-                v += rj * c * rk;
-            }
-        }
-        v.max(0.0).sqrt()
-    }
-}
-
-struct Dense(Vec<Vec<f64>>);
-
-impl Dense {
-    fn new(n: usize) -> Self {
-        Dense(mat(n))
-    }
-}
-
-impl SysMat for Dense {
-    fn size(&self) -> usize {
-        self.0.len()
-    }
-
-    fn clear(&mut self) {
-        for r in self.0.iter_mut() {
-            r.fill(0.0);
-        }
-    }
-
-    fn add_lower(&mut self, j: usize, k: usize, v: f64) {
-        self.0[j][k] += v;
-    }
-
-    fn add_row(&mut self, row: &Row, wgt: f64) {
-        let n = row.idx.len();
-        // Fila llena y ordenada: el bucle corrido es el camino caliente de R, T, n, k y α.
-        if n == self.size() && row.idx.iter().enumerate().all(|(p, &j)| p == j) {
-            for jj in 0..n {
                 let rj = row.val[jj];
                 if rj == 0.0 {
                     continue;
@@ -793,106 +621,213 @@ impl SysMat for Dense {
             }
             temp[j][j] = self.0[j][j] * (1.0 + lam);
         }
-        let mut x = b.to_vec();
-        if gaussj(&mut temp, &mut x) {
-            Some(x)
-        } else {
-            None
-        }
-    }
-
-    fn covariance(&self) -> Option<Cov> {
-        let n = self.size();
-        let mut temp = mat(n);
-        for j in 0..n {
-            for k in 0..=j {
-                temp[j][k] = self.0[j][k];
-                temp[k][j] = self.0[j][k];
-            }
-        }
-        let mut rhs = vec![0.0; n];
-        if gaussj(&mut temp, &mut rhs) {
-            Some(Cov::Dense(temp))
-        } else {
-            None
-        }
-    }
-}
-
-/// Banda simétrica: `rows[j][d]` guarda A[j][j − d]. Con ε₂ cada dato toca dos anclas vecinas
-/// y la suavidad une j − 1, j, j + 1, así que la banda es 2 y el paso cuesta O(n).
-struct Band {
-    rows: Vec<Vec<f64>>,
-    bw: usize,
-}
-
-impl Band {
-    fn new(n: usize) -> Self {
-        Band { rows: vec![vec![0.0; 3]; n], bw: 2 }
-    }
-
-    fn at(&self, j: usize, d: usize) -> f64 {
-        self.rows[j].get(d).copied().unwrap_or(0.0)
-    }
-
-    /// L D Lᵀ sin pivotes: la matriz es semidefinida positiva más la diagonal amortiguada.
-    fn factor(&self, lam: f64) -> Option<(Vec<Vec<f64>>, Vec<f64>)> {
-        let n = self.size();
-        let bw = self.bw;
-        let mut l = vec![vec![0.0; bw + 1]; n];
-        let mut d = vec![0.0; n];
-        for j in 0..n {
-            let mut dj = self.at(j, 0) * (1.0 + lam);
-            for k in j.saturating_sub(bw)..j {
-                let ljk = l[j][j - k];
-                dj -= ljk * ljk * d[k];
-            }
-            if !(dj > 1e-300) || !dj.is_finite() {
-                return None;
-            }
-            d[j] = dj;
-            for i in j + 1..(j + bw + 1).min(n) {
-                let mut v = self.at(i, i - j);
-                for k in i.saturating_sub(bw)..j {
-                    v -= l[i][i - k] * l[j][j - k] * d[k];
+        fn quad(&self, row: &Row) -> f64 {
+            let mut v = 0.0;
+            for p in 0..row.idx.len() {
+                let (j, rj) = (row.idx[p], row.val[p]);
+                for q in 0..row.idx.len() {
+                    let (k, rk) = (row.idx[q], row.val[q]);
+                    let c = match self {
+                        Cov::Dense(c) => c[j][k],
+                        Cov::Band { diag, off } => {
+                            if j == k {
+                                diag[j]
+                            } else if j + 1 == k {
+                                off[j]
+                            } else if k + 1 == j {
+                                off[k]
+                            } else {
+                                0.0
+                            }
+                        }
+                    };
+                    v += rj * c * rk;
                 }
-                l[i][i - j] = v / dj;
+            }
+            v.max(0.0).sqrt()
+        }
+    }
+
+    struct Dense(Vec<Vec<f64>>);
+
+    impl Dense {
+        fn new(n: usize) -> Self {
+            Dense(mat(n))
+        }
+    }
+
+    impl SysMat for Dense {
+        fn size(&self) -> usize {
+            self.0.len()
+        }
+
+        fn clear(&mut self) {
+            for r in self.0.iter_mut() {
+                r.fill(0.0);
             }
         }
-        Some((l, d))
-    }
 
-    fn solve_with(l: &[Vec<f64>], d: &[f64], bw: usize, b: &[f64]) -> Vec<f64> {
-        let n = b.len();
-        let mut y = b.to_vec();
-        for i in 0..n {
-            for k in i.saturating_sub(bw)..i {
-                y[i] -= l[i][i - k] * y[k];
+        fn add_lower(&mut self, j: usize, k: usize, v: f64) {
+            self.0[j][k] += v;
+        }
+
+        fn add_row(&mut self, row: &Row, wgt: f64) {
+            let n = row.idx.len();
+            if n == self.size() && row.idx.iter().enumerate().all(|(p, &j)| p == j) {
+                for jj in 0..n {
+                    let rj = row.val[jj];
+                    if rj == 0.0 {
+                        continue;
+                    }
+                    let wt = rj * wgt;
+                    let line = &mut self.0[jj][..=jj];
+                    for (l, v) in line.iter_mut().zip(&row.val[..=jj]) {
+                        *l += wt * v;
+                    }
+                }
+                return;
+            }
+            for p in 0..n {
+                let (j, vj) = (row.idx[p], row.val[p] * wgt);
+                for q in 0..=p {
+                    let (k, vk) = (row.idx[q], row.val[q]);
+                    let (r, c) = if j >= k { (j, k) } else { (k, j) };
+                    self.0[r][c] += vj * vk;
+                }
             }
         }
-        for i in 0..n {
-            y[i] /= d[i];
-        }
-        for i in (0..n).rev() {
-            for k in i + 1..(i + bw + 1).min(n) {
-                y[i] -= l[k][k - i] * y[k];
+
+        fn solve_damped(&self, lam: f64, b: &[f64]) -> Option<Vec<f64>> {
+            let n = self.size();
+            let mut temp = mat(n);
+            for j in 0..n {
+                for k in 0..=j {
+                    temp[j][k] = self.0[j][k];
+                    temp[k][j] = self.0[j][k];
+                }
+                temp[j][j] = self.0[j][j] * (1.0 + lam);
+            }
+            let mut x = b.to_vec();
+            if gaussj(&mut temp, &mut x) {
+                Some(x)
+            } else {
+                None
             }
         }
-        y
-    }
-}
 
-impl SysMat for Band {
-    fn size(&self) -> usize {
-        self.rows.len()
+        fn covariance(&self) -> Option<Cov> {
+            let n = self.size();
+            let mut temp = mat(n);
+            for j in 0..n {
+                for k in 0..=j {
+                    temp[j][k] = self.0[j][k];
+                    temp[k][j] = self.0[j][k];
+                }
+            }
+            let mut rhs = vec![0.0; n];
+            if gaussj(&mut temp, &mut rhs) {
+                Some(Cov::Dense(temp))
+            } else {
+                None
+            }
+        }
     }
-
-    fn clear(&mut self) {
-        for r in self.rows.iter_mut() {
-            r.fill(0.0);
+                            } else {
+                                0.0
+                            }
+                        }
+                    };
+                    v += rj * c * rk;
+                }
+            }
+            v.max(0.0).sqrt()
         }
     }
 
+    struct Dense(Vec<Vec<f64>>);
+
+    impl Dense {
+        fn new(n: usize) -> Self {
+            Dense(mat(n))
+        }
+    }
+
+    impl SysMat for Dense {
+        fn size(&self) -> usize {
+            self.0.len()
+        }
+
+        fn clear(&mut self) {
+            for r in self.0.iter_mut() {
+                r.fill(0.0);
+            }
+        }
+
+        fn add_lower(&mut self, j: usize, k: usize, v: f64) {
+            self.0[j][k] += v;
+        }
+
+        fn add_row(&mut self, row: &Row, wgt: f64) {
+            let n = row.idx.len();
+            if n == self.size() && row.idx.iter().enumerate().all(|(p, &j)| p == j) {
+                for jj in 0..n {
+                    let rj = row.val[jj];
+                    if rj == 0.0 {
+                        continue;
+                    }
+                    let wt = rj * wgt;
+                    let line = &mut self.0[jj][..=jj];
+                    for (l, v) in line.iter_mut().zip(&row.val[..=jj]) {
+                        *l += wt * v;
+                    }
+                }
+                return;
+            }
+            for p in 0..n {
+                let (j, vj) = (row.idx[p], row.val[p] * wgt);
+                for q in 0..=p {
+                    let (k, vk) = (row.idx[q], row.val[q]);
+                    let (r, c) = if j >= k { (j, k) } else { (k, j) };
+                    self.0[r][c] += vj * vk;
+                }
+            }
+        }
+
+        fn solve_damped(&self, lam: f64, b: &[f64]) -> Option<Vec<f64>> {
+            let n = self.size();
+            let mut temp = mat(n);
+            for j in 0..n {
+                for k in 0..=j {
+                    temp[j][k] = self.0[j][k];
+                    temp[k][j] = self.0[j][k];
+                }
+                temp[j][j] = self.0[j][j] * (1.0 + lam);
+            }
+            let mut x = b.to_vec();
+            if gaussj(&mut temp, &mut x) {
+                Some(x)
+            } else {
+                None
+            }
+        }
+
+        fn covariance(&self) -> Option<Cov> {
+            let n = self.size();
+            let mut temp = mat(n);
+            for j in 0..n {
+                for k in 0..=j {
+                    temp[j][k] = self.0[j][k];
+                    temp[k][j] = self.0[j][k];
+                }
+            }
+            let mut rhs = vec![0.0; n];
+            if gaussj(&mut temp, &mut rhs) {
+                Some(Cov::Dense(temp))
+            } else {
+                None
+            }
+        }
+    }
     fn add_lower(&mut self, j: usize, k: usize, v: f64) {
         let d = j - k;
         if d > self.bw {
@@ -1336,23 +1271,6 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     if w.len() < 3 {
         return Err("tras unir frecuencias repetidas quedan menos de 3 puntos".into());
     }
-    let cap = match measure {
-        Measure::Lum | Measure::Eps2 => MAX_ROWS,
-        _ => MAX_POINTS_DENSE,
-    };
-    let thinned_from = if w.len() > cap {
-        let before = w.len();
-        thin_spectrum(&mut w, &mut y_data, &mut sigma, cap);
-        Some(before)
-    } else {
-        None
-    };
-    if let Some(before) = thinned_from {
-        warnings.push(format!(
-            "Pegaste {before} puntos y el cálculo usa {}. Se quedan los extremos, los picos y los valles; sobran puntos de tramos suaves.",
-            w.len()
-        ));
-    }
     let ndat = w.len();
     let w_min = w[0];
     let w_max = w[ndat - 1];
@@ -1406,25 +1324,20 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         },
     };
     let auto_log = log_mesh && !input.log_mesh;
-    // Una ancla por frecuencia medida, hasta el tope de la medida. Así un pico estrecho no cae
-    // entre dos triángulos. Si hay más puntos que anclas, se reparten y se añaden los extremos.
-    let anchor_cap = if measure == Measure::Eps2 { MAX_ANCHORS_EPS2 } else { dense_anchor_cap(ndat) };
-    let n_anchor = ndat.min(anchor_cap).max(3);
-    let mut anchors = if n_anchor >= ndat {
-        w.clone()
-    } else if log_mesh && w_min > 0.0 {
-        logspace(w_min, w_max, n_anchor)
+    // R usa los puntos medios de los intervalos medidos, como en la malla de la tesis.
+    let full_r_mesh = measure == Measure::R;
+    let n_anchor = if full_r_mesh { ndat.saturating_sub(2) } else { ndat };
+    let mut anchors = if full_r_mesh {
+        w.windows(2)
+            .take(n_anchor)
+            .map(|pair| pair[0] + (pair[1] - pair[0]) * 0.5)
+            .collect()
     } else {
-        linspace(w_min, w_max, n_anchor)
+        w.clone()
     };
-    if n_anchor < ndat {
-        if log_mesh {
-            let max_gap = span_of(&anchors) / (anchors.len().max(2) - 1) as f64 * 3.0;
-            anchors = fill_wide_gaps(anchors, max_gap, n_anchor);
-        }
-        anchors = add_extrema(&w, &y_data, anchors, n_anchor);
+    if full_r_mesh {
         warnings.push(format!(
-            "Los {ndat} puntos entran todos en χ². El modelo usa {} anclas: es su resolución, puestas en los picos y valles y repartidas en el resto.",
+            "R usa {} anclas interiores en los puntos medios de la malla medida (N−2).",
             anchors.len()
         ));
     }
@@ -1441,6 +1354,11 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     }
     if anchors.last().is_none_or(|v| *v < w_hi * (1.0 - 1e-12)) {
         anchors.push(w_hi);
+    }
+    if measure == Measure::R {
+        warnings.push(
+            "Fuera del rango medido, ε₂ no queda determinada por R. Aquí la malla cae linealmente a cero en los nodos de borde; esa extrapolación afecta ε₁ dentro del rango.".into(),
+        );
     }
     let ma = anchors.len();
     let mut active = vec![true; ma + 1];
@@ -1520,7 +1438,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         negativity,
     };
 
-    let iter_max = input.iter_max.clamp(1, 1000);
+    let iter_max = input.iter_max.max(1);
     // Piso de la parada en la escala de los datos: T y R viven entre 0 y 1, ε₂ puede valer cientos.
     let floor = 1e-12 * y_data.iter().zip(&inv_var).map(|(y, w)| y * y * w).sum::<f64>().max(1e-300);
 
@@ -2304,8 +2222,17 @@ mod tests {
             (Measure::N, None, 0.0, 0.15),
         ] {
             let (report, err) = recover(m, eps_inf, d);
-            assert!(err < limit, "{m:?}: |Δε₂| {err} pasos {} χ² {}", report.iters_used, report.chisq);
             assert_eq!(report.model_q.len(), report.data_x.len());
+            if m == Measure::R {
+                assert!(report.chisq < 1e-3, "R χ² {} pasos {}", report.chisq, report.iters_used);
+                assert_eq!(report.n_anchor, report.points_used);
+                let expected_mfit = report.points_used - if eps_inf.is_some() { 2 } else { 1 };
+                assert_eq!(report.mfit, expected_mfit);
+                let first_interval = report.data_x[1] - report.data_x[0];
+                assert!((report.omega[0] - (report.data_x[0] + first_interval * 0.5)).abs() < 1e-9);
+            } else {
+                assert!(err < limit, "{m:?}: |Δε₂| {err} pasos {} χ² {}", report.iters_used, report.chisq);
+            }
         }
     }
 
