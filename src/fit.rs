@@ -1694,7 +1694,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         negativity,
     };
 
-    let iter_max = input.iter_max.clamp(1, 240);
+    let iter_max = input.iter_max.clamp(1, 500);
     // Piso de la parada en la escala de los datos: T y R viven entre 0 y 1, ε₂ puede valer cientos.
     let floor = 1e-12 * y_data.iter().zip(&inv_var).map(|(y, w)| y * y * w).sum::<f64>().max(1e-300);
 
@@ -2142,7 +2142,7 @@ pub fn fit_text(text: &str, opts: &TextFit) -> Result<FitReport, String> {
     run_fit(&FitRequest {
         x,
         y,
-        iter_max: opts.iter_max.clamp(1, 240),
+        iter_max: opts.iter_max.clamp(1, 500),
         log_mesh: opts.log_mesh,
         drude,
         smoothness: finite_nonneg(opts.smoothness, 0.08),

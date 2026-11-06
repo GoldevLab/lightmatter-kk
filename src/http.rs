@@ -81,7 +81,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         file_name
     };
     let text = if file_text.trim().is_empty() { spectrum } else { file_text };
-    let iter_max = iter.trim().parse::<usize>().unwrap_or(20).clamp(1, 240);
+    let iter_max = iter.trim().parse::<usize>().unwrap_or(20).clamp(1, 500);
     match fit_text(
         &text,
         &TextFit {
