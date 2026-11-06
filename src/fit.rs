@@ -1283,6 +1283,13 @@ fn lorentz_eps(omega: f64, w0: f64, wp: f64, gamma: f64) -> (f64, f64) {
     (p2 * dr / den, p2 * di / den)
 }
 
+fn lorentz_sum(omega: f64, lines: &[(f64, f64, f64)]) -> (f64, f64) {
+    lines.iter().fold((0.0, 0.0), |(re, im), &(w0, wp, gamma)| {
+        let (add_re, add_im) = lorentz_eps(omega, w0, wp, gamma);
+        (re + add_re, im + add_im)
+    })
+}
+
 /// Raya estrecha de R: (posición, altura, ancho a media prominencia).
 fn sharp_r_lines(x: &[f64], y: &[f64]) -> Vec<(f64, f64, f64)> {
     let n = x.len().min(y.len());
@@ -1358,14 +1365,21 @@ fn local_r_sse(w: &[f64], y: &[f64], e1: &[f64], e2: &[f64], center: f64, half: 
 
 /// Si R trae una raya de pocos por ciento del eje, un Lorentz ahí entra como fondo.
 /// Sin él, los triángulos dejan una meseta: la Kramers–Kronig de la banda ancha mantiene ε₁ positivo.
-fn add_phonon_seed(w: &[f64], y: &[f64], base: f64, e1: &mut [f64], e2: &mut [f64]) -> Option<String> {
+fn add_phonon_seed(
+    w: &[f64],
+    y: &[f64],
+    base: f64,
+    e1: &mut [f64],
+    e2: &mut [f64],
+) -> (Vec<(f64, f64, f64)>, Option<String>) {
     let lines = sharp_r_lines(w, y);
     if lines.is_empty() || e1.len() != w.len() || e2.len() != w.len() {
-        return None;
+        return (Vec::new(), None);
     }
     let mut e1w: Vec<f64> = e1.iter().map(|v| v + base).collect();
     let mut e2w = e2.to_vec();
     let mut notes = Vec::new();
+    let mut fitted_lines = Vec::new();
     for (pos, _, width) in lines {
         let bare = local_r_sse(w, y, &e1w, &e2w, pos, width * 4.0);
         if !(bare > 0.0) {
@@ -1407,15 +1421,17 @@ fn add_phonon_seed(w: &[f64], y: &[f64], base: f64, e1: &mut [f64], e2: &mut [f6
             e2w[i] += b;
         }
         notes.push(format!("{w0:.1} (ωₚ {wp:.0}, γ {gamma:.1})"));
+        fitted_lines.push((w0, wp, gamma));
     }
-    if notes.is_empty() {
+    let note = if notes.is_empty() {
         None
     } else {
         Some(format!(
             "Raya estrecha de R: quedó un oscilador de Lorentz en {}. Los triángulos ajustan el resto.",
             notes.join(" y ")
         ))
-    }
+    };
+    (fitted_lines, note)
 }
 
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
@@ -1554,10 +1570,13 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             _ => (1.0, false, "1 por defecto".to_string()),
         },
     };
-    if measure == Measure::R {
-        if let Some(note) = add_phonon_seed(&w, &y_data, base, &mut e1_fixed, &mut eps2_mod) {
-            warnings.push(note);
-        }
+    let (phonon_lines, phonon_note) = if measure == Measure::R {
+        add_phonon_seed(&w, &y_data, base, &mut e1_fixed, &mut eps2_mod)
+    } else {
+        (Vec::new(), None)
+    };
+    if let Some(note) = phonon_note {
+        warnings.push(note);
     }
 
     let auto_log = log_mesh && !input.log_mesh;
@@ -1724,8 +1743,12 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let mut gbuf = vec![0.0; ma];
     for i in 0..n_inner {
         let om = anchors[i + 1];
-        let e2 = a[i + 1] + drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0);
-        let e1 = base + drude_eps1_part(om, drude.as_ref()) + kk_sum(om, &anchors, &a[..ma], &mut gbuf);
+        let (phonon_e1, phonon_e2) = lorentz_sum(om, &phonon_lines);
+        let e2 = a[i + 1] + drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0) + phonon_e2;
+        let e1 = base
+            + drude_eps1_part(om, drude.as_ref())
+            + phonon_e1
+            + kk_sum(om, &anchors, &a[..ma], &mut gbuf);
         let (ni, ki, r) = optics(e1, e2);
         omega.push(om);
         eps1.push(e1);
@@ -1756,10 +1779,14 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         for om in logspace(lo, hi, 96) {
             let e2_var = (1..ma - 1).map(|j| a[j] * tri_basis(om, j, &anchors)).sum::<f64>();
             let e2_m = drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0);
-            let e1 = base + drude_eps1_part(om, drude.as_ref()) + kk_sum(om, &anchors, &a[..ma], &mut gbuf);
+            let (phonon_e1, phonon_e2) = lorentz_sum(om, &phonon_lines);
+            let e1 = base
+                + drude_eps1_part(om, drude.as_ref())
+                + phonon_e1
+                + kk_sum(om, &anchors, &a[..ma], &mut gbuf);
             ext_omega.push(om);
             ext_eps1.push(e1);
-            ext_eps2.push(e2_var + e2_m);
+            ext_eps2.push(e2_var + e2_m + phonon_e2);
         }
     }
 
@@ -2461,6 +2488,42 @@ mod tests {
             let (report, err) = recover(m, eps_inf, d);
             assert!(err < limit, "{m:?}: |Δε₂| {err} pasos {} χ² {}", report.iters_used, report.chisq);
             assert_eq!(report.model_q.len(), report.data_x.len());
+        }
+    }
+
+    #[test]
+    fn narrow_r_phonon_is_included_in_reported_optics() {
+        let x: Vec<f64> = (0..281).map(|i| 120.0 + 0.25 * i as f64).collect();
+        let y: Vec<f64> = x
+            .iter()
+            .map(|&om| {
+                let (e1, e2) = lorentz_eps(om, 155.0, 180.0, 3.0);
+                quantity(Measure::R, 5.73 + e1, e2, om, 0.0)
+            })
+            .collect();
+        let report = run_fit(&FitRequest {
+            x,
+            y,
+            iter_max: 20,
+            log_mesh: false,
+            drude: None,
+            smoothness: 0.0,
+            negativity: 100.0,
+            extended: false,
+            sigma: Vec::new(),
+            errors_given: false,
+            physics: Physics {
+                measure: Measure::R,
+                unit: Unit::Cm,
+                eps_inf: Some(5.73),
+                ..Physics::default()
+            },
+        })
+        .unwrap();
+        assert!(report.warnings.iter().any(|w| w.contains("Raya estrecha de R")));
+        assert_eq!(report.model_q.len(), report.reflectivity.len());
+        for (fitted, reconstructed) in report.model_q.iter().zip(&report.reflectivity) {
+            assert!((fitted - reconstructed).abs() < 1e-6, "{fitted} != {reconstructed}");
         }
     }
 
