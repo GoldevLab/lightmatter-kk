@@ -171,7 +171,7 @@ fn seo_kit() -> SeoKit {
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=15\"></script>";
+    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=16\"></script>";
     const ICON: &[u8] = include_bytes!("icon.svg");
     let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("public");
     let origin = seo::origin();
@@ -212,7 +212,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-41".into(),
+            cache_version: "lm-42".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
@@ -231,7 +231,8 @@ async fn main() -> std::io::Result<()> {
                 "/images/learn-triangles.jpg".into(),
                 "/images/learn-fit.jpg".into(),
                 "/images/learn-constants.jpg".into(),
-                "/js/offline.js?v=15".into(),
+                "/js/offline.js?v=16".into(),
+                "/js/fit-worker.js?v=1".into(),
                 "/robots.txt".into(),
                 "/llms.txt".into(),
                 "/sitemap.xml".into(),

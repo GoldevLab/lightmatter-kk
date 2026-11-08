@@ -3,8 +3,9 @@
 const SERVER_MAX_POINTS = 10_000;
 const SERVER_MAX_WORK = 200_000_000;
 
-let adjust = null;
-let engineLoading = null;
+let fitWorker = null;
+let fitRequestId = 0;
+const fitRequests = new Map();
 
 const MEASURE_LABEL = { eps2: "ε₂", eps1: "ε₁", n: "n", k: "k", r: "R", alpha: "α", t: "T", lum: "I" };
 const UNIT_LABEL = { cm: "cm⁻¹", ev: "eV", nm: "nm", otra: "ω" };
@@ -17,12 +18,13 @@ function pageLang() {
   return "es";
 }
 
+  live.scrollIntoView({ behavior: "smooth", block: "start" });
 function uiText(key) {
   const pack = {
-    es: { chart: "Gráfica", empty: "La curva de lo que cargues aparece aquí, sin esperar al ajuste.", needRow: "Hace falta otra fila numérica.", tooBig: "El archivo supera 4 MB.", unread: "No pude leer ese archivo.", working: "Calculando…", local: "Calculando en este aparato…", needNet: "Abre la app una vez con red para guardar el motor Rust en el aparato.", engine: "El motor Rust no pudo leer ese espectro.", fail: "No se pudo ajustar.", serverLimit: "El servidor admite hasta 10000 puntos numéricos; este espectro tiene {count}. Reduce los datos y vuelve a intentarlo.", serverWork: "Esta medida y el número de pasos exceden el trabajo permitido en el servidor. Reduce los puntos o los pasos.", save: "Bajar gráfica:", svg: "Vectorial, editable en Inkscape o Illustrator", png: "Imagen a doble resolución" },
-    en: { chart: "Plot", empty: "The curve of what you load appears here, before the fit.", needRow: "Another numeric row is needed.", tooBig: "The file is over 4 MB.", unread: "That file could not be read.", working: "Fitting…", local: "Fitting on this device…", needNet: "Open the app once online so the Rust engine is saved on this device.", engine: "The Rust engine could not read that spectrum.", fail: "The fit did not run.", serverLimit: "The server accepts up to 10000 numeric points; this spectrum has {count}. Reduce the data and try again.", serverWork: "This measurement and iteration count exceed the server work limit. Reduce the number of points or iterations.", save: "Save plot:", svg: "Vector file, editable in Inkscape or Illustrator", png: "Image at double resolution" },
-    zh: { chart: "图", empty: "载入的曲线会出现在这里，不必等待拟合。", needRow: "还需要一行数字。", tooBig: "文件超过 4 MB。", unread: "无法读取这个文件。", working: "正在拟合…", local: "正在本机拟合…", needNet: "请先联网打开一次，以便把 Rust 引擎存到这台设备。", engine: "Rust 引擎无法读取这份光谱。", fail: "未能完成拟合。", serverLimit: "服务器最多接受 10000 个数值点；当前光谱有 {count} 个。请减少数据后重试。", serverWork: "此测量和步数设置超出服务器工作量限制。请减少点数或步数。", save: "保存图：", svg: "矢量图，可在 Inkscape 或 Illustrator 中编辑", png: "双倍分辨率图像" },
-    pt: { chart: "Gráfico", empty: "A curva do que você carregar aparece aqui, sem esperar o ajuste.", needRow: "Falta outra linha numérica.", tooBig: "O arquivo passa de 4 MB.", unread: "Não consegui ler esse arquivo.", working: "Ajustando…", local: "Ajustando neste aparelho…", needNet: "Abra o app uma vez com rede para guardar o motor Rust neste aparelho.", engine: "O motor Rust não conseguiu ler esse espectro.", fail: "Não foi possível ajustar.", serverLimit: "O servidor aceita até 10000 pontos numéricos; este espectro tem {count}. Reduza os dados e tente novamente.", serverWork: "Esta medida e o número de iterações excedem o limite de trabalho do servidor. Reduza os pontos ou as iterações.", save: "Baixar gráfica:", svg: "Vetorial, editável no Inkscape ou no Illustrator", png: "Imagem em dobro da resolução" },
+    es: { chart: "Gráfica", empty: "La curva de lo que cargues aparece aquí, sin esperar al ajuste.", needRow: "Hace falta otra fila numérica.", tooBig: "El archivo supera 4 MB.", unread: "No pude leer ese archivo.", working: "Calculando…", local: "Calculando en este aparato…", serverWorking: "Calculando en el servidor…", serverFailed: "No se pudo completar el análisis en el servidor. Conservé tus datos; puedes volver a intentarlo.", needNet: "Abre la app una vez con red para guardar el motor Rust en el aparato.", engine: "El motor Rust no pudo leer ese espectro.", fail: "No se pudo ajustar.", serverLimit: "El servidor admite hasta 10000 puntos numéricos; este espectro tiene {count}. Reduce los datos y vuelve a intentarlo.", serverWork: "Esta medida y el número de pasos exceden el trabajo permitido en el servidor. Reduce los puntos o los pasos.", save: "Bajar gráfica:", svg: "Vectorial, editable en Inkscape o Illustrator", png: "Imagen a doble resolución" },
+    en: { chart: "Plot", empty: "The curve of what you load appears here, before the fit.", needRow: "Another numeric row is needed.", tooBig: "The file is over 4 MB.", unread: "That file could not be read.", working: "Fitting…", local: "Fitting on this device…", serverWorking: "Fitting on the server…", serverFailed: "The server could not complete the fit. Your data are still here; you can try again.", needNet: "Open the app once online so the Rust engine is saved on this device.", engine: "The Rust engine could not read that spectrum.", fail: "The fit did not run.", serverLimit: "The server accepts up to 10000 numeric points; this spectrum has {count}. Reduce the data and try again.", serverWork: "This measurement and iteration count exceed the server work limit. Reduce the number of points or iterations.", save: "Save plot:", svg: "Vector file, editable in Inkscape or Illustrator", png: "Image at double resolution" },
+    zh: { chart: "图", empty: "载入的曲线会出现在这里，不必等待拟合。", needRow: "还需要一行数字。", tooBig: "文件超过 4 MB。", unread: "无法读取这个文件。", working: "正在拟合…", local: "正在本机拟合…", serverWorking: "正在服务器上拟合…", serverFailed: "服务器无法完成拟合。数据仍保留在此处，可以重试。", needNet: "请先联网打开一次，以便把 Rust 引擎存到这台设备。", engine: "Rust 引擎无法读取这份光谱。", fail: "未能完成拟合。", serverLimit: "服务器最多接受 10000 个数值点；当前光谱有 {count} 个。请减少数据后重试。", serverWork: "此测量和步数设置超出服务器工作量限制。请减少点数或步数。", save: "保存图：", svg: "矢量图，可在 Inkscape 或 Illustrator 中编辑", png: "双倍分辨率图像" },
+    pt: { chart: "Gráfico", empty: "A curva do que você carregar aparece aqui, sem esperar o ajuste.", needRow: "Falta outra linha numérica.", tooBig: "O arquivo passa de 4 MB.", unread: "Não consegui ler esse arquivo.", working: "Ajustando…", local: "Ajustando neste aparelho…", serverWorking: "Ajustando no servidor…", serverFailed: "O servidor não conseguiu concluir o ajuste. Seus dados continuam aqui; você pode tentar novamente.", needNet: "Abra o app uma vez com rede para guardar o motor Rust neste aparelho.", engine: "O motor Rust não conseguiu ler esse espectro.", fail: "Não foi possível ajustar.", serverLimit: "O servidor aceita até 10000 pontos numéricos; este espectro tem {count}. Reduza os dados e tente novamente.", serverWork: "Esta medida e o número de iterações excedem o limite de trabalho do servidor. Reduza os pontos ou as iterações.", save: "Baixar gráfica:", svg: "Vetorial, editável no Inkscape ou no Illustrator", png: "Imagem em dobro da resolução" },
   };
   return (pack[pageLang()] || pack.es)[key];
 }
@@ -443,16 +445,54 @@ function enhanceCharts(root) {
 }
 // ---- Sin red: el motor Rust corre en el aparato ----
 
+function showLiveMessage(live, message, kind = "muted") {
+  if (!live) return;
+  live.hidden = false;
+  live.classList.remove("is-idle");
+  live.replaceChildren();
+  const paragraph = document.createElement("p");
+  paragraph.className = kind;
+  paragraph.setAttribute("role", kind === "muted" ? "status" : "alert");
+  paragraph.textContent = message;
+  live.append(paragraph);
+}
+
+function runFitInWorker(text, options) {
+  if (!fitWorker) {
+    fitWorker = new Worker("/js/fit-worker.js?v=1", { type: "module" });
+    fitWorker.addEventListener("message", (event) => {
+      const request = fitRequests.get(event.data.id);
+      if (!request) return;
+      fitRequests.delete(event.data.id);
+      if (event.data.error) request.reject(new Error(event.data.error));
+      else request.resolve(event.data.result);
+    });
+    fitWorker.addEventListener("error", () => {
+      const error = new Error("Web Worker could not run the local fit.");
+      fitWorker.terminate();
+      fitWorker = null;
+      for (const request of fitRequests.values()) request.reject(error);
+      fitRequests.clear();
+    });
+  }
+
+  const id = ++fitRequestId;
+  return new Promise((resolve, reject) => {
+    fitRequests.set(id, { resolve, reject });
+    try {
+      fitWorker.postMessage({ id, text, options });
+    } catch (error) {
+      fitRequests.delete(id);
+      reject(error);
+    }
+  });
+}
+
 function initLabSubmission() {
   const form = document.querySelector("form[action='/lab/run']");
   const live = document.getElementById("lm-live");
   if (!form) return;
-  let resubmittingServer = false;
   form.addEventListener("submit", async (event) => {
-    if (resubmittingServer) {
-      resubmittingServer = false;
-      return;
-    }
     if (event.submitter?.name === "execution" && event.submitter.value === "server") {
       event.preventDefault();
       const box = form.querySelector("textarea[name='spectrum']");
@@ -488,12 +528,38 @@ function initLabSubmission() {
         }
         return;
       }
-      resubmittingServer = true;
-      form.requestSubmit(event.submitter);
+      const submitter = event.submitter;
+      const buttons = [...form.querySelectorAll("button[type='submit']")];
+      const labels = buttons.map((button) => button.textContent);
+      buttons.forEach((button) => { button.disabled = true; });
+      if (submitter) submitter.textContent = uiText("serverWorking");
+      form.setAttribute("aria-busy", "true");
+      showLiveMessage(live, uiText("serverWorking"));
+      live?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const data = new FormData(form);
+      if (submitter?.name) data.append(submitter.name, submitter.value);
+      try {
+        const response = await fetch(submitter?.formAction || form.action, {
+          method: "POST",
+          body: data,
+          credentials: "same-origin",
+        });
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+        const destination = new URL(response.url, window.location.href);
+        if (destination.origin !== window.location.origin) throw new Error("Unexpected redirect origin");
+        window.location.assign(destination.href);
+      } catch {
+        form.removeAttribute("aria-busy");
+        buttons.forEach((button, index) => {
+          button.disabled = false;
+          button.textContent = labels[index];
+        });
+        showLiveMessage(live, uiText("serverFailed"), "form-error");
+      }
       return;
     }
     event.preventDefault();
-    const btn = form.querySelector("button[type='submit']");
+    const btn = event.submitter || form.querySelector("button[type='submit']");
     const label = btn ? btn.textContent : "";
     if (btn) {
       btn.disabled = true;
@@ -504,13 +570,7 @@ function initLabSubmission() {
       btn.disabled = false;
       btn.textContent = label;
     };
-    if (live) live.hidden = false;
     if (!live) {
-      restore();
-      return;
-    }
-    if (!(await engineReady())) {
-      live.innerHTML = `<p class="form-error" role="alert">${uiText("needNet")}</p>`;
       restore();
       return;
     }
@@ -537,11 +597,11 @@ function initLabSubmission() {
       lang: pageLang(),
     };
     if (btn) btn.textContent = uiText("local");
-    live.innerHTML = `<p class="muted">${uiText("local")}</p>`;
-    await new Promise((r) => setTimeout(r, 30));
+    showLiveMessage(live, uiText("local"));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
     let result;
     try {
-      result = JSON.parse(adjust(text, JSON.stringify(opts)));
+      result = JSON.parse(await runFitInWorker(text, opts));
     } catch {
       live.textContent = uiText("engine");
       restore();
@@ -570,23 +630,6 @@ function initLabSubmission() {
     restore();
     live.scrollIntoView({ behavior: "smooth", block: "start" });
   });
-}
-
-async function engineReady() {
-  if (adjust) return true;
-  if (!engineLoading) {
-    engineLoading = (async () => {
-      try {
-        const module = await import("/images/lightmatter.js");
-        await module.default();
-        adjust = (await import("/images/lightmatter.js")).adjust;
-        return true;
-      } catch {
-        return false;
-      }
-    })();
-  }
-  return engineLoading;
 }
 
 function initLabPage() {
