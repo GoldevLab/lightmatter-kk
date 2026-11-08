@@ -46,5 +46,5 @@ primary_region = "dfw"
     timeout = "2s"
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+  size = "shared-cpu-4x"
+  memory = "8gb"

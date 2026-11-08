@@ -1,7 +1,7 @@
 "use strict";
 
 const SERVER_MAX_POINTS = 10_000;
-const SERVER_MAX_WORK = 200_000_000;
+const SERVER_MAX_WORK = 10_000_000_000;
 
 let fitWorker = null;
 let fitRequestId = 0;

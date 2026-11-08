@@ -1097,7 +1097,7 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
 }
 
 const MAX_FIT_POINTS: usize = 10_000;
-const DENSE_WORK_BUDGET: usize = 200_000_000;
+const DENSE_WORK_BUDGET: u64 = 10_000_000_000;
 
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let phys = &input.physics;
@@ -1110,11 +1110,11 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         return Err(format!("El ajuste admite hasta {MAX_FIT_POINTS} puntos."));
     }
     if !matches!(measure, Measure::Eps2 | Measure::Lum) {
-        let points = input.x.len().saturating_add(1);
+        let points = (input.x.len() as u64).saturating_add(1);
         let work = points
             .saturating_mul(points)
             .saturating_mul(points)
-            .saturating_mul(input.iter_max.max(1));
+            .saturating_mul(input.iter_max.max(1) as u64);
         if work > DENSE_WORK_BUDGET {
             return Err("Este ajuste requiere demasiados recursos. Reduce el número de puntos o iteraciones.".into());
         }

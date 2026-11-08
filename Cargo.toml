@@ -16,7 +16,7 @@ wasm = ["dep:wasm-bindgen"]
 
 [dependencies]
 resuma = { git = "https://github.com/GoldevLab/resuma.git", rev = "36527ae1c1a8fb31d0e3cec3d3abcc9975ba2f7c", optional = true }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 hmac = { version = "0.12", optional = true }

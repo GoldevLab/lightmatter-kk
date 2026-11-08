@@ -4,6 +4,7 @@ use axum::body::Body;
 use axum::extract::Multipart;
 use axum::http::{header, Response, StatusCode};
 use axum::response::IntoResponse;
+use tokio::sync::Semaphore;
 
 use lightmatter::fit::{export, fit_text, TextFit};
 
@@ -11,6 +12,7 @@ use crate::store;
 
 const MAX_UPLOAD: usize = 4_000_000;
 pub const MAX_REQUEST_BODY: usize = MAX_UPLOAD + 64_000;
+static FIT_SLOTS: Semaphore = Semaphore::const_new(1);
 
 fn redirect(loc: &str) -> Response<Body> {
     Response::builder()
@@ -98,7 +100,11 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         thickness,
         temperature,
     };
-    let fit = match tokio::task::spawn_blocking(move || fit_text(&text, &options)).await {
+    let fit = {
+        let _fit_slot = FIT_SLOTS.acquire().await.expect("fit semaphore remains open");
+        tokio::task::spawn_blocking(move || fit_text(&text, &options)).await
+    };
+    let fit = match fit {
         Ok(result) => result,
         Err(_) => {
             crate::stats::record_error();
