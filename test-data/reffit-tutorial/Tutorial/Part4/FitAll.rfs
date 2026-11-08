@@ -1,0 +1,135 @@
+##################################################################
+#
+#   This macro fits the reflectivity spectra 
+#   "RB004.DAT", "RB100.DAT", ... , "RB300.DAT",
+#   which are measured for different temperatures, in a cycle. 
+#   All input data are taken from the same directory
+#
+#   Written by A.Kuzmenko (2004)
+#
+##################################################################
+
+#------------------------------------------------------------------------------------
+# opens the main window
+
+MainWindow(XPos = 0, YPos = 0, Width = 1024, Height = 740);
+
+#------------------------------------------------------------------------------------
+# creates a new model
+
+NewModel(XPos = 0, YPos = 50, Width = 300, Height = 240);
+
+#------------------------------------------------------------------------------------
+# creates and sets up a couple of new graphs (for reflectivity and conductivity
+
+NewGraph(XPos = 300, YPos = 50, Width = 720, Height = 350);
+GraphProperties(GraphNo = 1, Xmin = 75.0, Xmax = 4000.0, Xlog = 1, Ymin = 0.0, 
+	Ymax = 1.0, Ylog = 0, YTitle = "Reflectivity");
+AddModelCurve(GraphNo = 1, ModelNo = 1, Quantity = "R");
+
+NewGraph(XPos = 300, YPos = 400, Width = 720, Height = 330);
+GraphProperties(GraphNo = 2, Xmin = 75.0, Xmax = 4000.0, Xlog = 1, Ymin = 0.0, 
+	Ymax = 100.0, Ylog = 0, YTitle = "Conductivity");
+AddModelCurve(GraphNo = 2, ModelNo = 1, Quantity = "S1");
+
+#------------------------------------------------------------------------------------
+# opens the "Fit" window 
+
+WindowFit(Xpos = 0, YPos = 450);
+
+#------------------------------------------------------------------------------------
+# loads a 'seed' model 
+
+LoadModel(ModelNo = 1, File = "MODEL.RFM");
+
+#------------------------------------------------------------------------------------
+# enters the cycle loop
+
+BeginLoop(LoopFile = "LOOP.DAT");
+
+	#----------------------------------------------------------------------------
+	# changes the title of the application
+
+	MainWindow(Title = "Fitting spectrum at T = %1 K");
+
+	#----------------------------------------------------------------------------
+	# loads a new experimental reflectivity curve
+
+	LoadDataset(DatasetNo = 1, Quantity = "R", MasterFile = "RB%1.DAT", 
+		XMethod = 3, Xmin = 75.0, Xmax = 2000.0, XPts = 1000, XGrid = 2);
+
+	#----------------------------------------------------------------------------
+	# plots the experimental reflectivity curve
+
+	AddDataCurve(GraphNo = 1, DatasetNo = 1, ShowLine = 1, ShowSymbol = 1, 
+		ShowError = 0, nSymbolSize = 1, nSymbolShape = 0, SymbolOpen = 1);
+
+	#----------------------------------------------------------------------------
+	# adds the corresponding chi-square term
+
+	AddChiSqTerm(DatasetNo = 1, ModelNo = 1, Weight = 1.0);
+
+	#----------------------------------------------------------------------------
+	# wait until all the graphs are redrawn
+
+	Wait();
+
+	#----------------------------------------------------------------------------
+	# performs the fitting (maximum 10 iterations)
+
+	Fit(NumIters = 10);
+
+	#----------------------------------------------------------------------------
+	# suspends the execution, allows the user to verify, that the fit is OK
+
+	Suspend();
+
+	#----------------------------------------------------------------------------
+	# saves the new model parameters under a unique name
+
+	SaveModel(ModelNo = 1, File = "MOD_%1.RFM");
+
+	#----------------------------------------------------------------------------
+	# export the model reflecitivity and conductivity curves
+
+	ExportModelCurve(File = "RF_%1.DAT", ModelNo = 1, Quantity = "R", 
+		Xmin = 1E-4, Xmax = 1E6, XPts = 1000, XGrid = 2);
+
+	ExportModelCurve(File = "S1_%1.DAT", ModelNo = 1, Quantity = "S1", 
+		Xmin = 0.995e-4, Xmax = 1.005e-4, XPts =3, XGrid = 1);
+
+	#----------------------------------------------------------------------------
+	# deletes the experimental reflectivity curve
+
+	DeleteDataCurve(GraphNo = 1, DatasetNo = 1);
+
+	#----------------------------------------------------------------------------
+	#deletes the chi-square term
+
+	DeleteChiSqTerm(DatasetNo = 1, ModelNo = 1);
+
+	#----------------------------------------------------------------------------
+	#unloads the dataset
+
+	UnloadDataset(DatasetNo = 1);
+
+#------------------------------------------------------------------------------------
+#  the end of the cycle loop
+EndLoop();
+
+#------------------------------------------------------------------------------------
+#  deletes the model curves
+
+DeleteModelCurve(GraphNo = 1, ModelNo = 1, Quantity = "R");
+DeleteModelCurve(GraphNo = 2, ModelNo = 1, Quantity = "S1");
+
+#------------------------------------------------------------------------------------
+#  restores the original application title
+
+MainWindow(Title = "");
+
+#------------------------------------------------------------------------------------
+#  exits the application
+
+Exit(QuitApp = 1);
+#------------------------------------------------------------------------------------
