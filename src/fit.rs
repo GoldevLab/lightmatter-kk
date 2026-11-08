@@ -1097,7 +1097,7 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
 }
 
 const MAX_FIT_POINTS: usize = 10_000;
-const DENSE_WORK_BUDGET: u64 = 10_000_000_000;
+const DENSE_WORK_BUDGET: u64 = 3_000_000_000_000;
 
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let phys = &input.physics;
