@@ -2,6 +2,8 @@
 
 const form = document.querySelector("form[action='/lab/run']");
 const live = document.getElementById("lm-live");
+const SERVER_MAX_POINTS = 10_000;
+const SERVER_MAX_WORK = 200_000_000;
 
 let adjust = null;
 import("/images/lightmatter.js")
@@ -27,10 +29,10 @@ function pageLang() {
 
 function uiText(key) {
   const pack = {
-    es: { chart: "Gráfica", empty: "La curva de lo que cargues aparece aquí, sin esperar al ajuste.", needRow: "Hace falta otra fila numérica.", tooBig: "El archivo supera 4 MB.", unread: "No pude leer ese archivo.", working: "Calculando…", local: "Calculando en este aparato…", needNet: "Abre la app una vez con red para guardar el motor Rust en el aparato.", engine: "El motor Rust no pudo leer ese espectro.", fail: "No se pudo ajustar.", save: "Bajar gráfica:", svg: "Vectorial, editable en Inkscape o Illustrator", png: "Imagen a doble resolución" },
-    en: { chart: "Plot", empty: "The curve of what you load appears here, before the fit.", needRow: "Another numeric row is needed.", tooBig: "The file is over 4 MB.", unread: "That file could not be read.", working: "Fitting…", local: "Fitting on this device…", needNet: "Open the app once online so the Rust engine is saved on this device.", engine: "The Rust engine could not read that spectrum.", fail: "The fit did not run.", save: "Save plot:", svg: "Vector file, editable in Inkscape or Illustrator", png: "Image at double resolution" },
-    zh: { chart: "图", empty: "载入的曲线会出现在这里，不必等待拟合。", needRow: "还需要一行数字。", tooBig: "文件超过 4 MB。", unread: "无法读取这个文件。", working: "正在拟合…", local: "正在本机拟合…", needNet: "请先联网打开一次，以便把 Rust 引擎存到这台设备。", engine: "Rust 引擎无法读取这份光谱。", fail: "未能完成拟合。", save: "保存图：", svg: "矢量图，可在 Inkscape 或 Illustrator 中编辑", png: "双倍分辨率图像" },
-    pt: { chart: "Gráfico", empty: "A curva do que você carregar aparece aqui, sem esperar o ajuste.", needRow: "Falta outra linha numérica.", tooBig: "O arquivo passa de 4 MB.", unread: "Não consegui ler esse arquivo.", working: "Ajustando…", local: "Ajustando neste aparelho…", needNet: "Abra o app uma vez com rede para guardar o motor Rust neste aparelho.", engine: "O motor Rust não conseguiu ler esse espectro.", fail: "Não foi possível ajustar.", save: "Baixar gráfico:", svg: "Vetorial, editável no Inkscape ou no Illustrator", png: "Imagem em dobro da resolução" },
+    es: { chart: "Gráfica", empty: "La curva de lo que cargues aparece aquí, sin esperar al ajuste.", needRow: "Hace falta otra fila numérica.", tooBig: "El archivo supera 4 MB.", unread: "No pude leer ese archivo.", working: "Calculando…", local: "Calculando en este aparato…", needNet: "Abre la app una vez con red para guardar el motor Rust en el aparato.", engine: "El motor Rust no pudo leer ese espectro.", fail: "No se pudo ajustar.", serverLimit: "El servidor admite hasta 10000 puntos numéricos; este espectro tiene {count}. Reduce los datos y vuelve a intentarlo.", serverWork: "Esta medida y el número de pasos exceden el trabajo permitido en el servidor. Reduce los puntos o los pasos.", save: "Bajar gráfica:", svg: "Vectorial, editable en Inkscape o Illustrator", png: "Imagen a doble resolución" },
+    en: { chart: "Plot", empty: "The curve of what you load appears here, before the fit.", needRow: "Another numeric row is needed.", tooBig: "The file is over 4 MB.", unread: "That file could not be read.", working: "Fitting…", local: "Fitting on this device…", needNet: "Open the app once online so the Rust engine is saved on this device.", engine: "The Rust engine could not read that spectrum.", fail: "The fit did not run.", serverLimit: "The server accepts up to 10000 numeric points; this spectrum has {count}. Reduce the data and try again.", serverWork: "This measurement and iteration count exceed the server work limit. Reduce the number of points or iterations.", save: "Save plot:", svg: "Vector file, editable in Inkscape or Illustrator", png: "Image at double resolution" },
+    zh: { chart: "图", empty: "载入的曲线会出现在这里，不必等待拟合。", needRow: "还需要一行数字。", tooBig: "文件超过 4 MB。", unread: "无法读取这个文件。", working: "正在拟合…", local: "正在本机拟合…", needNet: "请先联网打开一次，以便把 Rust 引擎存到这台设备。", engine: "Rust 引擎无法读取这份光谱。", fail: "未能完成拟合。", serverLimit: "服务器最多接受 10000 个数值点；当前光谱有 {count} 个。请减少数据后重试。", serverWork: "此测量和步数设置超出服务器工作量限制。请减少点数或步数。", save: "保存图：", svg: "矢量图，可在 Inkscape 或 Illustrator 中编辑", png: "双倍分辨率图像" },
+    pt: { chart: "Gráfico", empty: "A curva do que você carregar aparece aqui, sem esperar o ajuste.", needRow: "Falta outra linha numérica.", tooBig: "O arquivo passa de 4 MB.", unread: "Não consegui ler esse arquivo.", working: "Ajustando…", local: "Ajustando neste aparelho…", needNet: "Abra o app uma vez com rede para guardar o motor Rust neste aparelho.", engine: "O motor Rust não conseguiu ler esse espectro.", fail: "Não foi possível ajustar.", serverLimit: "O servidor aceita até 10000 pontos numéricos; este espectro tem {count}. Reduza os dados e tente novamente.", serverWork: "Esta medida e o número de iterações excedem o limite de trabalho do servidor. Reduza os pontos ou as iterações.", save: "Baixar gráfica:", svg: "Vetorial, editável no Inkscape ou no Illustrator", png: "Imagem em dobro da resolução" },
   };
   return (pack[pageLang()] || pack.es)[key];
 }
@@ -452,8 +454,51 @@ enhanceCharts(document);
 // ---- Sin red: el motor Rust corre en el aparato ----
 
 if (form) {
+  let resubmittingServer = false;
   form.addEventListener("submit", async (event) => {
-    if (event.submitter?.name === "execution" && event.submitter.value === "server") return;
+    if (resubmittingServer) {
+      resubmittingServer = false;
+      return;
+    }
+    if (event.submitter?.name === "execution" && event.submitter.value === "server") {
+      event.preventDefault();
+      const box = form.querySelector("textarea[name='spectrum']");
+      const points = parseColumns(box ? box.value : "").xs.length;
+      if (points > SERVER_MAX_POINTS) {
+        if (live) {
+          live.hidden = false;
+          live.classList.remove("is-idle");
+          live.innerHTML = "";
+          const error = document.createElement("p");
+          error.className = "form-error";
+          error.setAttribute("role", "alert");
+          error.textContent = uiText("serverLimit").replace("{count}", String(points));
+          live.append(error);
+          live.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        return;
+      }
+      const measure = form.querySelector("select[name='measure']")?.value || "eps2";
+      const iter = Math.max(1, Math.min(1000, Number(form.querySelector("input[name='iter']")?.value) || 20));
+      const denseWork = (points + 1) ** 3 * iter;
+      if (measure !== "eps2" && measure !== "lum" && denseWork > SERVER_MAX_WORK) {
+        if (live) {
+          live.hidden = false;
+          live.classList.remove("is-idle");
+          live.innerHTML = "";
+          const error = document.createElement("p");
+          error.className = "form-error";
+          error.setAttribute("role", "alert");
+          error.textContent = uiText("serverWork");
+          live.append(error);
+          live.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        return;
+      }
+      resubmittingServer = true;
+      form.requestSubmit(event.submitter);
+      return;
+    }
     event.preventDefault();
     const btn = form.querySelector("button[type='submit']");
     const label = btn ? btn.textContent : "";

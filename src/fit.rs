@@ -1096,7 +1096,7 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
     d.map(|d| eps1_drude(om, d) - d.eps_inf).unwrap_or(0.0)
 }
 
-const MAX_FIT_POINTS: usize = 4_000;
+const MAX_FIT_POINTS: usize = 10_000;
 const DENSE_WORK_BUDGET: usize = 200_000_000;
 
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
@@ -2311,8 +2311,8 @@ mod tests {
     }
 
     #[test]
-    fn four_thousand_points_keep_one_anchor_each() {
-        let x: Vec<f64> = (0..4000).map(|i| 100.0 + i as f64 * 0.25).collect();
+    fn ten_thousand_points_keep_one_anchor_each() {
+        let x: Vec<f64> = (0..10_000).map(|i| 100.0 + i as f64 * 0.25).collect();
         let y: Vec<f64> = x.iter().map(|&w| lorentz(w).1).collect();
         let report = run_fit(&FitRequest {
             x,
@@ -2323,16 +2323,16 @@ mod tests {
             smoothness: 0.08,
             negativity: 100.0,
             extended: false,
-            sigma: vec![0.01; 4000],
+            sigma: vec![0.01; 10_000],
             errors_given: true,
             physics: Physics { unit: Unit::Cm, ..Physics::default() },
         })
         .unwrap();
-        assert_eq!(report.points_used, 4000);
-        assert_eq!(report.mfit, 4000);
+        assert_eq!(report.points_used, 10_000);
+        assert_eq!(report.mfit, 10_000);
         assert!(report.converged);
-        assert!(report.chisq_dof < 1.0 || report.chisq < 4000.0, "χ² {}", report.chisq);
-        assert_eq!(report.eps2_err.len(), 4000);
+        assert!(report.chisq_dof < 1.0 || report.chisq < 10_000.0, "χ² {}", report.chisq);
+        assert_eq!(report.eps2_err.len(), 10_000);
         assert!(report.eps2_err.iter().all(|e| *e > 0.0 && *e < 0.02));
     }
 
@@ -2356,7 +2356,7 @@ mod tests {
     }
 
     #[test]
-    fn fit_rejects_more_than_four_thousand_points() {
+    fn fit_rejects_more_than_maximum_points() {
         let points = MAX_FIT_POINTS + 1;
         let result = run_fit(&FitRequest {
             x: (1..=points).map(|value| value as f64).collect(),
@@ -2371,7 +2371,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         });
-        assert!(result.unwrap_err().contains("hasta 4000 puntos"));
+        assert!(result.unwrap_err().contains("hasta 10000 puntos"));
     }
 
     #[test]

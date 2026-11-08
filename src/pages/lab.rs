@@ -205,6 +205,7 @@ pub fn page(req: FlowRequest) -> View {
     let lead = tx(lang, "Pega frecuencia y lo que mediste: ε₂, ε₁, n, k, R, α, T o luminiscencia. Con las ópticas, Levenberg–Marquardt busca el ε₂ cuyo par Kramers–Kronig reproduce tu medida; de ahí salen ε₁, n, k, R, la pérdida, α, σ₁, σ₂ y los picos. Con el espesor salen también T y la absorbancia. La luminiscencia no pasa por Kramers–Kronig: salen picos, anchos, áreas, centroide y la forma de la absorción.", "Paste the frequency and what you measured: ε₂, ε₁, n, k, R, α, T, or luminescence. For the optical ones, Levenberg–Marquardt looks for the ε₂ whose Kramers–Kronig pair reproduces your measurement; from that pair come ε₁, n, k, R, the loss, α, σ₁, σ₂, and the peaks. With a thickness, T and the absorbance too. Luminescence does not go through Kramers–Kronig: you get peaks, widths, areas, the centroid, and the absorption shape.", "粘贴频率和测量值：ε₂、ε₁、n、k、R、α、T 或发光。对光学量，Levenberg–Marquardt 寻找其克拉默斯–克罗尼格配对能再现测量的 ε₂；由此得到 ε₁、n、k、R、能量损失、α、σ₁、σ₂ 和峰。有厚度时还有 T 和吸光度。发光不经过克拉默斯–克罗尼格：得到峰、宽度、面积、质心和吸收线形。", "Cole a frequência e o que mediu: ε₂, ε₁, n, k, R, α, T ou luminescência. Nas ópticas, Levenberg–Marquardt procura o ε₂ cujo par Kramers–Kronig reproduz a medida; daí saem ε₁, n, k, R, a perda, α, σ₁, σ₂ e os picos. Com a espessura saem também T e a absorbância. A luminescência não passa por Kramers–Kronig: saem picos, larguras, áreas, centroide e a forma da absorção.");
     let legend1 = tx(lang, "1 · Espectro", "1 · Spectrum", "1 · 光谱", "1 · Espectro");
     let help1 = tx(lang, "Dos columnas: ω positiva y tu medida. La tercera, si la tienes, es el error de ese punto: pesa el χ² y dibuja la barra ±1σ. Una línea de texto, o que empiece por #, se ignora. Al soltar un archivo, sus números pasan al cuadro y la curva sale al lado, antes de pulsar analizar.", "Two columns: positive ω and your measurement. The third, if you have it, is that point’s error: it weights χ² and draws the ±1σ bar. A text line, or one that starts with #, is ignored. When you drop a file, its numbers go into the box and the curve appears beside it, before you press fit.", "两列：正的 ω 和测量值。若有第三列，是该点的误差：它给 χ² 加权并画出 ±1σ 误差棒。文字行或以 # 开头的行会被忽略。放下文件后，数字进入文本框，曲线立刻出现在旁边，不必先按分析。", "Duas colunas: ω positiva e a sua medida. A terceira, se existir, é o erro desse ponto: pesa o χ² e desenha a barra ±1σ. Uma linha de texto, ou que comece por #, é ignorada. Ao soltar um arquivo, os números passam para a caixa e a curva aparece ao lado, antes de analisar.");
+    let server_limit = tx(lang, "El servidor admite hasta 10000 puntos numéricos; algunas medidas pueden admitir menos según los pasos.", "The server accepts up to 10000 numeric points; some measurements may allow fewer depending on the iteration count.", "服务器最多接受 10000 个数值点；部分测量在某些步数设置下允许的点数会更少。", "O servidor aceita até 10000 pontos numéricos; algumas medidas podem aceitar menos conforme o número de iterações.");
     let what = tx(lang, "Qué mediste", "What you measured", "测量的是", "O que você mediu");
     let unit_of = tx(lang, "Unidad de ω", "Unit of ω", "ω 的单位", "Unidade de ω");
     let thick = tx(lang, "Espesor (µm)", "Thickness (µm)", "厚度 (µm)", "Espessura (µm)");
@@ -243,7 +244,7 @@ pub fn page(req: FlowRequest) -> View {
                 <form id="ajuste" method="post" action="/lab/run" enctype="multipart/form-data" class="lab-form">
                     <fieldset>
                         <legend>{legend1}</legend>
-                        <p class="help">{help1}</p>
+                        <p class="help">{help1} {server_limit}</p>
                         <div class="measure-row">
                             <label>{what}{measure_select}</label>
                             <label>{unit_of}{unit_select}</label>
@@ -299,7 +300,7 @@ pub fn page(req: FlowRequest) -> View {
                 </form>
             </section>
             {result}
-            <script type="module" src="/js/offline.js?v=13"></script>
+            <script type="module" src="/js/offline.js?v=14"></script>
         </main>
     }
 }
