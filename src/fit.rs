@@ -1096,12 +1096,28 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
     d.map(|d| eps1_drude(om, d) - d.eps_inf).unwrap_or(0.0)
 }
 
+const MAX_FIT_POINTS: usize = 4_000;
+const DENSE_WORK_BUDGET: usize = 200_000_000;
+
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let phys = &input.physics;
     let measure = phys.measure;
     let sym = measure.symbol();
     if input.x.len() != input.y.len() || input.x.len() < 3 {
         return Err("ω y el valor deben tener la misma longitud (mínimo 3)".into());
+    }
+    if input.x.len() > MAX_FIT_POINTS {
+        return Err(format!("El ajuste admite hasta {MAX_FIT_POINTS} puntos."));
+    }
+    if !matches!(measure, Measure::Eps2 | Measure::Lum) {
+        let points = input.x.len().saturating_add(1);
+        let work = points
+            .saturating_mul(points)
+            .saturating_mul(points)
+            .saturating_mul(input.iter_max.max(1));
+        if work > DENSE_WORK_BUDGET {
+            return Err("Este ajuste requiere demasiados recursos. Reduce el número de puntos o iteraciones.".into());
+        }
     }
     let errors_given = input.errors_given && input.sigma.len() == input.x.len();
     if errors_given {
@@ -2318,6 +2334,44 @@ mod tests {
         assert!(report.chisq_dof < 1.0 || report.chisq < 4000.0, "χ² {}", report.chisq);
         assert_eq!(report.eps2_err.len(), 4000);
         assert!(report.eps2_err.iter().all(|e| *e > 0.0 && *e < 0.02));
+    }
+
+    #[test]
+    fn dense_fit_rejects_excessive_work_before_allocating_matrices() {
+        let points = 300;
+        let result = run_fit(&FitRequest {
+            x: (1..=points).map(|value| value as f64).collect(),
+            y: vec![1.0; points],
+            iter_max: 1000,
+            log_mesh: false,
+            drude: None,
+            smoothness: 0.08,
+            negativity: 100.0,
+            extended: false,
+            sigma: Vec::new(),
+            errors_given: false,
+            physics: Physics { measure: Measure::N, ..Physics::default() },
+        });
+        assert!(result.unwrap_err().contains("demasiados recursos"));
+    }
+
+    #[test]
+    fn fit_rejects_more_than_four_thousand_points() {
+        let points = MAX_FIT_POINTS + 1;
+        let result = run_fit(&FitRequest {
+            x: (1..=points).map(|value| value as f64).collect(),
+            y: vec![1.0; points],
+            iter_max: 1,
+            log_mesh: false,
+            drude: None,
+            smoothness: 0.08,
+            negativity: 100.0,
+            extended: false,
+            sigma: Vec::new(),
+            errors_given: false,
+            physics: Physics::default(),
+        });
+        assert!(result.unwrap_err().contains("hasta 4000 puntos"));
     }
 
     #[test]

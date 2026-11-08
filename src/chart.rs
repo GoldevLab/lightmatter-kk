@@ -452,6 +452,15 @@ fn wrap(chart: String) -> String {
     }
 }
 
+fn chart_pair(first: String, second: String) -> String {
+    match (first.is_empty(), second.is_empty()) {
+        (true, true) => String::new(),
+        (false, true) => wrap(first),
+        (true, false) => wrap(second),
+        (false, false) => format!("<div class=\"chart-pair\">{}{}</div>", wrap(first), wrap(second)),
+    }
+}
+
 fn warnings_markup(report: &FitReport) -> String {
     if report.warnings.is_empty() {
         String::new()
@@ -572,6 +581,11 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
         log_x,
         None,
     );
+    let (fit_markup, eps_pair) = if measure == Measure::Eps2 {
+        (String::new(), chart_pair(fit_panel, eps1))
+    } else {
+        (wrap(fit_panel), chart_pair(eps2_panel, eps1))
+    };
     let diff = if report.difference.len() == report.data_x.len() {
         line_chart(
             tx(lang, "Diferencia (ajuste − datos) × 100", "Difference (fit − data) × 100", "差值（拟合 − 数据）× 100", "Diferença (ajuste − dados) × 100"),
@@ -584,17 +598,23 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     } else {
         String::new()
     };
-    let nk = line_chart(
-        tx(lang, "n índice de refracción · k extinción", "n refractive index · k extinction", "n 折射率 · k 消光", "n índice de refração · k extinção"),
-        "n, k",
+    let n_panel = line_chart(
+        tx(lang, "n — índice de refracción", "n — refractive index", "n — 折射率", "n — índice de refração"),
+        "n",
         x_label,
-        &[
-            Series { name: "n", color: "#3ee0c5", xs: &report.omega, ys: &report.n_index },
-            Series { name: "k", color: "#7aa2ff", xs: &report.omega, ys: &report.k_index },
-        ],
+        &[Series { name: "n", color: "#3ee0c5", xs: &report.omega, ys: &report.n_index }],
         log_x,
         None,
     );
+    let k_panel = line_chart(
+        tx(lang, "k — coeficiente de extinción", "k — extinction coefficient", "k — 消光系数", "k — coeficiente de extinção"),
+        "k",
+        x_label,
+        &[Series { name: "k", color: "#7aa2ff", xs: &report.omega, ys: &report.k_index }],
+        log_x,
+        None,
+    );
+    let nk_pair = chart_pair(n_panel, k_panel);
     let refl = line_chart(
         tx(lang, "R de un medio semi-infinito, a incidencia normal", "R of a semi-infinite medium, at normal incidence", "半无限介质的正入射 R", "R de um meio semi-infinito, em incidência normal"),
         "R",
@@ -649,6 +669,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     } else {
         (String::new(), String::new(), String::new())
     };
+    let sigma_pair = chart_pair(sigma_panel, sigma2_panel);
     let (trans_panel, absorb_panel) = if report.transmittance.len() == report.omega.len() && !report.transmittance.is_empty() {
         (
             line_chart(
@@ -805,7 +826,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     let charts_word = tx(lang, "Gráficas", "Charts", "图", "Gráficos");
     let result_word = tx(lang, "Resultado", "Result", "结果", "Resultado");
     format!(
-        "<section class=\"panel results\"><div class=\"result-head\"><div><p class=\"eyebrow\">{result_word} · {label}</p><h2>{score}</h2><p class=\"muted\">{meta}</p><p>{status}</p></div>{downloads}</div>{warns}{facts}{table}{fit}{eps2}{eps1}{diff}{nk}{refl}{loss}{alpha}{sigma}{sigma2}{trans}{absorb}{ext}<ul class=\"glossary\"><li><strong>χ²</strong> {g_chi} {sym}. {g_chi2}</li><li><strong>χ²/dof</strong> {dof_help}</li><li><strong>±1σ</strong> {g_bar}</li><li><strong>{data_word}</strong> <span class=\"swatch swatch-data\"></span> {measure_note}</li><li><strong>ε₂</strong> <span class=\"swatch swatch-e2\"></span> {g_e2}</li><li><strong>ε₁</strong> <span class=\"swatch swatch-e1\"></span> {g_e1}</li><li><strong>n</strong> {g_nk} <strong>k</strong> {g_k} <strong>R</strong> {g_r} <strong>−Im(1/ε)</strong> {g_loss}</li>{units_note}<li><strong>{peaks_word}</strong> {g_peaks}</li><li><strong>{charts_word}</strong> {g_charts}</li></ul>{publish}{informe}</section>",
+        "<section class=\"panel results\"><div class=\"result-head\"><div><p class=\"eyebrow\">{result_word} · {label}</p><h2>{score}</h2><p class=\"muted\">{meta}</p><p>{status}</p></div>{downloads}</div>{warns}{facts}{table}{fit}{eps_pair}{diff}{nk_pair}{refl}{loss}{alpha}{sigma_pair}{trans}{absorb}{ext}<ul class=\"glossary\"><li><strong>χ²</strong> {g_chi} {sym}. {g_chi2}</li><li><strong>χ²/dof</strong> {dof_help}</li><li><strong>±1σ</strong> {g_bar}</li><li><strong>{data_word}</strong> <span class=\"swatch swatch-data\"></span> {measure_note}</li><li><strong>ε₂</strong> <span class=\"swatch swatch-e2\"></span> {g_e2}</li><li><strong>ε₁</strong> <span class=\"swatch swatch-e1\"></span> {g_e1}</li><li><strong>n</strong> {g_nk} <strong>k</strong> {g_k} <strong>R</strong> {g_r} <strong>−Im(1/ε)</strong> {g_loss}</li>{units_note}<li><strong>{peaks_word}</strong> {g_peaks}</li><li><strong>{charts_word}</strong> {g_charts}</li></ul>{publish}{informe}</section>",
         label = escape(measure.symbol()),
         meta = escape(&format!(
             "{} {} · {} {} · {} · {}",
@@ -823,16 +844,14 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
         table = peaks_table(&report.peaks, unit, "ε₂", lang),
         dof_help = escape(&dof_help),
         measure_note = escape(&measure_note),
-        fit = wrap(fit_panel),
-        eps2 = wrap(eps2_panel),
-        eps1 = wrap(eps1),
+        fit = fit_markup,
+        eps_pair = eps_pair,
         diff = wrap(diff),
-        nk = wrap(nk),
+        nk_pair = nk_pair,
         refl = wrap(refl),
         loss = wrap(loss),
         alpha = wrap(alpha_panel),
-        sigma = wrap(sigma_panel),
-        sigma2 = wrap(sigma2_panel),
+        sigma_pair = sigma_pair,
         trans = wrap(trans_panel),
         absorb = wrap(absorb_panel),
         ext = wrap(ext),
@@ -846,4 +865,17 @@ fn escape(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::chart_pair;
+
+    #[test]
+    fn chart_pair_wraps_both_panels_together() {
+        assert_eq!(
+            chart_pair("epsilon one".into(), "epsilon two".into()),
+            "<div class=\"chart-pair\"><div class=\"chart-wrap\">epsilon one</div><div class=\"chart-wrap\">epsilon two</div></div>"
+        );
+    }
 }

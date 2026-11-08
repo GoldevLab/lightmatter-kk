@@ -10,6 +10,7 @@ use lightmatter::fit::{export, fit_text, TextFit};
 use crate::store;
 
 const MAX_UPLOAD: usize = 4_000_000;
+pub const MAX_REQUEST_BODY: usize = MAX_UPLOAD + 64_000;
 
 fn redirect(loc: &str) -> Response<Body> {
     Response::builder()

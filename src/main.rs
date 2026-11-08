@@ -199,7 +199,7 @@ async fn main() -> std::io::Result<()> {
                 .cookie("lightmatter_theme")
                 .storage_key("lightmatter-theme"),
         )
-        .with_stylesheet("/images/lightmatter.css?v=24")
+        .with_stylesheet("/images/lightmatter.css?v=25")
         .with_sitemap_exclude(["/admin"])
         .static_asset("/icon.svg", ICON, "image/svg+xml")
         .static_asset("/.well-known/security.txt", security_txt, "text/plain; charset=utf-8")
@@ -212,7 +212,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-38".into(),
+            cache_version: "lm-39".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
@@ -221,7 +221,7 @@ async fn main() -> std::io::Result<()> {
                 "/".into(),
                 "/lab".into(),
                 "/learn".into(),
-                "/images/lightmatter.css?v=24".into(),
+                "/images/lightmatter.css?v=25".into(),
                 "/js/lang.js?v=4".into(),
                 "/_resuma/ui.css?v=4679afe0d6db98bc".into(),
                 "/_resuma/loader.js?v=2.0.1".into(),
@@ -245,7 +245,10 @@ async fn main() -> std::io::Result<()> {
             offline_message: "Abre Laboratorio. El ajuste variacional corre en Rust dentro de la app, sin red.".into(),
             manifest_icons: Vec::new(),
         })
-        .route("/lab/run", post(http::run_lab))
+        .route(
+            "/lab/run",
+            post(http::run_lab).layer(axum::extract::DefaultBodyLimit::max(http::MAX_REQUEST_BODY)),
+        )
         .route("/lab/download/{id}", get(http::download))
         .route("/lab/download/{id}/{format}", get(http::download_as))
         .route("/shelf/publish", post(shelf::publish_form))

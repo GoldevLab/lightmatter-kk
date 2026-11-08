@@ -470,6 +470,8 @@ select option { background: var(--option-bg); color: var(--text); }
 .warnings { margin: 0.4rem 0 0; color: var(--warn-ink); }
 .results { display: grid; gap: 0.8rem; }
 .result-head { justify-content: space-between; }
+.chart-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; min-width: 0; }
+.chart-pair > .chart-wrap { min-width: 0; }
 .mono { font-family: var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
 .peaks, .facts dd, .preview-meta, textarea { font-variant-numeric: tabular-nums; }
 .chart { margin: 0; position: relative; }
@@ -786,6 +788,10 @@ dialog.proof-sheet::backdrop { background: var(--modal-scrim); }
   .brand-name { font-size: 0.98rem; }
   .theme-pair button { padding: 0.28rem 0.5rem; }
   .home-page, .lab-page, .auth-page, .shelf-page, .shelf-one { padding-top: 1.2rem; }
+}
+
+@media (max-width: 680px) {
+  .chart-pair { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-transparency: reduce) {
