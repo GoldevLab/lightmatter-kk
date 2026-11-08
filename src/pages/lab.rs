@@ -300,7 +300,6 @@ pub fn page(req: FlowRequest) -> View {
                 </form>
             </section>
             {result}
-            <script type="module" src="/js/offline.js?v=14"></script>
         </main>
     }
 }

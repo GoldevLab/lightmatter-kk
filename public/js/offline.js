@@ -1,20 +1,10 @@
 "use strict";
 
-const form = document.querySelector("form[action='/lab/run']");
-const live = document.getElementById("lm-live");
 const SERVER_MAX_POINTS = 10_000;
 const SERVER_MAX_WORK = 200_000_000;
 
 let adjust = null;
-import("/images/lightmatter.js")
-  .then((mod) => mod.default())
-  .then(() => import("/images/lightmatter.js"))
-  .then((mod) => {
-    adjust = mod.adjust;
-  })
-  .catch(() => {
-    adjust = null;
-  });
+let engineLoading = null;
 
 const MEASURE_LABEL = { eps2: "ε₂", eps1: "ε₁", n: "n", k: "k", r: "R", alpha: "α", t: "T", lum: "I" };
 const UNIT_LABEL = { cm: "cm⁻¹", ev: "eV", nm: "nm", otra: "ω" };
@@ -103,6 +93,7 @@ function thinSeries(xs, ys, cap) {
 }
 
 function drawPreview() {
+  const form = document.querySelector("form[action='/lab/run']");
   const figure = document.querySelector("[data-lm-preview]");
   const slot = document.querySelector("[data-lm-preview-slot]");
   const meta = document.querySelector("[data-lm-preview-meta]");
@@ -207,8 +198,10 @@ function drawPreview() {
   enhanceChart(figure);
 }
 
-const drop = document.querySelector("[data-lm-drop]");
-if (drop && form) {
+function initLabControls() {
+  const form = document.querySelector("form[action='/lab/run']");
+  const drop = document.querySelector("[data-lm-drop]");
+  if (!form || !drop) return;
   const input = drop.querySelector("input[type='file']");
   const name = drop.querySelector("[data-lm-file]");
   const box = form.querySelector("textarea[name='spectrum']");
@@ -261,23 +254,22 @@ if (drop && form) {
   if (measureSelect) measureSelect.addEventListener("change", drawPreview);
   if (unitSelect) unitSelect.addEventListener("change", drawPreview);
   drawPreview();
-}
-
-const measure = form ? form.querySelector("select[name='measure']") : null;
-if (measure) {
-  const fields = form.querySelectorAll("[data-lm-for], [data-lm-unless]");
-  const sync = () => {
-    fields.forEach((el) => {
-      const unless = el.getAttribute("data-lm-unless");
-      if (unless) {
-        el.hidden = unless.split(/\s+/).includes(measure.value);
-        return;
-      }
-      el.hidden = el.getAttribute("data-lm-for") !== measure.value;
-    });
-  };
-  measure.addEventListener("change", sync);
-  sync();
+  const measure = form.querySelector("select[name='measure']");
+  if (measure) {
+    const fields = form.querySelectorAll("[data-lm-for], [data-lm-unless]");
+    const sync = () => {
+      fields.forEach((el) => {
+        const unless = el.getAttribute("data-lm-unless");
+        if (unless) {
+          el.hidden = unless.split(/\s+/).includes(measure.value);
+          return;
+        }
+        el.hidden = el.getAttribute("data-lm-for") !== measure.value;
+      });
+    };
+    measure.addEventListener("change", sync);
+    sync();
+  }
 }
 
 // ---- Gráficas: valor exacto bajo el mouse y descarga en SVG o PNG ----
@@ -449,11 +441,12 @@ function enhanceChart(figure) {
 function enhanceCharts(root) {
   (root || document).querySelectorAll("figure.chart").forEach(enhanceChart);
 }
-enhanceCharts(document);
-
 // ---- Sin red: el motor Rust corre en el aparato ----
 
-if (form) {
+function initLabSubmission() {
+  const form = document.querySelector("form[action='/lab/run']");
+  const live = document.getElementById("lm-live");
+  if (!form) return;
   let resubmittingServer = false;
   form.addEventListener("submit", async (event) => {
     if (resubmittingServer) {
@@ -581,10 +574,27 @@ if (form) {
 
 async function engineReady() {
   if (adjust) return true;
-  for (let i = 0; i < 40; i += 1) {
-    await new Promise((r) => setTimeout(r, 100));
-    if (adjust) return true;
+  if (!engineLoading) {
+    engineLoading = (async () => {
+      try {
+        const module = await import("/images/lightmatter.js");
+        await module.default();
+        adjust = (await import("/images/lightmatter.js")).adjust;
+        return true;
+      } catch {
+        return false;
+      }
+    })();
   }
-  return false;
+  return engineLoading;
 }
+
+function initLabPage() {
+  enhanceCharts(document);
+  initLabControls();
+  initLabSubmission();
+}
+
+document.addEventListener("resuma:navigate", initLabPage);
+initLabPage();
 
