@@ -1,4 +1,4 @@
-//! Ajustes guardados en disco, junto al proceso. Sin cuenta y sin red.
+//! Reportes y estado de trabajos persistidos en el volumen de datos.
 
 use std::fs;
 use std::path::PathBuf;
@@ -234,30 +234,6 @@ pub fn mark_job_completed(id: &str, report_id: &str) -> Result<(), String> {
 
 pub fn mark_job_failed(id: &str, error: &str) -> Result<(), String> {
     update_job(id, JobState::Failed, None, Some(error.to_string()))
-}
-
-pub fn recoverable_jobs() -> Vec<String> {
-    let folder = jobs_dir();
-    let Ok(entries) = fs::read_dir(&folder) else {
-        return Vec::new();
-    };
-    let mut ids = Vec::new();
-    for entry in entries.flatten() {
-        if entry.path().extension().and_then(|ext| ext.to_str()) != Some("json") {
-            continue;
-        }
-        let Ok(bytes) = fs::read(entry.path()) else { continue };
-        let Ok(mut job) = serde_json::from_slice::<DiskJob>(&bytes) else { continue };
-        if matches!(job.state, JobState::Queued | JobState::Running) {
-            if job.state == JobState::Running {
-                job.state = JobState::Queued;
-                job.updated_at = now();
-                let _ = write_job(&job);
-            }
-            ids.push(job.id);
-        }
-    }
-    ids
 }
 
 fn prune_jobs() {

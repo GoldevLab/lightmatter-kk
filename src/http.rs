@@ -1,9 +1,10 @@
-//! El ajuste corre en este proceso y la página siguiente lo pinta. Sin sesión.
+//! Endpoint del laboratorio y worker Resuma para ajustes persistentes.
 
 use axum::body::Body;
 use axum::extract::Multipart;
 use axum::http::{header, Response, StatusCode};
 use axum::response::IntoResponse;
+use resuma::core::ResumaError;
 use tokio::sync::Semaphore;
 
 use lightmatter::fit::{export, fit_text, TextFit};
@@ -22,32 +23,46 @@ fn redirect(loc: &str) -> Response<Body> {
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
-fn start_fit_job(id: String) {
-    tokio::spawn(async move {
-        let Ok(_fit_slot) = FIT_SLOTS.acquire().await else {
-            let _ = store::mark_job_failed(&id, "el servidor cerró la cola de ajustes");
-            return;
-        };
-        let Some(job) = store::load_fit_job(&id) else {
-            let _ = store::mark_job_failed(&id, "no se pudo recuperar el espectro guardado");
-            return;
-        };
-        if store::mark_job_running(&id).is_err() {
-            return;
+pub fn fit_worker(
+    input: serde_json::Value,
+    context: resuma::exec::WorkerContext,
+) -> resuma::exec::workers::WorkerFuture {
+    Box::pin(async move {
+        let id = input
+            .get("job_id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| ResumaError::Validation("falta el identificador del trabajo".into()))?
+            .to_string();
+        if !store::valid_job_id(&id) {
+            return Err(ResumaError::Validation("el identificador del trabajo no es válido".into()));
         }
+        if let Some(status) = store::job_status(&id) {
+            if status.state == store::JobState::Completed {
+                return Ok(serde_json::json!({"report_id": status.report_id}));
+            }
+        }
+        let _fit_slot = FIT_SLOTS
+            .acquire()
+            .await
+            .map_err(|error| ResumaError::Other(error.to_string()))?;
+        let job = store::load_fit_job(&id)
+            .ok_or_else(|| ResumaError::Validation("no se pudo recuperar el espectro guardado".into()))?;
+        store::mark_job_running(&id).map_err(ResumaError::Other)?;
         let source = job.source.clone();
-        let fit = tokio::task::spawn_blocking(move || fit_text(&job.text, &job.options)).await;
+        let fit = match context.run_blocking(move || fit_text(&job.text, &job.options)).await {
+            Ok(fit) => fit,
+            Err(error) => {
+                crate::stats::record_error();
+                let _ = store::mark_job_failed(&id, &error.to_string());
+                return Err(error);
+            }
+        };
         let report = match fit {
-            Ok(Ok(report)) => report,
-            Ok(Err(error)) => {
+            Ok(report) => report,
+            Err(error) => {
                 crate::stats::record_error();
                 let _ = store::mark_job_failed(&id, &error);
-                return;
-            }
-            Err(_) => {
-                crate::stats::record_error();
-                let _ = store::mark_job_failed(&id, "el servidor no pudo completar el ajuste");
-                return;
+                return Err(ResumaError::Other(error));
             }
         };
         crate::stats::record_fit(crate::stats::FitHit {
@@ -59,24 +74,17 @@ fn start_fit_job(id: String) {
             chisq: report.chisq,
             converged: report.converged,
         });
-        match store::save_report(&source, &report) {
-            Ok(report_id) => {
-                if let Err(error) = store::mark_job_completed(&id, &report_id) {
-                    let _ = store::mark_job_failed(&id, &error);
-                }
-            }
+        let report_id = match store::save_report(&source, &report) {
+            Ok(report_id) => report_id,
             Err(error) => {
                 crate::stats::record_error();
                 let _ = store::mark_job_failed(&id, &error);
+                return Err(ResumaError::Other(error));
             }
-        }
-    });
-}
-
-pub fn resume_fit_jobs() {
-    for id in store::recoverable_jobs() {
-        start_fit_job(id);
-    }
+        };
+        store::mark_job_completed(&id, &report_id).map_err(ResumaError::Other)?;
+        Ok(serde_json::json!({"report_id": report_id}))
+    })
 }
 
 pub async fn run_lab(mut form: Multipart) -> Response<Body> {
@@ -164,7 +172,10 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         Err(error) => return redirect(&format!("/lab?e={}", urlencode(&error))),
     };
     if created {
-        start_fit_job(job_id.clone());
+        if let Err(error) = resuma::exec::enqueue("lightmatter", "lightmatter_fit", serde_json::json!({"job_id": job_id})).await {
+            crate::stats::record_error();
+            let _ = store::mark_job_failed(&job_id, &error.to_string());
+        }
     }
     redirect(&format!("/lab?j={}", urlencode(&job_id)))
 }
