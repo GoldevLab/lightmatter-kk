@@ -1096,7 +1096,9 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
     d.map(|d| eps1_drude(om, d) - d.eps_inf).unwrap_or(0.0)
 }
 
+#[cfg(feature = "server")]
 const MAX_FIT_POINTS: usize = 10_000;
+#[cfg(feature = "server")]
 const DENSE_WORK_BUDGET: u64 = 3_000_000_000_000;
 
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
@@ -1106,9 +1108,11 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     if input.x.len() != input.y.len() || input.x.len() < 3 {
         return Err("ω y el valor deben tener la misma longitud (mínimo 3)".into());
     }
+    #[cfg(feature = "server")]
     if input.x.len() > MAX_FIT_POINTS {
         return Err(format!("El ajuste admite hasta {MAX_FIT_POINTS} puntos."));
     }
+    #[cfg(feature = "server")]
     if !matches!(measure, Measure::Eps2 | Measure::Lum) {
         let points = (input.x.len() as u64).saturating_add(1);
         let work = points
