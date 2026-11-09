@@ -10,6 +10,7 @@ mod stats;
 mod store;
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use axum::routing::{get, post};
 use lightmatter::i18n::tx;
@@ -17,6 +18,29 @@ use pages::PagesRegistry;
 use resuma::prelude::*;
 use resuma::SeoKit;
 use resuma::exec::{Resources, WorkerMeta, WorkerRegistry};
+
+fn app_root() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(root) = exe.parent() {
+            let public = root.join("public");
+            let pages = root.join("src").join("pages");
+            if public.exists() || pages.exists() {
+                return root.to_path_buf();
+            }
+        }
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+fn app_dir(name: &str) -> PathBuf {
+    let root = app_root();
+    let candidate = root.join(name);
+    if candidate.exists() {
+        candidate
+    } else {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(name)
+    }
+}
 
 fn view_transition_name(path: &str) -> String {
     let slug = path.trim_matches('/');
@@ -174,7 +198,8 @@ fn seo_kit() -> SeoKit {
 async fn main() -> std::io::Result<()> {
     let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=22\"></script>";
     const ICON: &[u8] = include_bytes!("icon.svg");
-    let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("public");
+    let runtime_root = app_root();
+    let public = app_dir("public");
     let origin = seo::origin();
     let security_txt = format!(
         "Canonical: {origin}/.well-known/security.txt\nPreferred-Languages: es, en, zh, pt\nExpires: 2027-12-31T23:59:59Z\n"
@@ -269,10 +294,7 @@ async fn main() -> std::io::Result<()> {
         .route("/admin/login", post(admin_auth::login))
         .route("/admin/logout", post(admin_auth::logout))
         .not_found(not_found)
-        .auto_pages(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/pages"),
-            PagesRegistry,
-        )
+        .auto_pages(runtime_root.join("src").join("pages"), PagesRegistry)
         .serve(serve)
         .await
 }

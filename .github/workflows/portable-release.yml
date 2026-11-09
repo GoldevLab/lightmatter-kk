@@ -1,0 +1,53 @@
+name: Portable Offline Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - src/**
+      - public/**
+      - Cargo.toml
+      - .github/workflows/portable-release.yml
+
+jobs:
+  windows-portable:
+    name: Build Windows portable app
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install MinGW for cross compiling
+        run: sudo apt-get update && sudo apt-get install -y mingw-w64
+
+      - name: Build Windows EXE
+        run: cargo build --release --target x86_64-pc-windows-gnu
+
+      - name: Package offline app
+        run: |
+          set -euo pipefail
+          mkdir -p dist/lightmatter-portable/public dist/lightmatter-portable/src
+          cp target/x86_64-pc-windows-gnu/release/lightmatter.exe dist/lightmatter-portable/
+          cp -R public/. dist/lightmatter-portable/public/
+          cp -R src/pages dist/lightmatter-portable/src/pages
+          cat > dist/lightmatter-portable/start-lightmatter.bat <<'EOF'
+          @echo off
+          cd /d "%~dp0"
+          start "" http://127.0.0.1:4321
+          lightmatter.exe
+          EOF
+          cd dist && zip -r lightmatter-portable.zip lightmatter-portable
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lightmatter-portable-win
+          path: dist/lightmatter-portable.zip
