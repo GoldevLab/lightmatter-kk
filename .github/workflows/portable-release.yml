@@ -34,13 +34,15 @@ jobs:
       - name: Package offline app
         run: |
           set -euo pipefail
-          mkdir -p dist/lightmatter-portable/public dist/lightmatter-portable/src
+          mkdir -p dist/lightmatter-portable/public dist/lightmatter-portable/src dist/lightmatter-portable/data
           cp target/x86_64-pc-windows-gnu/release/lightmatter.exe dist/lightmatter-portable/
           cp -R public/. dist/lightmatter-portable/public/
           cp -R src/pages dist/lightmatter-portable/src/pages
           cat > dist/lightmatter-portable/start-lightmatter.bat <<'EOF'
           @echo off
           cd /d "%~dp0"
+          set RESUMA_ADDR=127.0.0.1:4321
+          set RESUMA_DATA_DIR=%~dp0data
           start "" http://127.0.0.1:4321
           lightmatter.exe
           EOF

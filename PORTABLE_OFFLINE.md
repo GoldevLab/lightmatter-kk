@@ -10,7 +10,10 @@ Hay dos maneras de usar Lightmatter sin conexión:
 - `lightmatter.exe`
 - `public/` con los estilos y recursos estáticos
 - `src/pages/` para que la app pueda registrar la navegación sin depender del repositorio original
+- `data/` para los trabajos persistentes de Resuma y la cola del análisis
 - `start-lightmatter.bat` para abrir la app y el navegador local
+
+La cola y los jobs de Resuma quedan guardados localmente dentro del paquete, así la app sigue funcionando sin internet y sin depender del servidor remoto.
 
 ## Cómo usarla
 

@@ -26,9 +26,12 @@ cp "$ROOT/target/$TARGET/release/lightmatter.exe" "$DIST_DIR/"
 cp -R "$ROOT/public/." "$DIST_DIR/public/"
 cp -R "$ROOT/src/pages" "$DIST_DIR/src/pages"
 
+mkdir -p "$DIST_DIR/data"
 cat > "$DIST_DIR/start-lightmatter.bat" <<'EOF'
 @echo off
 cd /d "%~dp0"
+set RESUMA_ADDR=127.0.0.1:4321
+set RESUMA_DATA_DIR=%~dp0data
 start "" http://127.0.0.1:4321
 lightmatter.exe
 EOF

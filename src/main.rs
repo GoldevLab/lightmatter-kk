@@ -200,6 +200,9 @@ async fn main() -> std::io::Result<()> {
     const ICON: &[u8] = include_bytes!("icon.svg");
     let runtime_root = app_root();
     let public = app_dir("public");
+    if std::env::var_os("RESUMA_DATA_DIR").is_none() {
+        std::env::set_var("RESUMA_DATA_DIR", runtime_root.join("data").display().to_string());
+    }
     let origin = seo::origin();
     let security_txt = format!(
         "Canonical: {origin}/.well-known/security.txt\nPreferred-Languages: es, en, zh, pt\nExpires: 2027-12-31T23:59:59Z\n"
