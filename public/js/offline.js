@@ -10,6 +10,31 @@ const fitRequests = new Map();
 
 const MEASURE_LABEL = { eps2: "ε₂", eps1: "ε₁", n: "n", k: "k", r: "R", alpha: "α", t: "T", lum: "I" };
 const UNIT_LABEL = { cm: "cm⁻¹", ev: "eV", nm: "nm", otra: "ω" };
+const CHART_TOOL_TEXT = {
+  es: { axis: "Eje", expand: "Ampliar gráfica", close: "Cerrar gráfica", zoomIn: "Acercar", zoomOut: "Alejar", reset: "Restablecer" },
+  en: { axis: "Axis", expand: "Expand chart", close: "Close chart", zoomIn: "Zoom in", zoomOut: "Zoom out", reset: "Reset" },
+  zh: { axis: "坐标轴", expand: "放大图表", close: "关闭图表", zoomIn: "放大", zoomOut: "缩小", reset: "重置" },
+  pt: { axis: "Eixo", expand: "Ampliar gráfico", close: "Fechar gráfico", zoomIn: "Aproximar", zoomOut: "Afastar", reset: "Restaurar" },
+};
+
+function chartToolText(key) {
+  return (CHART_TOOL_TEXT[pageLang()] || CHART_TOOL_TEXT.es)[key];
+}
+
+const JOB_TEXT = {
+  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", waiting: "Consultando estado…", view: "Ver resultado", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez." },
+  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", waiting: "Checking status…", view: "View result", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again." },
+  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", waiting: "正在查询状态…", view: "查看结果", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。" },
+  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", waiting: "Consultando estado…", view: "Ver resultado", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo." },
+};
+
+function jobText(key) {
+  return (JOB_TEXT[pageLang()] || JOB_TEXT.es)[key];
+}
+
+const RECENT_SERVER_JOBS_KEY = "lm-server-jobs";
+const MAX_RECENT_SERVER_JOBS = 8;
+let jobPollingTimer = 0;
 
 function pageLang() {
   const tag = (document.documentElement.lang || "es").toLowerCase();
@@ -259,7 +284,9 @@ function initLabControls() {
   const measure = form.querySelector("select[name='measure']");
   if (measure) {
     const fields = form.querySelectorAll("[data-lm-for], [data-lm-unless]");
+    const epsInf = form.querySelector("input[name='eps_inf']");
     const sync = () => {
+      if (epsInf) epsInf.placeholder = ["eps1", "n", "r"].includes(measure.value) ? "auto" : "1";
       fields.forEach((el) => {
         const unless = el.getAttribute("data-lm-unless");
         if (unless) {
@@ -302,7 +329,8 @@ function enhanceChart(figure) {
   const xmin = Number(ds.xmin), xmax = Number(ds.xmax), log = ds.log === "1";
   const ymin = Number(ds.ymin), ymax = Number(ds.ymax);
   const left = Number(ds.left), top = Number(ds.top), pw = Number(ds.pw), ph = Number(ds.ph);
-  const toX = (px) => (log ? Math.exp(Math.log(xmin) + ((px - left) / pw) * (Math.log(xmax) - Math.log(xmin))) : xmin + ((px - left) / pw) * (xmax - xmin));
+  let displayXMin = xmin, displayXMax = xmax, displayLog = log;
+  const toX = (px) => (displayLog ? Math.exp(Math.log(displayXMin) + ((px - left) / pw) * (Math.log(displayXMax) - Math.log(displayXMin))) : displayXMin + ((px - left) / pw) * (displayXMax - displayXMin));
   const toY = (py) => ymin + (1 - (py - top) / ph) * (ymax - ymin);
   const series = Array.from(svg.querySelectorAll("path[data-series]")).map((p) => ({
     name: p.dataset.series,
@@ -310,6 +338,54 @@ function enhanceChart(figure) {
     pts: parsePath(p.getAttribute("d") || ""),
   })).filter((s) => s.pts.length);
   if (!series.length) return;
+  const originalSeries = series.map((s) => s.pts.map((point) => [...point]));
+  const originalPaths = Array.from(svg.querySelectorAll("path[d]"), (path) => ({ node: path, d: path.getAttribute("d") || "" }));
+  const baseUnit = ds.xunit;
+  const baseValueAtPixel = (px) => (log ? Math.exp(Math.log(xmin) + ((px - left) / pw) * (Math.log(xmax) - Math.log(xmin))) : xmin + ((px - left) / pw) * (xmax - xmin));
+  const xInUnit = (value, unit) => {
+    const energy = baseUnit === "cm" ? value * 1.23984193e-4 : value;
+    if (unit === "cm") return energy / 1.23984193e-4;
+    if (unit === "nm") return energy > 0 ? 1239.84193 / energy : NaN;
+    return energy;
+  };
+  const mapDisplayX = (value) => displayLog
+    ? left + ((Math.log(value) - Math.log(displayXMin)) / (Math.log(displayXMax) - Math.log(displayXMin))) * pw
+    : left + ((value - displayXMin) / (displayXMax - displayXMin)) * pw;
+  const setAxisUnit = (unit) => {
+    if (unit === baseUnit) {
+      displayXMin = xmin;
+      displayXMax = xmax;
+      displayLog = log;
+      originalPaths.forEach(({ node, d }) => node.setAttribute("d", d));
+      series.forEach((s, i) => { s.pts = originalSeries[i].map((point) => [...point]); });
+    } else {
+      const endpoints = [xInUnit(xmin, unit), xInUnit(xmax, unit)];
+      displayXMin = Math.min(...endpoints);
+      displayXMax = Math.max(...endpoints);
+      displayLog = log && displayXMin > 0;
+      const convertPixel = (px) => mapDisplayX(xInUnit(baseValueAtPixel(px), unit));
+      const pointPattern = /([ML])\s*(-?[\d.]+(?:e[+-]?\d+)?),(-?[\d.]+(?:e[+-]?\d+)?)/gi;
+      originalPaths.forEach(({ node, d }) => node.setAttribute("d", d.replace(pointPattern, (_match, command, px, py) => `${command}${convertPixel(Number(px)).toFixed(2)},${py}`)));
+      series.forEach((s, i) => {
+        s.pts = originalSeries[i]
+          .map(([px, py]) => [convertPixel(px), py])
+          .sort((a, b) => a[0] - b[0]);
+      });
+    }
+    const tickNodes = svg.querySelectorAll(".chart-x-tick");
+    tickNodes.forEach((node, i) => {
+      const count = Math.max(1, tickNodes.length - 1);
+      const fraction = i / count;
+      const value = displayLog
+        ? Math.exp(Math.log(displayXMin) + fraction * (Math.log(displayXMax) - Math.log(displayXMin)))
+        : displayXMin + fraction * (displayXMax - displayXMin);
+      node.setAttribute("x", mapDisplayX(value).toFixed(1));
+      node.textContent = fmt(value);
+    });
+    const axisLabel = unit === "cm" ? "ω (cm⁻¹)" : unit === "nm" ? "λ (nm)" : "E (eV)";
+    ds.xlabel = axisLabel;
+    svg.querySelectorAll(".chart-x-label").forEach((node) => { node.textContent = axisLabel + (displayLog ? "  (log)" : ""); });
+  };
 
   const ns = "http://www.w3.org/2000/svg";
   const cursor = document.createElementNS(ns, "line");
@@ -348,8 +424,10 @@ function enhanceChart(figure) {
     tip.hidden = true;
   };
   const move = (clientX, clientY) => {
-    const rect = svg.getBoundingClientRect();
-    const px = ((clientX - rect.left) / rect.width) * 720;
+    const pointer = svg.createSVGPoint();
+    pointer.x = clientX;
+    pointer.y = clientY;
+    const px = pointer.matrixTransform(svg.getScreenCTM().inverse()).x;
     if (px < left - 4 || px > left + pw + 4) return hide();
     let best = null;
     const rows = series.map((s, i) => {
@@ -434,9 +512,58 @@ function enhanceChart(figure) {
     };
     img.src = url;
   });
+  let axisSelect = null;
+  if ((baseUnit === "cm" || baseUnit === "ev") && !title.toLowerCase().includes("luminiscencia")) {
+    axisSelect = document.createElement("select");
+    axisSelect.setAttribute("aria-label", chartToolText("axis"));
+    for (const [value, label] of [["cm", "cm⁻¹"], ["ev", "eV"], ["nm", "nm"]]) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      axisSelect.append(option);
+    }
+    axisSelect.value = baseUnit;
+    axisSelect.addEventListener("change", () => setAxisUnit(axisSelect.value));
+  }
+  let zoom = 1;
+  const initialView = (svg.getAttribute("viewBox") || "0 0 720 340").split(/\s+/).map(Number);
+  const setZoom = (value) => {
+    zoom = Math.max(1, Math.min(8, value));
+    const [x0, y0, width, height] = initialView;
+    const nextWidth = width / zoom;
+    const nextHeight = height / zoom;
+    svg.setAttribute("viewBox", `${x0 + (width - nextWidth) / 2} ${y0 + (height - nextHeight) / 2} ${nextWidth} ${nextHeight}`);
+  };
+  const toolButton = (text, title, action) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = text;
+    button.title = title;
+    button.setAttribute("aria-label", title);
+    button.addEventListener("click", action);
+    return button;
+  };
+  const zoomOutBtn = toolButton("−", chartToolText("zoomOut"), () => setZoom(zoom / 1.25));
+  const resetBtn = toolButton("1:1", chartToolText("reset"), () => {
+    if (axisSelect) {
+      axisSelect.value = baseUnit;
+      setAxisUnit(baseUnit);
+    }
+    setZoom(1);
+  });
+  const zoomInBtn = toolButton("+", chartToolText("zoomIn"), () => setZoom(zoom * 1.25));
+  const expandBtn = toolButton("⛶", chartToolText("expand"), () => {
+    const expanded = figure.classList.toggle("is-expanded");
+    document.body.classList.toggle("chart-expanded", expanded);
+    expandBtn.textContent = expanded ? "×" : "⛶";
+    expandBtn.title = chartToolText(expanded ? "close" : "expand");
+    expandBtn.setAttribute("aria-label", expandBtn.title);
+    expandBtn.setAttribute("aria-expanded", String(expanded));
+  });
   const label = document.createElement("span");
   label.textContent = uiText("save");
-  tools.append(label, svgBtn, pngBtn);
+  if (axisSelect) tools.append(axisSelect);
+  tools.append(expandBtn, zoomOutBtn, resetBtn, zoomInBtn, label, svgBtn, pngBtn);
   figure.appendChild(tools);
 }
 
@@ -455,6 +582,118 @@ function showLiveMessage(live, message, kind = "muted") {
   paragraph.setAttribute("role", kind === "muted" ? "status" : "alert");
   paragraph.textContent = message;
   live.append(paragraph);
+}
+
+function readRecentJobs() {
+  try {
+    const jobs = JSON.parse(localStorage.getItem(RECENT_SERVER_JOBS_KEY) || "[]");
+    return Array.isArray(jobs) ? jobs.filter((job) => job && typeof job.id === "string" && job.id.startsWith("job_")) : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberServerJob(id) {
+  if (!/^job_[a-f0-9_]{8,60}$/i.test(id)) return;
+  const jobs = readRecentJobs().filter((job) => job.id !== id);
+  jobs.push({ id, createdAt: Date.now() });
+  try {
+    localStorage.setItem(RECENT_SERVER_JOBS_KEY, JSON.stringify(jobs.slice(-MAX_RECENT_SERVER_JOBS)));
+  } catch {}
+}
+
+function forgetServerJob(id) {
+  const jobs = readRecentJobs().filter((job) => job.id !== id);
+  try {
+    localStorage.setItem(RECENT_SERVER_JOBS_KEY, JSON.stringify(jobs));
+  } catch {}
+}
+
+function newServerJobId() {
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === "function") {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    bytes.forEach((_, index) => { bytes[index] = Math.floor(Math.random() * 256); });
+  }
+  return `job_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function initServerJobs() {
+  if (jobPollingTimer) clearTimeout(jobPollingTimer);
+  jobPollingTimer = 0;
+  const slot = document.getElementById("lm-jobs");
+  if (!slot) return;
+  const currentId = new URLSearchParams(window.location.search).get("j");
+  if (currentId) rememberServerJob(currentId);
+  const jobs = readRecentJobs();
+  slot.replaceChildren();
+  slot.hidden = jobs.length === 0;
+  if (!jobs.length) return;
+
+  const heading = document.createElement("h2");
+  heading.textContent = jobText("title");
+  const list = document.createElement("div");
+  list.className = "server-job-list";
+  const cards = new Map();
+  for (const job of jobs.slice().reverse()) {
+    const article = document.createElement("article");
+    article.className = "server-job";
+    const label = document.createElement("p");
+    label.className = "server-job-id";
+    label.textContent = job.id.slice(-8);
+    const state = document.createElement("p");
+    state.className = "server-job-state";
+    state.textContent = jobText("waiting");
+    const link = document.createElement("a");
+    link.className = "btn btn-ghost btn-small";
+    link.textContent = jobText("view");
+    link.hidden = true;
+    article.append(label, state, link);
+    list.append(article);
+    cards.set(job.id, { state, link });
+  }
+  slot.append(heading, list);
+
+  const refresh = async () => {
+    let pending = false;
+    for (const job of jobs) {
+      const card = cards.get(job.id);
+      if (!card) continue;
+      try {
+        const response = await fetch(`/lab/job/${encodeURIComponent(job.id)}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (response.status === 404) {
+          forgetServerJob(job.id);
+          card.state.textContent = jobText("statusError");
+          continue;
+        }
+        if (!response.ok) throw new Error("job status unavailable");
+        const status = await response.json();
+        if (status.state === "queued" || status.state === "running") {
+          pending = true;
+          card.state.textContent = jobText(status.state);
+        } else if (status.state === "completed" && status.report_id) {
+          card.state.textContent = jobText("completed");
+          card.link.href = `/lab?r=${encodeURIComponent(status.report_id)}`;
+          card.link.hidden = false;
+          if (job.id === currentId) {
+            window.location.assign(card.link.href);
+            return;
+          }
+        } else {
+          card.state.textContent = status.error || jobText("failed");
+        }
+      } catch {
+        pending = true;
+        card.state.textContent = jobText("statusError");
+      }
+    }
+    if (pending) jobPollingTimer = window.setTimeout(refresh, 2500);
+  };
+  void refresh();
 }
 
 function runFitInWorker(text, options) {
@@ -538,6 +777,9 @@ function initLabSubmission() {
       live?.scrollIntoView({ behavior: "smooth", block: "start" });
       const data = new FormData(form);
       if (submitter?.name) data.append(submitter.name, submitter.value);
+      const jobId = newServerJobId();
+      rememberServerJob(jobId);
+      data.append("job_id", jobId);
       try {
         const response = await fetch(submitter?.formAction || form.action, {
           method: "POST",
@@ -547,6 +789,7 @@ function initLabSubmission() {
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         const destination = new URL(response.url, window.location.href);
         if (destination.origin !== window.location.origin) throw new Error("Unexpected redirect origin");
+        if (destination.searchParams.get("j") !== jobId) forgetServerJob(jobId);
         window.location.assign(destination.href);
       } catch {
         form.removeAttribute("aria-busy");
@@ -554,7 +797,7 @@ function initLabSubmission() {
           button.disabled = false;
           button.textContent = labels[index];
         });
-        showLiveMessage(live, uiText("serverFailed"), "form-error");
+        showLiveMessage(live, jobText("network"), "form-error");
       }
       return;
     }
@@ -640,6 +883,7 @@ function initLabPage() {
   enhanceCharts(document);
   initLabControls();
   initLabSubmission();
+  initServerJobs();
 }
 
 document.addEventListener("resuma:navigate", initLabPage);

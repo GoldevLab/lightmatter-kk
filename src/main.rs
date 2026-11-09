@@ -171,7 +171,8 @@ fn seo_kit() -> SeoKit {
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=19\"></script>";
+    http::resume_fit_jobs();
+    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=21\"></script>";
     const ICON: &[u8] = include_bytes!("icon.svg");
     let public = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("public");
     let origin = seo::origin();
@@ -199,7 +200,7 @@ async fn main() -> std::io::Result<()> {
                 .cookie("lightmatter_theme")
                 .storage_key("lightmatter-theme"),
         )
-        .with_stylesheet("/images/lightmatter.css?v=25")
+        .with_stylesheet("/images/lightmatter.css?v=27")
         .with_sitemap_exclude(["/admin"])
         .static_asset("/icon.svg", ICON, "image/svg+xml")
         .static_asset("/.well-known/security.txt", security_txt, "text/plain; charset=utf-8")
@@ -212,7 +213,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-45".into(),
+            cache_version: "lm-47".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
@@ -221,7 +222,7 @@ async fn main() -> std::io::Result<()> {
                 "/".into(),
                 "/lab".into(),
                 "/learn".into(),
-                "/images/lightmatter.css?v=25".into(),
+                "/images/lightmatter.css?v=27".into(),
                 "/js/lang.js?v=4".into(),
                 "/_resuma/ui.css?v=4679afe0d6db98bc".into(),
                 "/_resuma/loader.js?v=2.0.1".into(),
@@ -231,7 +232,7 @@ async fn main() -> std::io::Result<()> {
                 "/images/learn-triangles.jpg".into(),
                 "/images/learn-fit.jpg".into(),
                 "/images/learn-constants.jpg".into(),
-                "/js/offline.js?v=19".into(),
+                "/js/offline.js?v=21".into(),
                 "/js/fit-worker.js?v=1".into(),
                 "/robots.txt".into(),
                 "/llms.txt".into(),
@@ -250,6 +251,7 @@ async fn main() -> std::io::Result<()> {
             "/lab/run",
             post(http::run_lab).layer(axum::extract::DefaultBodyLimit::max(http::MAX_REQUEST_BODY)),
         )
+        .route("/lab/job/{id}", get(http::job_status))
         .route("/lab/download/{id}", get(http::download))
         .route("/lab/download/{id}/{format}", get(http::download_as))
         .route("/shelf/publish", post(shelf::publish_form))

@@ -1750,7 +1750,7 @@ fn collapse_duplicates(w: &mut Vec<f64>, y: &mut Vec<f64>, sigma: &mut Vec<f64>,
     *sigma = out_s;
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct TextFit {
     pub iter_max: usize,
     pub log_mesh: bool,

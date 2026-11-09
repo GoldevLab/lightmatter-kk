@@ -139,7 +139,8 @@ pub fn page(req: FlowRequest) -> View {
     set_page_description(crate::seo::lab_description(lang));
     let err = req.query_param("e").unwrap_or("").to_string();
     let report_id = req.query_param("r").unwrap_or("").to_string();
-    if err.is_empty() && report_id.is_empty() {
+    let job_id = req.query_param("j").unwrap_or("").to_string();
+    if err.is_empty() && report_id.is_empty() && job_id.is_empty() {
         set_page_canonical(crate::seo::canonical("/lab"));
         set_page_json_ld(crate::seo::webpage_json_ld(
             crate::seo::lab_title(lang),
@@ -163,6 +164,11 @@ pub fn page(req: FlowRequest) -> View {
     let form = match &loaded {
         Some(item) => form_state(&item.report, lang),
         None => FormState::default(),
+    };
+    let eps_inf_placeholder = if matches!(form.measure, Measure::Eps1 | Measure::N | Measure::R) {
+        "auto"
+    } else {
+        "1"
     };
     // `checked="false"` el navegador lo trata como marcado. El atributo solo va si es verdad.
     let drude_box = if form.drude {
@@ -241,6 +247,7 @@ pub fn page(req: FlowRequest) -> View {
                 <h1>{h1}</h1>
                 <p class="hero-lead">{lead}</p>
                 {err_view}
+                <div id="lm-jobs" class="server-jobs" hidden="" aria-live="polite"></div>
                 <form id="ajuste" method="post" action="/lab/run" enctype="multipart/form-data" class="lab-form">
                     <fieldset>
                         <legend>{legend1}</legend>
@@ -285,7 +292,7 @@ pub fn page(req: FlowRequest) -> View {
                         </div>
                         <p class="help">{help3}</p>
                         <div class="drude-fields">
-                            <label>"ε∞"<input name="eps_inf" type="text" inputmode="decimal" placeholder="1" value={form.eps_inf.clone()} /><span class="help">{eps_help}</span></label>
+                            <label>"ε∞"<input name="eps_inf" type="text" inputmode="decimal" placeholder={eps_inf_placeholder} value={form.eps_inf.clone()} /><span class="help">{eps_help}</span></label>
                             <label>"ωₚ"<input name="omega_p" type="text" inputmode="decimal" placeholder="auto" value={form.omega_p.clone()} /><span class="help">{wp_help}</span></label>
                             <label>"γ"<input name="gamma" type="text" inputmode="decimal" placeholder="auto" value={form.gamma.clone()} /><span class="help">{gamma_help}</span></label>
                             <label>{steps}<input name="iter" type="number" value={form.iter.clone()} min="1" max="1000" /><span class="help">{steps_help}</span></label>

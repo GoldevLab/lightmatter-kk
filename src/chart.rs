@@ -88,10 +88,17 @@ pub fn line_chart(
         }
     };
     let mapy = |y: f64| top + (1.0 - (y - ymin) / (ymax - ymin)) * plot_h;
+    let x_unit = if x_label.contains("cm⁻¹") {
+        "cm"
+    } else if x_label.contains("eV") {
+        "ev"
+    } else {
+        "other"
+    };
 
     // La escala va en el SVG: el cliente invierte el mapeo para leer el valor exacto bajo el mouse.
     let mut svg = format!(
-        "<figure class=\"chart\"><figcaption>{}</figcaption><svg viewBox=\"0 0 {width} {height}\" role=\"img\" aria-label=\"{}\" data-xmin=\"{xmin}\" data-xmax=\"{xmax}\" data-log=\"{}\" data-ymin=\"{ymin}\" data-ymax=\"{ymax}\" data-left=\"{left}\" data-top=\"{top}\" data-pw=\"{plot_w}\" data-ph=\"{plot_h}\" data-xlabel=\"{}\"><rect width=\"720\" height=\"340\" fill=\"var(--chart-bg)\"/>",
+        "<figure class=\"chart\"><figcaption>{}</figcaption><svg viewBox=\"0 0 {width} {height}\" role=\"img\" aria-label=\"{}\" data-xmin=\"{xmin}\" data-xmax=\"{xmax}\" data-xunit=\"{x_unit}\" data-log=\"{}\" data-ymin=\"{ymin}\" data-ymax=\"{ymax}\" data-left=\"{left}\" data-top=\"{top}\" data-pw=\"{plot_w}\" data-ph=\"{plot_h}\" data-xlabel=\"{}\"><rect width=\"720\" height=\"340\" fill=\"var(--chart-bg)\"/>",
         escape(title),
         escape(title),
         if use_log { 1 } else { 0 },
@@ -213,13 +220,13 @@ pub fn line_chart(
     for x in x_ticks {
         let px = mapx(x);
         svg.push_str(&format!(
-            "<text x=\"{px:.1}\" y=\"{}\" fill=\"var(--chart-ink)\" font-size=\"11\" text-anchor=\"middle\" font-family=\"Segoe UI,sans-serif\">{}</text>",
+            "<text class=\"chart-x-tick\" data-x-value=\"{x}\" x=\"{px:.1}\" y=\"{}\" fill=\"var(--chart-ink)\" font-size=\"11\" text-anchor=\"middle\" font-family=\"Segoe UI,sans-serif\">{}</text>",
             height - 22.0,
             tick(x)
         ));
     }
     svg.push_str(&format!(
-        "<text x=\"{:.1}\" y=\"{}\" fill=\"var(--chart-label)\" font-size=\"12\" text-anchor=\"middle\" font-family=\"Segoe UI,sans-serif\">{}{}</text>",
+        "<text class=\"chart-x-label\" x=\"{:.1}\" y=\"{}\" fill=\"var(--chart-label)\" font-size=\"12\" text-anchor=\"middle\" font-family=\"Segoe UI,sans-serif\">{}{}</text>",
         left + plot_w / 2.0,
         height - 6.0,
         escape(x_label),
@@ -452,6 +459,14 @@ fn wrap(chart: String) -> String {
     }
 }
 
+fn wrap_primary(chart: String) -> String {
+    if chart.is_empty() {
+        chart
+    } else {
+        format!("<div class=\"chart-wrap chart-primary\">{chart}</div>")
+    }
+}
+
 fn chart_pair(first: String, second: String) -> String {
     match (first.is_empty(), second.is_empty()) {
         (true, true) => String::new(),
@@ -584,7 +599,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     let (fit_markup, eps_pair) = if measure == Measure::Eps2 {
         (String::new(), chart_pair(fit_panel, eps1))
     } else {
-        (wrap(fit_panel), chart_pair(eps2_panel, eps1))
+        (wrap_primary(fit_panel), chart_pair(eps2_panel, eps1))
     };
     let diff = if report.difference.len() == report.data_x.len() {
         line_chart(
@@ -692,19 +707,33 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     } else {
         (String::new(), String::new())
     };
-    let ext = if report.ext_omega.is_empty() {
+    let ext_pair = if report.ext_omega.is_empty() {
         String::new()
     } else {
-        line_chart(
-            tx(lang, "Fuera del rango medido. No son datos nuevos", "Outside the measured range. These are not new data", "测量范围之外。不是新数据", "Fora da faixa medida. Não são dados novos"),
-            "ε",
-            x_label,
-            &[
-                Series { name: "ε₂", color: "#3ee0c5", xs: &report.ext_omega, ys: &report.ext_eps2 },
-                Series { name: "ε₁", color: "#f2c14e", xs: &report.ext_omega, ys: &report.ext_eps1 },
-            ],
-            log_x,
-            None,
+        let outside = tx(
+            lang,
+            "Fuera del rango medido; no son datos nuevos",
+            "Outside the measured range; these are not new data",
+            "测量范围之外；不是新数据",
+            "Fora da faixa medida; não são dados novos",
+        );
+        chart_pair(
+            line_chart(
+                &format!("ε₂ · {outside}"),
+                "ε₂",
+                x_label,
+                &[Series { name: "ε₂", color: "#3ee0c5", xs: &report.ext_omega, ys: &report.ext_eps2 }],
+                log_x,
+                None,
+            ),
+            line_chart(
+                &format!("ε₁ · {outside}"),
+                "ε₁",
+                x_label,
+                &[Series { name: "ε₁", color: "#f2c14e", xs: &report.ext_omega, ys: &report.ext_eps1 }],
+                log_x,
+                None,
+            ),
         )
     };
     let budget = report.options.iter_max.clamp(1, 1000);
@@ -854,7 +883,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
         sigma_pair = sigma_pair,
         trans = wrap(trans_panel),
         absorb = wrap(absorb_panel),
-        ext = wrap(ext),
+        ext = ext_pair,
         informe = report_button(download_href, lang),
         publish = crate::publish::form(download_href, report, lang),
     )

@@ -22,6 +22,7 @@ pub fn page(_req: FlowRequest) -> View {
                 <p class="eyebrow">{tx(lang, "Estudiar el laboratorio", "Study the laboratory", "了解实验室", "Estudar o laboratório")}</p>
                 <h1>{tx(lang, "Cómo funciona el análisis", "How the analysis works", "分析如何进行", "Como a análise funciona")}</h1>
                 <p class="hero-lead">{tx(lang, "Lightmatter no ajusta una curva cualquiera. Parte de que la respuesta del material es causal: la parte imaginaria de la función dieléctrica, ε₂, determina la parte real, ε₁. El programa busca el ε₂ cuyo par de Kramers–Kronig reproduce lo que mediste, y de ese par salen el resto de las constantes.", "Lightmatter does not fit an arbitrary curve. It starts from causality: the imaginary part of the dielectric function, ε₂, determines the real part, ε₁. The program looks for the ε₂ whose Kramers–Kronig pair reproduces what you measured, and the other constants come from that pair.", "Lightmatter 不是随便拟合一条曲线。它从因果性出发：介电函数的虚部 ε₂ 决定实部 ε₁。程序寻找其克拉默斯–克罗尼格配对能再现测量的 ε₂，其余常数由这对量得到。", "O Lightmatter não ajusta uma curva qualquer. Parte de que a resposta do material é causal: a parte imaginária da função dielétrica, ε₂, determina a parte real, ε₁. O programa procura o ε₂ cujo par de Kramers–Kronig reproduz o que você mediu, e desse par saem as outras constantes.")}</p>
+                <p class="muted">{tx(lang, "Esto describe las medidas de respuesta óptica. La luminiscencia es luz emitida: su intensidad no es ε₂ y se analiza por separado.", "This describes optical-response measurements. Luminescence is emitted light: its intensity is not ε₂ and is analyzed separately.", "这里讲的是光学响应测量。发光是材料发出的光：其强度不是 ε₂，要单独分析。", "Isto descreve medidas de resposta óptica. Luminiscência é luz emitida: sua intensidade não é ε₂ e é analisada à parte.")}</p>
                 {figure(
                     "/images/learn-kk.jpg",
                     tx(lang, "Pico de absorción arriba y curva dispersiva abajo, unidas por la misma frecuencia.", "An absorption peak above and a dispersive curve below, tied to the same frequency.", "上方是吸收峰，下方是色散曲线，由同一频率连在一起。", "Pico de absorção em cima e curva dispersiva embaixo, ligadas pela mesma frequência."),
@@ -60,7 +61,7 @@ pub fn page(_req: FlowRequest) -> View {
 
             <section id="medidas">
                 <h2>{tx(lang, "Qué puedes medir", "What you can measure", "可以测量什么", "O que você pode medir")}</h2>
-                <p>"Tú dices qué es la segunda columna. El ajuste no la reinterpreta: busca un ε₂ tal que, al calcular ε₁ por Kramers–Kronig y convertir el par a tu magnitud, coincida con la columna."</p>
+                <p>"Para las medidas ópticas, tú dices qué es la segunda columna. El ajuste busca un ε₂ cuyo par (ε₁, ε₂), ligado por Kramers–Kronig, reproduce esa magnitud. La luminiscencia es la excepción: su columna es intensidad emitida, no una parte de ε."</p>
                 <ul>
                     <li>"ε₂. Es la magnitud del modelo. Con esta medida cada frecuencia puede ser una ancla, hasta 6000."</li>
                     <li>"ε₁. La parte real. ε∞ se ajusta junto con ε₂, salvo que lo escribas."</li>
@@ -69,20 +70,15 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"R, reflectividad a incidencia normal de un medio semi-infinito, entre 0 y 1. Si el máximo está entre 1.5 y 100.5, se toma como % y se divide entre 100. Si dejas ε∞ vacío, se estima del R del extremo alto suponiendo k pequeño: n = (1+√R)/(1−√R) y ε∞ = n², entre 1 y 50. Esa suposición falla si el extremo alto todavía absorbe."</li>
                     <li>"α, coeficiente de absorción en cm⁻¹. Necesita ω en cm⁻¹, eV o nm. ε∞ vacío usa 1."</li>
                     <li>"T, transmitancia de una lámina en aire. Necesita unidad de ω y el espesor en µm. Sin espesor el análisis no arranca."</li>
-                    <li>"Luminiscencia. No pasa por Kramers–Kronig. Ver más abajo."</li>
+                    <li>"Luminiscencia. Es emisión, no absorción: la intensidad medida no es ε₂ y no determina una pareja ε₁/ε₂. Se analizan picos y propiedades de la emisión, sin fingir una constante dieléctrica."</li>
                 </ul>
                 <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. El modelo usa hasta 500 anclas, o 400 si hay más de 2500 puntos, y como mucho 6000 filas. Las anclas se ponen en los picos y los valles y el resto se reparte. Todos los puntos, aunque no sean ancla, entran en el χ²."</p>
             </section>
 
             <section id="metodo">
                 <h2>{tx(lang, "El método", "The method", "方法", "O método")}</h2>
-                {figure(
-                    "/images/learn-triangles.jpg",
-                    tx(lang, "Triángulos de colores que, sumados, forman un espectro, con una segunda curva al lado.", "Colored triangles that add up to a spectrum, with a second curve beside it.", "彩色三角相加形成一条光谱，旁边还有第二条曲线。", "Triângulos coloridos que, somados, formam um espectro, com uma segunda curva ao lado."),
-                    tx(lang, "ε₂ se construye sumando triángulos. La montaña de arriba es esa suma. La onda dorada es la ε₁ que les corresponde, no un segundo dibujo libre.", "ε₂ is built by adding triangles. The mountain above is that sum. The gold wave is the ε₁ that belongs to them, not a second freehand drawing.", "ε₂ 由三角相加而成。上面的山是这个和。金色的波是与之对应的 ε₁，不是另画的一条。", "ε₂ é construído somando triângulos. A montanha de cima é essa soma. A onda dourada é o ε₁ que lhes corresponde, não um segundo desenho livre."),
-                    false,
-                )}
-                <p>"Un medio pasivo no responde antes de que llegue el campo. Esa causalidad ata dos partes de la misma respuesta: ε₂, lo que el material absorbe, y ε₁, lo que cambia la fase de la onda. Conocida una en todas las frecuencias, la otra queda fijada. No son dos curvas libres."</p>
+                {mesh_figure(lang)}
+                <p>"Para una respuesta óptica lineal, un medio causal no responde antes de que llegue el campo. Esa causalidad ata dos partes de la misma función dieléctrica: ε₂, lo que el material absorbe, y ε₁, lo que cambia la fase de la onda. Conocida una en todas las frecuencias, la otra queda fijada. Esto no convierte una curva de emisión luminiscente en ε₂."</p>
                 <p>"En la práctica nunca se mide todo el eje. Lo que queda por encima de tu ventana se junta en un número, ε∞. Dentro de la ventana, el laboratorio usa"</p>
                 <p class="formula">"ε₁(ω) = ε∞ + (2/π) P ∫₀^∞ x ε₂(x) / (x² − ω²) dx"</p>
                 {open_proof(
@@ -157,7 +153,7 @@ pub fn page(_req: FlowRequest) -> View {
                     tx(lang, "El rayo que rebota es la reflectividad R. El que entra y cambia de ritmo es el índice n. El que se apaga dentro es la extinción k, y de ahí sale la absorción α.", "The ray that bounces is the reflectivity R. The one that enters and changes pace is the index n. The one that fades inside is the extinction k, and the absorption α comes from that.", "弹回的是反射率 R。进入并改变节奏的是折射率 n。在内部熄灭的是消光 k，吸收 α 由此得到。", "O raio que rebate é a refletividade R. O que entra e muda de ritmo é o índice n. O que se apaga por dentro é a extinção k, e daí sai a absorção α."),
                     false,
                 )}
-                <p>"Cuando el par (ε₁, ε₂) ya está, el resto es álgebra. Nada de esto es un segundo ajuste."</p>
+                <p>"En las medidas de respuesta óptica, cuando el par (ε₁, ε₂) ya está, el resto es álgebra. Nada de esto es un segundo ajuste; esta sección no describe el análisis de luminiscencia."</p>
                 <h3>"ε₂ y ε₁"</h3>
                 <p>"ε₂ es lo que ajustan los triángulos. ε₁ es ε∞ más la Kramers–Kronig de ese ε₂, incluida la cola que baja a cero fuera de la ventana. Cumplen, con n y k,"</p>
                 <p class="formula">"ε₁ = n² − k² ,   ε₂ = 2 n k"</p>
@@ -202,7 +198,7 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"Mira el χ² y la diferencia, que es (ajuste − datos) × 100. Si el ajuste pasa por los datos, la magnitud que mediste quedó reproducida. Eso no alcanza para fijar lo que la medida no contiene."</li>
                     <li>"Si la curva del ajuste es casi una recta y los datos tienen picos, revisa la unidad antes de tocar la suavidad. Un cm⁻¹ leído como nm invierte el eje y el modelo se queda en el R de un ε∞ mal tomado."</li>
                     <li>"Lee el aviso de ε∞. Si dice 1 por defecto y mediste α, k o T, fíate de α y de k. ε₁, n, R, la pérdida, la altura de ε₂ y σ₂ esperan a que escribas ε∞."</li>
-                    <li>"El panel de datos es tu columna. Los demás paneles son el par (ε₁, ε₂) y lo que se deduce de él."</li>
+                    <li>"En una medida óptica, el panel de datos es tu columna y los demás muestran el par (ε₁, ε₂) y lo que se deduce de él. En luminiscencia se muestran propiedades de emisión, sin ese par."</li>
                     <li>"Pasa el mouse por una gráfica para el punto más cercano. Cada gráfica se baja en SVG o PNG."</li>
                     <li>"Descargar: .dat y CSV traen ω, ε₁, ε₂, n, k, R, la pérdida y, con unidad, σ₁, σ₂ y α. Con espesor añaden T y A. Datos y ajuste compara tu columna con el modelo. Picos es la tabla. JSON es el informe para procesarlo. Al final, «Descargar todos los resultados» guarda un HTML con el resumen resaltado, los picos y el espectro en tablas."</li>
                 </ol>
@@ -211,12 +207,13 @@ pub fn page(_req: FlowRequest) -> View {
 
             <section id="luminiscencia">
                 <h2>{tx(lang, "Luminiscencia", "Luminescence", "发光", "Luminescência")}</h2>
-                <p>"Fotoluminiscencia, electroluminiscencia o catodoluminiscencia es emisión. No hay una Kramers–Kronig que convierta esa intensidad en ε. El laboratorio no finge una."</p>
+                <p>"Fotoluminiscencia, electroluminiscencia o catodoluminiscencia son espectros de luz emitida. Aunque el material tenga una función dieléctrica compleja, la intensidad que pegas no es esa función ni su ε₂: depende de cómo se pueblan los estados excitados y no contiene la respuesta lineal completa. Kramers–Kronig relaciona las partes real e imaginaria de una respuesta causal; no convierte directamente una curva de emisión en ε₁. Por eso este análisis no devuelve ε₁, ε₂, n, k ni R."</p>
+                <p>"Bajo equilibrio térmico o cuasi-equilibrio de portadores, la relación de van Roosbroeck–Shockley permite inferir la forma relativa de la absorción a partir de la emisión y la temperatura. No es una transformada de Kramers–Kronig ni da una escala absoluta de α; fuera de ese supuesto, la forma inferida puede no representar la absorción real."</p>
                 <ul>
                     <li>"Picos: la misma regla del 5 % de prominencia, hasta 12, con ancho a media altura y área."</li>
                     <li>"Centroide Σ x I / Σ I del espectro entero, e integral por trapecios."</li>
                     <li>"Temperatura de la cola alta, solo con ω en energía. En el tramo que baja del 50 % al 5 % del máximo se ajusta ln(I/E²). Si esa recta tiene R² de al menos 0.97 y la temperatura sale por debajo de 5000 K, se muestra. Una gaussiana o una segunda banda no pasan el corte."</li>
-                    <li>"Forma de la absorción por van Roosbroeck–Shockley: α proporcional a I · e^(E/kT) / E², solo donde la intensidad pasa del 2 % del máximo, y normalizada a 1. La temperatura es la del campo T de la muestra, 300 K si la dejas vacía. Es una forma relativa, no el α en cm⁻¹."</li>
+                    <li>"Forma de la absorción por van Roosbroeck–Shockley: α proporcional a I · e^(E/kT) / E², solo donde la intensidad pasa del 2 % del máximo, y normalizada a 1. Necesita unidad de energía y usa la temperatura del campo T de la muestra (300 K si la dejas vacía). Es una forma relativa bajo el supuesto de equilibrio, no α en cm⁻¹."</li>
                 </ul>
             </section>
 
@@ -226,7 +223,7 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"No modela una película sobre un sustrato, ni elipsometría en ángulo, ni luz polarizada."</li>
                     <li>"No recupera lo que está fuera de tu ventana. La cola lineal y ε∞ son una hipótesis, no una medida."</li>
                     <li>"No distingue solo con α el índice de un material transparente. Hace falta ε∞, o medir n, ε₁ o R."</li>
-                    <li>"No trata la luminiscencia como una constante óptica."</li>
+                    <li>"La luminiscencia no se interpreta como ε₂ ni se le asigna una parte real ε₁: su intensidad es emisión, no una respuesta dieléctrica lineal."</li>
                     <li>"El cálculo corre en este aparato, también instalada y sin red. No hay cuenta."</li>
                 </ul>
                 <p><NavLink href="/lab" class="btn btn-primary">{tx(lang, "Probarlo en el laboratorio", "Try it in the laboratory", "在实验室里试", "Experimentar no laboratório")}</NavLink></p>
@@ -321,6 +318,41 @@ fn figure(src: &'static str, alt: &'static str, caption: &'static str, eager: bo
     view! {
         <figure class="learn-figure">
             <img src={src} alt={alt} width="1280" height="720" loading={loading} decoding="async" />
+            <figcaption>{caption}</figcaption>
+        </figure>
+    }
+}
+
+fn mesh_figure(lang: lightmatter::i18n::Lang) -> View {
+    let basis_title = tx(lang, "1 · Malla de bases", "1 · Basis mesh", "1 · 基函数网格", "1 · Malha de bases");
+    let sum_title = tx(lang, "2 · Suma: ε₂", "2 · Sum: ε₂", "2 · 求和：ε₂", "2 · Soma: ε₂");
+    let kk_title = tx(lang, "3 · Kramers–Kronig: ε₁", "3 · Kramers–Kronig: ε₁", "3 · 克拉默斯–克罗尼格：ε₁", "3 · Kramers–Kronig: ε₁");
+    let basis_copy = tx(lang, "Cada pico triangular φₖ vale 1 en su ancla y 0 en las vecinas. Aₖ fija su altura.", "Each triangular peak φₖ is 1 at its anchor and 0 at neighboring anchors. Aₖ sets its height.", "每个三角基函数 φₖ 在自己的锚点为 1，在相邻锚点为 0。Aₖ 决定高度。", "Cada pico triangular φₖ vale 1 na sua âncora e 0 nas vizinhas. Aₖ define sua altura.");
+    let sum_copy = tx(lang, "Los triángulos se suman punto a punto. Las alturas Aₖ son los parámetros del ajuste.", "The triangles are added point by point. Their heights Aₖ are the fit parameters.", "逐点相加这些三角形。高度 Aₖ 就是拟合参数。", "Os triângulos são somados ponto a ponto. As alturas Aₖ são os parâmetros do ajuste.");
+    let kk_copy = tx(lang, "La misma suma, con los pesos de Kramers–Kronig, determina ε₁. No se ajusta otra curva.", "The same sum, with Kramers–Kronig weights, determines ε₁. It is not a second free fit.", "同一组高度乘以克拉默斯–克罗尼格权重，得到 ε₁；它不是第二次独立拟合。", "A mesma soma, com os pesos de Kramers–Kronig, determina ε₁. Não é um segundo ajuste livre.");
+    let caption = tx(lang, "Esquema didáctico: las curvas no son datos. La forma y la cantidad de anclas dependen del espectro medido.", "Teaching schematic: the curves are not data. The shape and number of anchors depend on the measured spectrum.", "教学示意图：曲线不是测量数据。形状和锚点数量取决于实测光谱。", "Esquema didático: as curvas não são dados. A forma e a quantidade de âncoras dependem do espectro medido.");
+    let basis_svg = View::raw(r#"<svg class="mesh-svg" viewBox="0 0 480 250" role="img" aria-label="Triangular basis functions on neighboring frequency anchors"><line class="mesh-axis" x1="32" y1="204" x2="448" y2="204"/><path class="mesh-triangle mesh-t1" d="M42 204 L94 76 L146 204 Z" fill="#3ee0c5"/><path class="mesh-triangle mesh-t2" d="M94 204 L146 112 L198 204 Z" fill="#70cdbd"/><path class="mesh-triangle mesh-t3" d="M146 204 L198 56 L250 204 Z" fill="#f2c14e"/><path class="mesh-triangle mesh-t4" d="M198 204 L250 126 L302 204 Z" fill="#e9a95b"/><path class="mesh-triangle mesh-t5" d="M250 204 L302 88 L354 204 Z" fill="#7aa2ff"/><path class="mesh-triangle mesh-t6" d="M302 204 L354 146 L406 204 Z" fill="#8eb5ed"/><g class="mesh-anchor"><path d="M94 65 V204 M146 102 V204 M198 45 V204 M250 115 V204 M302 77 V204 M354 135 V204"/><circle cx="94" cy="76" r="4"/><circle cx="146" cy="112" r="4"/><circle cx="198" cy="56" r="4"/><circle cx="250" cy="126" r="4"/><circle cx="302" cy="88" r="4"/><circle cx="354" cy="146" r="4"/></g><path class="mesh-height" d="M198 56 H226 M222 56 V204 M218 56 H226 M218 204 H226"/><text class="mesh-label" x="229" y="134">Aₖ</text><text class="mesh-small" x="34" y="232">ωₖ₋₁</text><text class="mesh-small" x="176" y="232">ωₖ</text><text class="mesh-small" x="355" y="232">ωₖ₊₁</text></svg>"#);
+    let sum_svg = View::raw(r#"<svg class="mesh-svg" viewBox="0 0 480 250" role="img" aria-label="Sum of triangular basis functions forms epsilon two"><line class="mesh-axis" x1="32" y1="204" x2="448" y2="204"/><path class="mesh-guide" d="M42 204 L94 76 L146 204 M94 204 L146 112 L198 204 M146 204 L198 56 L250 204 M198 204 L250 126 L302 204 M250 204 L302 88 L354 204 M302 204 L354 146 L406 204"/><path class="mesh-sum-fill" d="M42 204 L94 158 L146 132 L198 88 L250 120 L302 106 L354 164 L406 185 L406 204 Z"/><path class="mesh-sum-line" d="M42 204 L94 158 L146 132 L198 88 L250 120 L302 106 L354 164 L406 185"/><g class="mesh-anchor"><circle cx="42" cy="204" r="3"/><circle cx="94" cy="158" r="3"/><circle cx="146" cy="132" r="3"/><circle cx="198" cy="88" r="3"/><circle cx="250" cy="120" r="3"/><circle cx="302" cy="106" r="3"/><circle cx="354" cy="164" r="3"/><circle cx="406" cy="185" r="3"/></g><text class="mesh-label" x="48" y="45">ε₂(ω) = Σₖ Aₖ φₖ(ω)</text><text class="mesh-small" x="390" y="232">ω</text></svg>"#);
+    let kk_svg = View::raw(r#"<svg class="mesh-svg" viewBox="0 0 480 250" role="img" aria-label="Dispersive epsilon one curve determined by epsilon two"><line class="mesh-axis mesh-zero" x1="32" y1="128" x2="448" y2="128"/><line class="mesh-axis" x1="32" y1="204" x2="448" y2="204"/><path class="mesh-kk-guide" d="M42 204 L94 158 L146 132 L198 88 L250 120 L302 106 L354 164 L406 185"/><path class="mesh-kk-line" d="M42 83 C86 81 110 74 140 78 C176 83 186 123 206 151 C224 178 245 190 263 176 C288 156 292 106 323 83 C351 62 384 68 406 80"/><text class="mesh-label" x="48" y="45">ε₁(ω)</text><text class="mesh-small" x="390" y="232">ω</text><text class="mesh-small" x="38" y="118">0</text></svg>"#);
+    view! {
+        <figure class="learn-figure mesh-figure">
+            <div class="mesh-steps">
+                <div class="mesh-step">
+                    <h3>{basis_title}</h3>
+                    {basis_svg}
+                    <p>{basis_copy}</p>
+                </div>
+                <div class="mesh-step">
+                    <h3>{sum_title}</h3>
+                    {sum_svg}
+                    <p>{sum_copy}</p>
+                </div>
+                <div class="mesh-step">
+                    <h3>{kk_title}</h3>
+                    {kk_svg}
+                    <p>{kk_copy}</p>
+                </div>
+            </div>
             <figcaption>{caption}</figcaption>
         </figure>
     }

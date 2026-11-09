@@ -22,6 +22,63 @@ fn redirect(loc: &str) -> Response<Body> {
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
 
+fn start_fit_job(id: String) {
+    tokio::spawn(async move {
+        let Ok(_fit_slot) = FIT_SLOTS.acquire().await else {
+            let _ = store::mark_job_failed(&id, "el servidor cerró la cola de ajustes");
+            return;
+        };
+        let Some(job) = store::load_fit_job(&id) else {
+            let _ = store::mark_job_failed(&id, "no se pudo recuperar el espectro guardado");
+            return;
+        };
+        if store::mark_job_running(&id).is_err() {
+            return;
+        }
+        let source = job.source.clone();
+        let fit = tokio::task::spawn_blocking(move || fit_text(&job.text, &job.options)).await;
+        let report = match fit {
+            Ok(Ok(report)) => report,
+            Ok(Err(error)) => {
+                crate::stats::record_error();
+                let _ = store::mark_job_failed(&id, &error);
+                return;
+            }
+            Err(_) => {
+                crate::stats::record_error();
+                let _ = store::mark_job_failed(&id, "el servidor no pudo completar el ajuste");
+                return;
+            }
+        };
+        crate::stats::record_fit(crate::stats::FitHit {
+            at: 0,
+            source: source.clone(),
+            measure: report.measure().key().to_string(),
+            unit: report.options.unit.label().to_string(),
+            points: report.points_used,
+            chisq: report.chisq,
+            converged: report.converged,
+        });
+        match store::save_report(&source, &report) {
+            Ok(report_id) => {
+                if let Err(error) = store::mark_job_completed(&id, &report_id) {
+                    let _ = store::mark_job_failed(&id, &error);
+                }
+            }
+            Err(error) => {
+                crate::stats::record_error();
+                let _ = store::mark_job_failed(&id, &error);
+            }
+        }
+    });
+}
+
+pub fn resume_fit_jobs() {
+    for id in store::recoverable_jobs() {
+        start_fit_job(id);
+    }
+}
+
 pub async fn run_lab(mut form: Multipart) -> Response<Body> {
     let mut spectrum = String::new();
     let mut file_text = String::new();
@@ -39,6 +96,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
     let mut unit = String::new();
     let mut thickness = String::new();
     let mut temperature = String::new();
+    let mut job_id = None;
     let mut bytes_seen = 0usize;
 
     while let Ok(Some(field)) = form.next_field().await {
@@ -74,6 +132,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
             "unit" => unit = value,
             "thickness" => thickness = value,
             "temperature" => temperature = value,
+            "job_id" => job_id = Some(value),
             _ => {}
         }
     }
@@ -100,37 +159,23 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         thickness,
         temperature,
     };
-    let fit = {
-        let _fit_slot = FIT_SLOTS.acquire().await.expect("fit semaphore remains open");
-        tokio::task::spawn_blocking(move || fit_text(&text, &options)).await
+    let (job_id, created) = match store::create_job(job_id.as_deref(), &source_name, &text, &options) {
+        Ok(job) => job,
+        Err(error) => return redirect(&format!("/lab?e={}", urlencode(&error))),
     };
-    let fit = match fit {
-        Ok(result) => result,
-        Err(_) => {
-            crate::stats::record_error();
-            return redirect("/lab?e=El%20servidor%20no%20pudo%20completar%20el%20ajuste");
-        }
-    };
-    match fit {
-        Ok(report) => {
-            crate::stats::record_fit(crate::stats::FitHit {
-                at: 0,
-                source: source_name.clone(),
-                measure: report.measure().key().to_string(),
-                unit: report.options.unit.label().to_string(),
-                points: report.points_used,
-                chisq: report.chisq,
-                converged: report.converged,
-            });
-            match store::save_report(&source_name, &report) {
-                Ok(id) => redirect(&format!("/lab?r={id}")),
-                Err(err) => redirect(&format!("/lab?e={}", urlencode(&err))),
-            }
-        }
-        Err(err) => {
-            crate::stats::record_error();
-            redirect(&format!("/lab?e={}", urlencode(&err)))
-        }
+    if created {
+        start_fit_job(job_id.clone());
+    }
+    redirect(&format!("/lab?j={}", urlencode(&job_id)))
+}
+
+pub async fn job_status(axum::extract::Path(id): axum::extract::Path<String>) -> Response<Body> {
+    if !store::valid_job_id(&id) {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    match store::job_status(&id) {
+        Some(status) => axum::Json(status).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
     }
 }
 
