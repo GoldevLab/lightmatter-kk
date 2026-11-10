@@ -34,7 +34,8 @@ jobs:
         run: cargo install tauri-cli --locked
 
       - name: Build desktop app
-        run: cargo tauri build --manifest-path src-tauri/Cargo.toml
+        run: cargo tauri build
+        working-directory: src-tauri
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/desktop-v')
