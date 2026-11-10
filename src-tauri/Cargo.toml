@@ -1,6 +1,6 @@
 [package]
 name = "lightmatter-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "Lightmatter desktop shell"
 authors = ["GoldevLab"]
 edition = "2021"
