@@ -1096,10 +1096,74 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
     d.map(|d| eps1_drude(om, d) - d.eps_inf).unwrap_or(0.0)
 }
 
-#[cfg(feature = "server")]
-const MAX_FIT_POINTS: usize = 10_000;
-#[cfg(feature = "server")]
-const DENSE_WORK_BUDGET: u64 = 3_000_000_000_000;
+const MAX_FIT_POINTS: usize = 8_000;
+const MAX_FIT_ITERATIONS: usize = 800;
+const MAX_DENSE_ANCHORS: usize = 500;
+const LARGE_SPECTRUM_ANCHORS: usize = 400;
+const LARGE_SPECTRUM_THRESHOLD: usize = 2_500;
+const DENSE_WORK_BUDGET: u64 = 1_100_000_000_000;
+
+fn dense_work(points: usize, parameters: usize, iterations: usize) -> u64 {
+    (points as u64)
+        .saturating_mul(parameters as u64)
+        .saturating_mul(parameters as u64)
+        .saturating_mul(iterations as u64)
+}
+
+fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
+    if values.len() <= limit {
+        return (0..values.len()).collect();
+    }
+
+    let mut selected = vec![false; values.len()];
+    selected[0] = true;
+    selected[values.len() - 1] = true;
+    let slots = limit.saturating_sub(2);
+    let extrema: Vec<usize> = (1..values.len() - 1)
+        .filter(|&i| {
+            (values[i] >= values[i - 1] && values[i] > values[i + 1])
+                || (values[i] <= values[i - 1] && values[i] < values[i + 1])
+        })
+        .collect();
+    if extrema.len() <= slots {
+        for i in extrema {
+            selected[i] = true;
+        }
+    } else if slots > 0 {
+        for slot in 0..slots {
+            let index = slot * (extrema.len() - 1) / slots.saturating_sub(1).max(1);
+            selected[extrema[index]] = true;
+        }
+    }
+
+    let mut indices: Vec<usize> = selected
+        .iter()
+        .enumerate()
+        .filter_map(|(i, chosen)| chosen.then_some(i))
+        .collect();
+    for slot in 0..limit {
+        if indices.len() >= limit {
+            break;
+        }
+        let candidate = slot * (values.len() - 1) / limit.saturating_sub(1).max(1);
+        if !selected[candidate] {
+            selected[candidate] = true;
+            indices.push(candidate);
+        }
+    }
+    if indices.len() < limit {
+        for (i, chosen) in selected.iter().enumerate() {
+            if !chosen {
+                indices.push(i);
+                if indices.len() == limit {
+                    break;
+                }
+            }
+        }
+    }
+    indices.sort_unstable();
+    indices
+}
 
 pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let phys = &input.physics;
@@ -1108,20 +1172,8 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     if input.x.len() != input.y.len() || input.x.len() < 3 {
         return Err("ω y el valor deben tener la misma longitud (mínimo 3)".into());
     }
-    #[cfg(feature = "server")]
     if input.x.len() > MAX_FIT_POINTS {
         return Err(format!("El ajuste admite hasta {MAX_FIT_POINTS} puntos."));
-    }
-    #[cfg(feature = "server")]
-    if !matches!(measure, Measure::Eps2 | Measure::Lum) {
-        let points = (input.x.len() as u64).saturating_add(1);
-        let work = points
-            .saturating_mul(points)
-            .saturating_mul(points)
-            .saturating_mul(input.iter_max.max(1) as u64);
-        if work > DENSE_WORK_BUDGET {
-            return Err("Este ajuste requiere demasiados recursos. Reduce el número de puntos o iteraciones.".into());
-        }
     }
     let errors_given = input.errors_given && input.sigma.len() == input.x.len();
     if errors_given {
@@ -1191,12 +1243,13 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     }
     let freq_ratio = w_max / w_min;
     let log_mesh = input.log_mesh || freq_ratio > 20.0;
+    let iter_max = input.iter_max.clamp(1, MAX_FIT_ITERATIONS);
     let options = FitOptions {
         log_mesh,
         extended: input.extended,
         smoothness: input.smoothness,
         negativity: input.negativity,
-        iter_max: input.iter_max,
+        iter_max,
         measure,
         unit: phys.unit,
         thickness_um: phys.thickness_um,
@@ -1238,19 +1291,37 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let auto_log = log_mesh && !input.log_mesh;
     // R usa los puntos medios de los intervalos medidos, como en la malla de la tesis.
     let full_r_mesh = measure == Measure::R;
-    let n_anchor = if full_r_mesh { ndat.saturating_sub(2) } else { ndat };
-    let mut anchors = if full_r_mesh {
-        w.windows(2)
-            .take(n_anchor)
-            .map(|pair| pair[0] + (pair[1] - pair[0]) * 0.5)
-            .collect()
+    let anchor_limit = if ndat > LARGE_SPECTRUM_THRESHOLD {
+        LARGE_SPECTRUM_ANCHORS
     } else {
-        w.clone()
+        MAX_DENSE_ANCHORS
+    };
+    let (mut anchors, anchor_count_note) = if full_r_mesh {
+        let candidates: Vec<f64> = w
+            .windows(2)
+            .take(ndat.saturating_sub(2))
+            .map(|pair| pair[0] + (pair[1] - pair[0]) * 0.5)
+            .collect();
+        let values: Vec<f64> = y_data.windows(2).take(candidates.len()).map(|pair| (pair[0] + pair[1]) * 0.5).collect();
+        let indices = mesh_sample_indices(&values, anchor_limit);
+        let anchors = indices.iter().map(|&i| candidates[i]).collect::<Vec<_>>();
+        (anchors, candidates.len())
+    } else if measure == Measure::Eps2 {
+        (w.clone(), w.len())
+    } else {
+        let indices = mesh_sample_indices(&y_data, anchor_limit);
+        let anchors = indices.iter().map(|&i| w[i]).collect::<Vec<_>>();
+        (anchors, w.len())
     };
     if full_r_mesh {
         warnings.push(format!(
-            "R usa {} anclas interiores en los puntos medios de la malla medida (N−2).",
-            anchors.len()
+            "R usa {} anclas interiores de {} puntos medios de la malla medida.",
+            anchors.len(), anchor_count_note
+        ));
+    } else if !matches!(measure, Measure::Eps2) && anchors.len() < anchor_count_note {
+        warnings.push(format!(
+            "La malla densa usa {} anclas representativas de {} medidas; todos los puntos medidos entran en χ².",
+            anchors.len(), anchor_count_note
         ));
     }
     // Los extremos medidos quedan libres. Un ancla extra a cada lado, con coeficiente 0,
@@ -1278,6 +1349,11 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let mfit = active.iter().filter(|a| **a).count();
     if mfit < 1 {
         return Err("hacen falta al menos 3 anclas".into());
+    }
+    if !matches!(measure, Measure::Eps2 | Measure::Lum)
+        && dense_work(ndat, mfit, iter_max) > DENSE_WORK_BUDGET
+    {
+        return Err("Este ajuste requiere demasiados recursos. Reduce el número de puntos o iteraciones.".into());
     }
     let active_pos: Vec<Option<usize>> = {
         let mut p = 0;
@@ -1788,7 +1864,7 @@ pub fn fit_text(text: &str, opts: &TextFit) -> Result<FitReport, String> {
     run_fit(&FitRequest {
         x,
         y,
-        iter_max: opts.iter_max.clamp(1, 1000),
+        iter_max: opts.iter_max.clamp(1, MAX_FIT_ITERATIONS),
         log_mesh: opts.log_mesh,
         drude,
         smoothness: finite_nonneg(opts.smoothness, 0.08),
@@ -2315,8 +2391,8 @@ mod tests {
     }
 
     #[test]
-    fn ten_thousand_points_keep_one_anchor_each() {
-        let x: Vec<f64> = (0..10_000).map(|i| 100.0 + i as f64 * 0.25).collect();
+    fn eight_thousand_points_keep_one_anchor_each() {
+        let x: Vec<f64> = (0..8_000).map(|i| 100.0 + i as f64 * 0.25).collect();
         let y: Vec<f64> = x.iter().map(|&w| lorentz(w).1).collect();
         let report = run_fit(&FitRequest {
             x,
@@ -2327,36 +2403,45 @@ mod tests {
             smoothness: 0.08,
             negativity: 100.0,
             extended: false,
-            sigma: vec![0.01; 10_000],
+            sigma: vec![0.01; 8_000],
             errors_given: true,
             physics: Physics { unit: Unit::Cm, ..Physics::default() },
         })
         .unwrap();
-        assert_eq!(report.points_used, 10_000);
-        assert_eq!(report.mfit, 10_000);
+        assert_eq!(report.points_used, 8_000);
+        assert_eq!(report.mfit, 8_000);
         assert!(report.converged);
         assert!(report.chisq_dof < 1.0 || report.chisq < 10_000.0, "χ² {}", report.chisq);
-        assert_eq!(report.eps2_err.len(), 10_000);
+        assert_eq!(report.eps2_err.len(), 8_000);
         assert!(report.eps2_err.iter().all(|e| *e > 0.0 && *e < 0.02));
     }
 
     #[test]
-    fn dense_fit_rejects_excessive_work_before_allocating_matrices() {
-        let points = 300;
-        let result = run_fit(&FitRequest {
-            x: (1..=points).map(|value| value as f64).collect(),
-            y: vec![1.0; points],
-            iter_max: 1000,
-            log_mesh: false,
-            drude: None,
-            smoothness: 0.08,
-            negativity: 100.0,
-            extended: false,
-            sigma: Vec::new(),
-            errors_given: false,
-            physics: Physics { measure: Measure::N, ..Physics::default() },
-        });
-        assert!(result.unwrap_err().contains("demasiados recursos"));
+    fn dense_work_budget_allows_requested_point_and_iteration_limits() {
+        assert!(dense_work(MAX_FIT_POINTS, LARGE_SPECTRUM_ANCHORS + 1, MAX_FIT_ITERATIONS) <= DENSE_WORK_BUDGET);
+        assert!(dense_work(MAX_FIT_POINTS, LARGE_SPECTRUM_ANCHORS + 20, MAX_FIT_ITERATIONS) > DENSE_WORK_BUDGET);
+    }
+
+    #[test]
+    fn dense_mesh_sampling_keeps_endpoints_and_local_extrema() {
+        let mut values = vec![0.0; 1000];
+        values[377] = 4.0;
+        values[811] = -3.0;
+        let indices = mesh_sample_indices(&values, 20);
+        assert_eq!(indices.len(), 20);
+        assert_eq!(indices.first(), Some(&0));
+        assert_eq!(indices.last(), Some(&999));
+        assert!(indices.contains(&377));
+        assert!(indices.contains(&811));
+    }
+
+    #[test]
+    fn fit_limits_iterations_to_eight_hundred() {
+        let report = fit_text(
+            "1 0.1\n2 0.2\n3 0.1\n",
+            &TextFit { iter_max: 1000, measure: "eps2".into(), ..TextFit::default() },
+        ).unwrap();
+        assert_eq!(report.options.iter_max, MAX_FIT_ITERATIONS);
     }
 
     #[test]
@@ -2375,7 +2460,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         });
-        assert!(result.unwrap_err().contains("hasta 10000 puntos"));
+        assert!(result.unwrap_err().contains("hasta 8000 puntos"));
     }
 
     #[test]

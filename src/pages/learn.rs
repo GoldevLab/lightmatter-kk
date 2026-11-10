@@ -63,7 +63,7 @@ pub fn page(_req: FlowRequest) -> View {
                 <h2>{tx(lang, "Qué puedes medir", "What you can measure", "可以测量什么", "O que você pode medir")}</h2>
                 <p>"Para las medidas ópticas, tú dices qué es la segunda columna. El ajuste busca un ε₂ cuyo par (ε₁, ε₂), ligado por Kramers–Kronig, reproduce esa magnitud. La luminiscencia es la excepción: su columna es intensidad emitida, no una parte de ε."</p>
                 <ul>
-                    <li>"ε₂. Es la magnitud del modelo. Con esta medida cada frecuencia puede ser una ancla, hasta 6000."</li>
+                    <li>"ε₂. Es la magnitud del modelo. Con esta medida cada frecuencia puede ser una ancla, hasta 8000."</li>
                     <li>"ε₁. La parte real. ε∞ se ajusta junto con ε₂, salvo que lo escribas."</li>
                     <li>"n, índice de refracción. Igual: ε∞ se ajusta. El valor de partida es n² del último punto, entre 1 y 50."</li>
                     <li>"k, coeficiente de extinción. ε∞ no sale de k. Vacío usa 1, y entonces n se queda cerca de 1 donde la muestra es transparente."</li>
@@ -72,7 +72,7 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"T, transmitancia de una lámina en aire. Necesita unidad de ω y el espesor en µm. Sin espesor el análisis no arranca."</li>
                     <li>"Luminiscencia. Es emisión, no absorción: la intensidad medida no es ε₂ y no determina una pareja ε₁/ε₂. Se analizan picos y propiedades de la emisión, sin fingir una constante dieléctrica."</li>
                 </ul>
-                <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. El modelo usa hasta 500 anclas, o 400 si hay más de 2500 puntos, y como mucho 6000 filas. Las anclas se ponen en los picos y los valles y el resto se reparte. Todos los puntos, aunque no sean ancla, entran en el χ²."</p>
+                <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. El modelo usa hasta 500 anclas, o 400 si hay más de 2500 puntos, y admite hasta 8000 filas. Las anclas se ponen en los picos y los valles y el resto se reparte. Todos los puntos, aunque no sean ancla, entran en el χ²."</p>
             </section>
 
             <section id="metodo">

@@ -736,7 +736,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
             ),
         )
     };
-    let budget = report.options.iter_max.clamp(1, 1000);
+    let budget = report.options.iter_max.clamp(1, 800);
     let steps = if report.converged {
         report.iters_used.saturating_sub(1).max(1).min(budget)
     } else {
