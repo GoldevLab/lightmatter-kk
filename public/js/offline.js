@@ -655,10 +655,14 @@ function initServerJobs() {
     const state = document.createElement("p");
     state.className = "server-job-state";
     state.textContent = jobText("waiting");
-    const link = document.createElement("a");
+    const link = document.createElement("button");
+    link.type = "button";
     link.className = "btn btn-ghost btn-small";
     link.textContent = jobText("view");
-    link.hidden = true;
+    link.disabled = true;
+    link.addEventListener("click", () => {
+      if (link.dataset.href) window.location.assign(link.dataset.href);
+    });
     article.append(label, state, link);
     list.append(article);
     cards.set(job.id, { state, link });
@@ -687,10 +691,10 @@ function initServerJobs() {
           card.state.textContent = jobText(status.state);
         } else if (status.state === "completed" && status.report_id) {
           card.state.textContent = jobText("completed");
-          card.link.href = `/lab?r=${encodeURIComponent(status.report_id)}`;
-          card.link.hidden = false;
+          card.link.dataset.href = `/lab?r=${encodeURIComponent(status.report_id)}`;
+          card.link.disabled = false;
           if (job.id === currentId) {
-            window.location.assign(card.link.href);
+            window.location.assign(card.link.dataset.href);
             return;
           }
         } else {

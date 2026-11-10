@@ -127,6 +127,7 @@ h2 { margin: 0; font-size: 1.35rem; }
 }
 .btn-primary { background: var(--accent); color: var(--on-primary); }
 .btn-ghost { background: transparent; color: var(--text); border-color: var(--line); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .howto-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
