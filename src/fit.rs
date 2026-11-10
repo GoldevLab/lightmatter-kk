@@ -1100,8 +1100,16 @@ const MAX_FIT_POINTS: usize = 8_000;
 const MAX_FIT_ITERATIONS: usize = 800;
 const MAX_DENSE_ANCHORS: usize = 500;
 const LARGE_SPECTRUM_ANCHORS: usize = 400;
-const LARGE_SPECTRUM_THRESHOLD: usize = 2_500;
+const LARGE_SPECTRUM_THRESHOLD: usize = 5_400;
 const DENSE_WORK_BUDGET: u64 = 1_100_000_000_000;
+
+fn anchor_limit_for_points(points: usize) -> usize {
+    if points > LARGE_SPECTRUM_THRESHOLD {
+        LARGE_SPECTRUM_ANCHORS
+    } else {
+        MAX_DENSE_ANCHORS
+    }
+}
 
 fn dense_work(points: usize, parameters: usize, iterations: usize) -> u64 {
     (points as u64)
@@ -1291,11 +1299,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let auto_log = log_mesh && !input.log_mesh;
     // R usa los puntos medios de los intervalos medidos, como en la malla de la tesis.
     let full_r_mesh = measure == Measure::R;
-    let anchor_limit = if ndat > LARGE_SPECTRUM_THRESHOLD {
-        LARGE_SPECTRUM_ANCHORS
-    } else {
-        MAX_DENSE_ANCHORS
-    };
+    let anchor_limit = anchor_limit_for_points(ndat);
     let (mut anchors, anchor_count_note) = if full_r_mesh {
         let candidates: Vec<f64> = w
             .windows(2)
@@ -2420,6 +2424,15 @@ mod tests {
     fn dense_work_budget_allows_requested_point_and_iteration_limits() {
         assert!(dense_work(MAX_FIT_POINTS, LARGE_SPECTRUM_ANCHORS + 1, MAX_FIT_ITERATIONS) <= DENSE_WORK_BUDGET);
         assert!(dense_work(MAX_FIT_POINTS, LARGE_SPECTRUM_ANCHORS + 20, MAX_FIT_ITERATIONS) > DENSE_WORK_BUDGET);
+    }
+
+    #[test]
+    fn anchor_limit_preserves_density_until_dense_work_requires_reduction() {
+        assert_eq!(anchor_limit_for_points(4_793), MAX_DENSE_ANCHORS);
+        assert_eq!(anchor_limit_for_points(LARGE_SPECTRUM_THRESHOLD), MAX_DENSE_ANCHORS);
+        assert_eq!(anchor_limit_for_points(LARGE_SPECTRUM_THRESHOLD + 1), LARGE_SPECTRUM_ANCHORS);
+        assert_eq!(anchor_limit_for_points(MAX_FIT_POINTS), LARGE_SPECTRUM_ANCHORS);
+        assert!(dense_work(4_793, MAX_DENSE_ANCHORS + 1, MAX_FIT_ITERATIONS) <= DENSE_WORK_BUDGET);
     }
 
     #[test]

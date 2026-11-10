@@ -3,7 +3,7 @@
 const SERVER_MAX_POINTS = 8_000;
 const DENSE_ANCHOR_LIMIT = 500;
 const LARGE_SPECTRUM_ANCHORS = 400;
-const LARGE_SPECTRUM_THRESHOLD = 2_500;
+const LARGE_SPECTRUM_THRESHOLD = 5_400;
 const DENSE_WORK_BUDGET = 1_100_000_000_000;
 
 function denseWorkEstimate(points, iterations, measure) {
