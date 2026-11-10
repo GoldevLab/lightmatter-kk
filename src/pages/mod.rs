@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod downloads;
 pub mod index;
 pub mod lab;
 pub mod learn;

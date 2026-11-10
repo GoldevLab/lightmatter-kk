@@ -54,6 +54,7 @@ fn chrome(body: View) -> View {
     let nav_aria = tx(lang, "Secciones", "Sections", "栏目", "Seções");
     let home = tx(lang, "Inicio", "Home", "首页", "Início");
     let lab = tx(lang, "Laboratorio", "Laboratory", "实验室", "Laboratório");
+    let downloads = tx(lang, "Descargas", "Downloads", "下载", "Downloads");
     let learn = tx(lang, "Aprender", "Learn", "学习", "Aprender");
     let shelf_nav = tx(lang, "Estante", "Shelf", "书架", "Estante");
     let foot_lab = tx(lang, "Laboratorio Kramers–Kronig", "Kramers–Kronig laboratory", "克拉默斯–克罗尼格实验室", "Laboratório Kramers–Kronig");
@@ -86,6 +87,7 @@ fn chrome(body: View) -> View {
                     </NavLink>
                     <nav class="site-nav" aria-label={nav_aria}>
                         <NavLink href="/lab" class="site-nav-link" activeClass="is-active">{lab}</NavLink>
+                        <NavLink href="/downloads" class="site-nav-link" activeClass="is-active">{downloads}</NavLink>
                         <NavLink href="/shelf" class="site-nav-link" activeClass="is-active">{shelf_nav}</NavLink>
                         <NavLink href="/learn" class="site-nav-link" activeClass="is-active">{learn}</NavLink>
                         {tools}

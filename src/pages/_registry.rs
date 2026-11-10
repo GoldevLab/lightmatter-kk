@@ -7,6 +7,7 @@ impl FlowPageRegistry for PagesRegistry {
     fn routes(&self) -> &'static [(&'static str, &'static str)] {
         &[
             ("/", "index"),
+            ("/downloads", "downloads"),
             ("/lab", "lab"),
             ("/learn", "learn"),
             ("/shelf", "shelf"),
@@ -22,6 +23,7 @@ impl FlowPageRegistry for PagesRegistry {
     fn render(&self, module: &str, req: FlowRequest) -> Option<View> {
         match module {
             "index" => Some(super::index::page(req)),
+            "downloads" => Some(super::downloads::page(req)),
             "lab" => Some(super::lab::page(req)),
             "learn" => Some(super::learn::page(req)),
             "shelf" => Some(super::shelf::page(req)),
