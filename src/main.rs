@@ -130,7 +130,7 @@ fn nav_tools(lang: lightmatter::i18n::Lang, install: &'static str) -> View {
                 <ThemeSwitch id="night">{night}</ThemeSwitch>
             </div>
             <button type="button" class="install-app" hidden="">{install}</button>
-            <script src="/js/lang.js?v=4" defer=true></script>
+            <script src="/js/lang.js?v=5" defer=true></script>
         </div>
     }
 }
@@ -251,7 +251,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-48".into(),
+            cache_version: "lm-49".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
@@ -261,7 +261,7 @@ async fn main() -> std::io::Result<()> {
                 "/lab".into(),
                 "/learn".into(),
                 "/images/lightmatter.css?v=28".into(),
-                "/js/lang.js?v=4".into(),
+                "/js/lang.js?v=5".into(),
                 "/_resuma/ui.css?v=4679afe0d6db98bc".into(),
                 "/_resuma/loader.js?v=2.0.1".into(),
                 "/images/lightmatter-logo.jpg".into(),

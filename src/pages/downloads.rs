@@ -34,10 +34,10 @@ pub fn page(_req: FlowRequest) -> View {
     let windows_desktop = tx(lang, "Descargar app de escritorio (Windows)", "Download Windows desktop app", "下载 Windows 桌面应用", "Baixar app de desktop (Windows)");
     let windows_desktop_note = tx(
         lang,
-        "Instalador de Windows para la versión full y actualizaciones automáticas cuando haya internet.",
-        "Windows installer for the full desktop app and automatic updates when internet is available.",
-        "Windows 安装程序，用于完整版桌面应用，并在联网时自动更新。",
-        "Instalador para Windows da versão completa do app e atualizações automáticas quando houver internet.",
+        "Instalador de Windows para la versión completa de escritorio.",
+        "Windows installer for the full desktop app.",
+        "完整版桌面应用的 Windows 安装程序。",
+        "Instalador para Windows da versão completa do app.",
     );
     let portable_windows = tx(lang, "Descargar versión portable (Windows)", "Download portable Windows build", "下载 Windows 便携版", "Baixar versão portátil (Windows)");
     let portable_note = tx(
@@ -48,7 +48,7 @@ pub fn page(_req: FlowRequest) -> View {
         "Pacote pronto para extrair e usar sem depender do navegador nem da internet.",
     );
 
-    let desktop_url = "https://github.com/GoldevLab/lightmatter-kk/releases/latest";
+    let desktop_url = "https://github.com/GoldevLab/lightmatter-kk/releases/latest/download/lightmatter-setup.exe";
     let portable_url = "https://github.com/GoldevLab/lightmatter-kk/releases/latest/download/lightmatter-portable.zip";
 
     view! {
@@ -60,7 +60,8 @@ pub fn page(_req: FlowRequest) -> View {
                 <article class="download-card">
                     <h2>{install}</h2>
                     <p>{install_hint}</p>
-                    <button type="button" class="install-app btn btn-primary" hidden="">{install}</button>
+                    <button type="button" class="install-app btn btn-primary">{install}</button>
+                    <p class="help" data-install-hint="" role="status" aria-live="polite" hidden=""></p>
                 </article>
 
                 <article class="download-card">
