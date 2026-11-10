@@ -35,10 +35,13 @@ if (-not (Test-Path $backend)) {
 }
 
 $sidecarName = "lightmatter-$target$extension"
+$genericSidecarName = "lightmatter$extension"
 $binariesDir = Join-Path $root "src-tauri/binaries"
 New-Item -ItemType Directory -Force -Path $binariesDir | Out-Null
 Copy-Item -Force $backend (Join-Path $binariesDir $sidecarName)
+Copy-Item -Force $backend (Join-Path $binariesDir $genericSidecarName)
 
 $tauriTargetDir = Join-Path $root "src-tauri/target/$target/$profile"
 New-Item -ItemType Directory -Force -Path $tauriTargetDir | Out-Null
 Copy-Item -Force $backend (Join-Path $tauriTargetDir $sidecarName)
+Copy-Item -Force $backend (Join-Path $tauriTargetDir $genericSidecarName)
