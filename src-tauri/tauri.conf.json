@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.goldevlab.lightmatter",
   "build": {
-    "beforeDevCommand": "cargo run --bin lightmatter",
-    "beforeBuildCommand": "cargo build --release --bin lightmatter",
-    "frontendDist": "../dist"
+    "beforeDevCommand": "powershell -ExecutionPolicy Bypass -File ../scripts/build-desktop.ps1",
+    "beforeBuildCommand": "powershell -ExecutionPolicy Bypass -File ../scripts/build-desktop.ps1",
+    "frontendDist": "../public"
   },
   "app": {
     "windows": [
@@ -23,9 +23,24 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/GoldevLab/lightmatter-kk/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
+    }
+  },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis",
+      "msi",
+      "zip"
+    ],
+    "externalBin": [
+      "binaries/lightmatter"
+    ],
     "icon": []
   }
 }
