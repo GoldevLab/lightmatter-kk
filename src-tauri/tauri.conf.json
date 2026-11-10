@@ -39,8 +39,7 @@
       "msi"
     ],
     "externalBin": [
-      "binaries/lightmatter-x86_64-pc-windows-msvc.exe",
-      "binaries/lightmatter.exe"
+      "binaries/lightmatter"
     ],
     "icon": [
       "icons/32x32.png",
