@@ -1,5 +1,5 @@
 %======================================================================
-\part{M\'etodo variacional, implementaci\'on f\'isica\\y Seminario II}
+\part{\texorpdfstring{M\'etodo variacional, implementaci\'on f\'isica\\y Seminario II}{Metodo variacional, implementacion fisica: Seminario II}}
 %======================================================================
 
 \chapter{An\'alisis variacional Kramers--Kronig restringido}
@@ -10,10 +10,19 @@
 En lugar de ajustar un modelo microsc\'opico con pocos polos, se representa $\varepsilon_2(\omega)$ como superposici\'on de funciones base triangulares centradas en anclas de frecuencia fijas~\cite{constrained}:
 \begin{equation}
 \label{eq:eps2-tri}
-\varepsilon_2(\omega)=\sum_{k}A_k\,\Lambda_k(\omega)
+\varepsilon_2(\omega)=\sum_{k=1}^{M}A_k\,\Lambda_k(\omega)
 +\varepsilon_{2,\mathrm{D}}(\omega),
 \end{equation}
-donde $\Lambda_k$ vale $1$ en la ancla $\omega_k$, cae linealmente a $0$ en las anclas vecinas y es nula fuera de ese soporte, y $\varepsilon_{2,\mathrm{D}}$ es un fondo Drude opcional.
+donde $\Lambda_k$ vale $1$ en la ancla $\omega_k$, cae linealmente a $0$ en las anclas vecinas y es nula fuera de ese soporte. Si $\omega_0<\omega_1<\cdots<\omega_M<\omega_{M+1}$, con amplitudes nulas en los extremos $\omega_0$ y $\omega_{M+1}$, cada base se define como
+\begin{equation}
+\Lambda_k(\omega)=
+\begin{cases}
+\dfrac{\omega-\omega_{k-1}}{\omega_k-\omega_{k-1}},&\omega_{k-1}\le\omega\le\omega_k,\\[6pt]
+\dfrac{\omega_{k+1}-\omega}{\omega_{k+1}-\omega_k},&\omega_k<\omega\le\omega_{k+1},\\[6pt]
+0,&\text{fuera de ese intervalo.}
+\end{cases}
+\end{equation}
+El t\'ermino $\varepsilon_{2,\mathrm{D}}$ es un fondo Drude opcional; al desactivarlo vale cero.
 Los par\'ametros libres son las alturas $A_k$ (y, cuando procede, $\varepsilon_\infty$).
 
 La parte real se obtiene por Kramers--Kronig \emph{exacta} de esa parametrizaci\'on:
@@ -21,10 +30,10 @@ La parte real se obtiene por Kramers--Kronig \emph{exacta} de esa parametrizaci\
 \label{eq:eps1-tri}
 \varepsilon_1(\omega)
 =\varepsilon_\infty
-+\sum_{k}A_k\,g_k(\omega)
++\sum_{k=1}^{M}A_k\,K_k(\omega)
 +\bigl[\varepsilon_{1,\mathrm{D}}(\omega)-\varepsilon_\infty\bigr],
 \end{equation}
-donde $g_k$ es la transformada anal\'itica del tri\'angulo unitario.
+donde $K_k$ es la transformada de Kramers--Kronig del tri\'angulo unitario $\Lambda_k$.
 As\'i, en cada iteraci\'on del ajuste el par $(\varepsilon_1,\varepsilon_2)$ es causal por construcci\'on.
 
 \begin{figure}[H]
@@ -36,40 +45,53 @@ As\'i, en cada iteraci\'on del ajuste el par $(\varepsilon_1,\varepsilon_2)$ es 
 
 \section{N\'ucleo anal\'itico del tri\'angulo}
 
-Sea un tri\'angulo de altura unitaria apoyado en $(\omega_{k-1},\omega_k,\omega_{k+1})$.
-Su contribuci\'on a $\varepsilon_1$ puede escribirse mediante la funci\'on auxiliar~\cite{constrained}
+Para obtener $K_k$, se sustituye un tri\'angulo en la relaci\'on de Kramers--Kronig de $\varepsilon_2$. Definamos los espaciamientos $\Delta_- = \omega_k-\omega_{k-1}$ y $\Delta_+ = \omega_{k+1}-\omega_k$. Al separar las dos pendientes del tri\'angulo, la integral queda
 \begin{equation}
-g(x,y)=(x+y)\ln|x+y|+(x-y)\ln|x-y|,
+K_k(\omega)=\frac{2}{\pi}\mathcal{P}\left[
+\frac{1}{\Delta_-}\int_{\omega_{k-1}}^{\omega_k}\frac{x(x-\omega_{k-1})}{x^2-\omega^2}\,dx
++\frac{1}{\Delta_+}\int_{\omega_k}^{\omega_{k+1}}\frac{x(\omega_{k+1}-x)}{x^2-\omega^2}\,dx
+\right].
 \end{equation}
-combinada en diferencias finitas sobre los tres nodos.
-El detalle algebraico no cambia el mensaje f\'isico: \emph{no hace falta reintegrar num\'ericamente Kramers--Kronig en cada paso}; basta una suma ponderada de $A_k$.
+La integral de cada tramo produce logaritmos. Para escribir el resultado de forma compacta, se define
+\begin{equation}
+G(x,y)=(x+y)\ln|x+y|-(x-y)\ln|x-y|,
+\end{equation}
+donde el t\'ermino $0\ln 0$ se toma por su l\'imite, igual a cero. La suma de los dos tramos es
+\begin{equation}
+K_k(\omega)=\frac{1}{\pi}\left[
+\frac{G(\omega,\omega_{k-1})}{\Delta_-}
+-\frac{\Delta_-+\Delta_+}{\Delta_-\Delta_+}G(\omega,\omega_k)
++\frac{G(\omega,\omega_{k+1})}{\Delta_+}
+\right].
+\end{equation}
+Aunque cada logaritmo contiene una frecuencia dimensional, cualquier escala de referencia com\'un se cancela en esta combinaci\'on. Por tanto, en cada iteraci\'on no hace falta volver a integrar num\'ericamente: basta calcular $K_k$ y sumar las contribuciones $A_kK_k$.
 
 \section{Malla de anclas y colas}
 
-Las anclas se colocan de forma densa en picos y valles del espectro y se reparte el resto del intervalo medido.
+Las anclas se colocan de forma densa en picos y valles del espectro y se reparte el resto del intervalo medido. La selecci\'on conserva primero los extremos locales y luego distribuye anclas en el resto de la malla.
 Fuera de la primera y la \'ultima ancla interior se a\~naden extremos con coeficiente nulo, de modo que $\varepsilon_2$ baja en l\'inea recta hasta cero.
 Esa cola no est\'a fijada por los datos y puede desplazar $\varepsilon_1$ dentro de la ventana; por eso $\varepsilon_\infty$ y la extrapolaci\'on deben declararse con claridad al reportar resultados.
 
-Cuando la magnitud medida no es $\varepsilon_2$ sino $R$, $T$, $n$, $k$ o $\alpha$, el n\'umero de anclas se limita (orden de cientos) porque $\varepsilon_1$ en cada punto acopla todas las alturas.
-Todos los puntos experimentales, sean o no ancla, entran en $\chi^{2}$.
+Cuando la magnitud medida no es $\varepsilon_2$ sino $R$, $T$, $n$, $k$ o $\alpha$, el n\'umero de anclas se limita al orden de cientos porque $\varepsilon_1$ en cada punto acopla globalmente las alturas. No se requiere una ancla por dato: todas las mediciones, sean o no anclas, entran en $\chi^{2}$.
+En la implementaci\'on descrita aqu\'i se permiten hasta 500 anclas para espectros de hasta 5400 puntos; por encima de ese tama\~no se usan hasta 400 para respetar el presupuesto de c\'omputo a 800 iteraciones. Esta es una decisi\'on num\'erica de la implementaci\'on, no un requisito general del m\'etodo.
 
 \section{Funcional a minimizar}
 
-Dados $N$ puntos $\{(\omega_i,y_i,\sigma_i)\}$, se define
+Dados $N$ puntos $\{(\omega_i,y_i,\sigma_i)\}$, se define el chi-cuadrado de los datos
 \begin{equation}
 \label{eq:chi2}
-\chi^{2}=\sum_{i=1}^{N}
+\chi^{2}_{\mathrm{datos}}=\sum_{i=1}^{N}
 \left(\frac{y_i-Q\bigl(\omega_i;\{A_k\},\varepsilon_\infty\bigr)}{\sigma_i}\right)^{2},
 \end{equation}
 donde $Q$ es la magnitud declarada por el experimentalista, calculada desde el par $(\varepsilon_1,\varepsilon_2)$ del modelo.
 Si no se suministra error, $\sigma_i=1$.
 
-Se a\~naden regularizaciones:
+El ajuste minimiza un objetivo regularizado $\Phi$:
 \begin{itemize}[leftmargin=*]
-\item \textbf{suavidad:} penaliza la segunda diferencia $A_{k-1}-2A_k+A_{k+1}$ para evitar oscilaciones espurias entre anclas;
-\item \textbf{negatividad:} penaliza $A_k$ (o $\varepsilon_2$) negativos, en coherencia con pasividad.
+\item \textbf{suavidad:} $P_s=\lambda_s\sum_k(A_{k-1}-2A_k+A_{k+1})^2$ sobre tripletas interiores libres. La diferencia no se divide por el espaciamiento entre anclas; por ello, el efecto de la penalizaci\'on depende de la malla.
+\item \textbf{negatividad:} $P_-=\lambda_-\sum_i\min(0,\varepsilon_2(\omega_i))^2$, que penaliza valores negativos del modelo en los puntos medidos.
 \end{itemize}
-Esas penalizaciones gu\'ian el m\'inimo pero no se suman al $\chi^{2}$ de datos que se reporta como bondad de ajuste a la medida.
+As\'i, $\Phi=\chi^{2}_{\mathrm{datos}}+P_s+P_-$. Las penalizaciones participan en la minimizaci\'on, pero se excluyen del $\chi^{2}_{\mathrm{datos}}$ reportado como fidelidad a la medida.
 
 
 \chapter{Minimizaci\'on: Levenberg--Marquardt}
@@ -78,21 +100,25 @@ Esas penalizaciones gu\'ian el m\'inimo pero no se suman al $\chi^{2}$ de datos 
 \section{Gradiente y curvatura}
 
 Sea $\mathbf{p}$ el vector de par\'ametros ($A_k$ y eventualmente $\varepsilon_\infty$).
-El algoritmo de Levenberg--Marquardt interpola entre descenso por gradiente e inversi\'on de la curvatura~\cite{NR,guide}.
-Con
+El algoritmo de Levenberg--Marquardt interpola entre descenso por gradiente e inversi\'on de la curvatura~\cite{NR,guide}. Para ver de d\'onde sale el sistema lineal, definimos el residuo normalizado $r_i=(y_i-Q_i)/\sigma_i$. Cerca de los par\'ametros actuales, una variaci\'on peque\~na $\delta\mathbf{p}$ cambia la predicci\'on aproximadamente como
+\begin{equation}
+Q_i(\mathbf{p}+\delta\mathbf{p})\simeq Q_i(\mathbf{p})+\sum_l\frac{\partial Q_i}{\partial p_l}\,\delta p_l.
+\end{equation}
+Al sustituir esta aproximaci\'on lineal en la suma de cuadrados y minimizar respecto de $\delta\mathbf{p}$ se obtienen las ecuaciones normales. Las contribuciones de los datos al gradiente y a la curvatura de Gauss--Newton son
 \begin{align}
-\beta_k
-&=-\frac12\frac{\partial\chi^{2}}{\partial p_k}
+\beta^{\mathrm{datos}}_k
+&=-\frac12\frac{\partial\chi^{2}_{\mathrm{datos}}}{\partial p_k}
 =\sum_i\frac{y_i-Q_i}{\sigma_i^{2}}\frac{\partial Q_i}{\partial p_k},\\
-\alpha_{kl}
+\alpha^{\mathrm{datos}}_{kl}
 &=\sum_i\frac{1}{\sigma_i^{2}}
 \frac{\partial Q_i}{\partial p_k}\frac{\partial Q_i}{\partial p_l},
 \end{align}
-se resuelve en cada iteraci\'on
+Las penalizaciones aportan sus propias derivadas $\beta^{\mathrm{reg}}$ y curvatura $\alpha^{\mathrm{reg}}$; se combinan como $\beta=\beta^{\mathrm{datos}}+\beta^{\mathrm{reg}}$ y $\alpha\simeq\alpha^{\mathrm{datos}}+\alpha^{\mathrm{reg}}$. En cada iteraci\'on se amortigua la diagonal y se resuelve
 \begin{equation}
 \sum_l \alpha_{kl}(1+\lambda\delta_{kl})\,\delta p_l=\beta_k.
 \end{equation}
-Si el paso mejora $\chi^{2}$, $\lambda$ se reduce (r\'egimen gauss-newtoniano); si no, $\lambda$ crece (r\'egimen de descenso m\'as pronunciado).
+Aqu\'i $\delta_{kl}$ es la delta de Kronecker: vale uno si $k=l$ y cero en otro caso. Se eval\'ua el objetivo $\Phi$ con los par\'ametros de prueba. Si disminuye, se acepta el paso y se reduce $\lambda$; si aumenta, se rechaza y se incrementa $\lambda$. As\'i, un $\lambda$ peque\~no aproxima Gauss--Newton, mientras uno grande produce pasos m\'as cautelosos, cercanos al descenso por gradiente.
+Para $Q=\varepsilon_1$ o $\varepsilon_2$, las derivadas respecto de la funci\'on diel\'ectrica son directas. Para $Q=n$, $k$, $R$, $\alpha$ o $T$, la implementaci\'on estima $\partial Q/\partial\varepsilon_j$ mediante diferencias centrales; usa $h_j=10^{-6}(1+|\varepsilon_j|)$ para $j=1,2$.
 
 \begin{figure}[H]
 \centering
@@ -103,12 +129,13 @@ Si el paso mejora $\chi^{2}$, $\lambda$ se reduce (r\'egimen gauss-newtoniano); 
 
 \section{Convergencia e incertidumbres}
 
-Un criterio pr\'actico de parada es que $\chi^{2}$ deje de mejorar m\'as de un porcentaje peque\~no y que ning\'un residuo quede fuera de una franja razonable del rango de la medida.
-Tras converger, la matriz de covarianza $\alpha^{-1}$ suministra barras $\pm 1\sigma$ de los par\'ametros cuando existen errores experimentales~\cite{NR}:
+En la implementaci\'on, una mejora menor al 1\% en $\Phi$ puede cerrar el ajuste solo cuando ning\'un residuo estandarizado supera el 2\% del rango total de la medida. Si el amortiguamiento crece sin reducir los residuos, el resultado se marca como estancado; alcanzar el m\'aximo de iteraciones tampoco equivale por s\'i solo a converger.
+Cuando se suministran errores experimentales y el problema est\'a bien condicionado, la inversa de la curvatura de los datos $\alpha_{\mathrm{datos}}^{-1}$ permite estimar barras $\pm 1\sigma$ de los par\'ametros~\cite{NR}:
 \begin{equation}
-\delta p_k=\sqrt{(\delta\chi^{2})\,(\alpha^{-1})^{kk}}.
+\delta p_k=\sqrt{(\delta\chi^{2}_{\mathrm{datos}})\,(\alpha_{\mathrm{datos}}^{-1})^{kk}}.
 \end{equation}
-La suavidad no debe entrar en esa estimaci\'on si se desea reportar incertidumbre condicionada solo a los datos.
+Para intervalos de una desviaci\'on est\'andar se usa $\delta\chi^{2}_{\mathrm{datos}}=1$ cuando los errores declarados tienen interpretaci\'on estad\'istica. La estimaci\'on implementada excluye suavidad y penalizaci\'on de negatividad; por tanto, es condicional al modelo, a la malla y a los errores declarados, y no incluye toda la incertidumbre sistem\'atica ni la debida a extrapolar fuera de la ventana.
+Un ejemplo muestra por qu\'e importa la correlaci\'on: con un solo dato $y=1$, $\sigma=1$ y $Q=p_1+p_2$, se obtiene $\chi^2=(1-p_1-p_2)^2$. Todos los pares con $p_1+p_2=1$ ajustan exactamente; el dato determina la suma, pero no cada par\'ametro por separado. Datos independientes o una restricci\'on f\'isica adicional hacen falta para separar sus valores.
 
 \begin{figure}[H]
 \centering
@@ -123,13 +150,15 @@ La suavidad no debe entrar en esa estimaci\'on si se desea reportar incertidumbr
 
 \section{Datos de entrada}
 
-Cada fila experimental aporta $\omega>0$ y el valor medido; una tercera columna opcional es el error.
-Las unidades de $\omega$ admitidas en la implementaci\'on de referencia son cm$^{-1}$, eV, nm (convertidos a energ\'ia) u ``otra'' (eje adimensional, con el que no se reportan $\alpha$ ni $\sigma$ en unidades absolutas).
-Conversiones \'utiles:
+Cada fila experimental aporta una coordenada espectral positiva $x$ y el valor medido; una tercera columna opcional es su error. En las ecuaciones, $\omega$ denota frecuencia angular; el programa acepta como eje de entrada el n\'umero de onda $\tilde\nu$, la energ\'ia fot\'onica $E$, la longitud de onda $\lambda$ o una escala ``otra'' que sea linealmente proporcional a la frecuencia. No se debe aplicar Kramers--Kronig a un eje no linealmente transformado.
+Las unidades admitidas son cm$^{-1}$, eV y nm; nm se convierte a eV. La opci\'on ``otra'' permite hacer el ajuste sin magnitudes absolutas de $\alpha$ ni $\sigma$.
+Las relaciones entre las coordenadas son
 \begin{equation}
+\omega=2\pi c\tilde\nu,\qquad E=\hbar\omega,\qquad
 E\,(\mathrm{eV})=\frac{1239.84193}{\lambda\,(\mathrm{nm})},\qquad
 \tilde\nu\,(\mathrm{cm}^{-1})=\frac{E\,(\mathrm{eV})}{1.23984193\times 10^{-4}}.
 \end{equation}
+Si una curva de luminiscencia representa intensidad por intervalo de longitud de onda, al convertirla a intensidad por intervalo de energ\'ia se multiplica por el jacobiano $|d\lambda/dE|=\lambda^2/(hc)$; el error experimental recibe el mismo factor.
 
 \begin{figure}[H]
 \centering
@@ -175,10 +204,16 @@ Ninguna de esas curvas es un segundo ajuste independiente.
 
 \section{Borde de Tauc}
 
-Cuando $\alpha(E)$ arranca cerca de cero en el visible--UV, el an\'alisis de Tauc~\cite{Tauc} estima brechas \'opticas mediante
-$(\alpha E)^{2}$ (directo) y $(\alpha E)^{1/2}$ (indirecto).
-El corte se obtiene de la tangente m\'as empinada en la subida, y se reporta el $R^{2}$ de la recta en la zona lineal.
-Si la ventana corta la subida, el valor num\'erico puede quedar por encima del umbral visible: es un aviso de cobertura espectral, no una segunda brecha.
+El m\'etodo de Tauc~\cite{Tauc} no es una transformaci\'on universal de cualquier espectro: supone que, cerca del borde de absorci\'on, domina una transici\'on interbanda con una ley de potencia conocida. Para las formas permitidas m\'as comunes se comparan dos gr\'aficas:
+\begin{equation}
+Y_{\mathrm{directa}}(E)=[\alpha(E)E]^2,\qquad
+Y_{\mathrm{indirecta}}(E)=[\alpha(E)E]^{1/2}.
+\end{equation}
+Si una de ellas es aproximadamente lineal en el intervalo del borde, puede escribirse $Y(E)\simeq m(E-E_g)$. La brecha estimada es el corte con el eje de energ\'ia: al imponer $Y(E_g)=0$, resulta $E_g=-b/m$ si la recta se expresa como $Y=mE+b$.
+
+La implementaci\'on de este trabajo busca antes del m\'aximo de $\alpha E$ la tangente de mayor pendiente positiva en la subida de la curva transformada, y toma su intersecci\'on con el eje $E$. Solo considera puntos entre el 10\% y el 90\% del m\'aximo de $Y$; el $R^2$ se calcula por regresi\'on lineal en la franja donde $\alpha E$ est\'a entre el 5\% y el 70\% de su m\'aximo, con al menos cinco puntos. Si ambas formas son candidatas, la aplicaci\'on solo las distingue cuando una alcanza $R^2\ge0.90$ y supera a la otra por al menos 0.08; de lo contrario, informa que la asignaci\'on es ambigua u orientativa.
+
+Estas reglas son criterios num\'ericos de la aplicaci\'on, no leyes adicionales del material. Adem\'as, el c\'alculo exige que la primera energ\'ia sea al menos $0.2\,\mathrm{eV}$, que el valor inicial de $Y$ no supere el 5\% de su m\'aximo y que haya suficientes puntos para la regresi\'on. La estimaci\'on requiere que el borde est\'e cubierto y que $\alpha$ arranque cerca de cero; si la ventana corta la subida o no cumple esas condiciones, el valor debe tratarse como no determinado o como una cota, no como una segunda brecha.
 
 \section{Flujo operativo del an\'alisis}
 
@@ -186,7 +221,7 @@ Si la ventana corta la subida, el valor num\'erico puede quedar por encima del u
 \item Leer el espectro, unidad y tipo de medida; normalizar $R$ si vino en porcentaje.
 \item Construir la malla de anclas y sembrar $A_k$ (por ejemplo desde una estimaci\'on local de $\varepsilon_2$).
 \item Fijar o estimar $\varepsilon_\infty$; opcionalmente restar Drude.
-\item Iterar Levenberg--Marquardt sobre $\chi^{2}$ de la magnitud $Q$.
+\item Iterar Levenberg--Marquardt para minimizar $\Phi$, cuyo t\'ermino de datos compara $Q$ con las mediciones.
 \item Exportar $(\varepsilon_1,\varepsilon_2)$ y constantes derivadas; inspeccionar residuos y avisos.
 \end{enumerate}
 
@@ -194,7 +229,7 @@ Si la ventana corta la subida, el valor num\'erico puede quedar por encima del u
 \chapter{Papel de la aplicaci\'on de an\'alisis}
 \label{ch:app}
 
-La aplicaci\'on desarrollada en este trabajo es el veh\'iculo num\'erico del m\'etodo: recibe espectros, impone la restricci\'on Kramers--Kronig en cada evaluaci\'on del modelo, minimiza $\chi^{2}$ y devuelve el conjunto de constantes \'opticas con m\'etricas de ajuste.
+La aplicaci\'on desarrollada en este trabajo es el veh\'iculo num\'erico del m\'etodo: recibe espectros, impone la restricci\'on Kramers--Kronig en cada evaluaci\'on del modelo, minimiza $\Phi$ y devuelve el conjunto de constantes \'opticas junto con $\chi^{2}_{\mathrm{datos}}$ y otras m\'etricas de ajuste.
 Para la comunidad de f\'isica de materiales lo esencial no es el nombre del programa, sino que:
 \begin{itemize}[leftmargin=*]
 \item el modelo sea causal en todo momento;
@@ -220,7 +255,7 @@ Mostrar, sin ambig\"uedad operativa, c\'omo se pasa de un archivo de datos a una
 \begin{enumerate}[leftmargin=*]
 \item $\varepsilon_2=\sum A_k\Lambda_k$ es un modelo flexible: no presupone Lorentz ni Fano.
 \item $\varepsilon_1$ no se ajusta por separado: se calcula por Kramers--Kronig de esos tri\'angulos.
-\item Levenberg--Marquardt mueve las alturas hasta que la proyecci\'on $Q$ coincida con la medida.
+\item Levenberg--Marquardt ajusta las alturas para reducir $\Phi$ y hacer que la proyecci\'on $Q$ reproduzca la medida.
 \item El \'exito del ajuste a $Q$ es necesario, pero no suficiente, para afirmar que \emph{todas} las constantes derivadas son las del material: hay que leer qu\'e fija realmente la medida ($\varepsilon_\infty$, espesor, cobertura espectral).
 \end{enumerate}
 
@@ -230,7 +265,7 @@ Mostrar, sin ambig\"uedad operativa, c\'omo se pasa de un archivo de datos a una
 \item Dibujar tres tri\'angulos solapados y su suma $\varepsilon_2$.
 \item Indicar que cada tri\'angulo aporta un $g_k$ a $\varepsilon_1$.
 \item Elegir medida $R$: escribir $Q=R(n,k)$ y subrayar el acoplamiento global.
-\item Escribir $\chi^{2}$ y el paso $(\alpha'\,\delta\mathbf{p}=\boldsymbol\beta)$.
+\item Escribir $\Phi=\chi^{2}_{\mathrm{datos}}+P_s+P_-$ y el paso amortiguado de Levenberg--Marquardt.
 \item Discutir un caso $\alpha$ con $\varepsilon_\infty=1$ frente a $\varepsilon_\infty=n^{2}$ conocido: $\alpha$ y $k$ estables; $n$ y $R$ sensibles.
 \end{enumerate}
 
@@ -245,4 +280,4 @@ El auditorio debe ser capaz de:
 
 \section*{S.II.5 Puente hacia la Parte~III}
 
-La validaci\'on final exige demostrar que los resultados no solo minimizan $\chi^{2}$, sino que satisfacen pruebas de consistencia f\'isica independientes del nombre de la herramienta.
+La validaci\'on final exige comprobar que los resultados minimizan $\Phi$, reproducen los datos dentro de la incertidumbre declarada y satisfacen pruebas de consistencia f\'isica independientes del nombre de la herramienta.

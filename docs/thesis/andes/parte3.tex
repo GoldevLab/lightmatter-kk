@@ -1,20 +1,20 @@
 %======================================================================
-\part{Validaci\'on:\\demostraci\'on de que los resultados son verdaderos}
+\part{\texorpdfstring{Validaci\'on:\\criterios de consistencia f\'isica y l\'imites}{Validacion: criterios de consistencia fisica y limites}}
 %======================================================================
 
-\chapter{Qu\'e significa ``verdadero'' en este contexto}
+\chapter{Qu\'e significa consistencia f\'isica en este contexto}
 \label{ch:verdad}
 
-En espectroscop\'ia de materiales, un resultado del an\'alisis inverso se considera \emph{f\'isicamente verdadero} cuando cumple, de forma simult\'anea, cuatro condiciones:
+En espectroscop\'ia de materiales, un resultado del an\'alisis inverso es consistente con el modelo cuando cumple, de forma simult\'anea, cuatro condiciones:
 
 \begin{enumerate}[leftmargin=*]
-\item \textbf{Fidelidad a los datos.} La magnitud medida $Q$ queda reproducida dentro del error experimental ($\chi^{2}$ y residuos aceptables).
+\item \textbf{Fidelidad a los datos.} La magnitud medida $Q$ queda reproducida dentro del error experimental ($\chi^{2}_{\mathrm{datos}}$ y residuos aceptables).
 \item \textbf{Causalidad.} El par $(\varepsilon_1,\varepsilon_2)$ obedece Kramers--Kronig por construcci\'on del modelo, no como post-proceso opcional.
 \item \textbf{Pasividad y consistencia algebraica.} $\varepsilon_2\ge 0$ (salvo ruido residual), $n,k$ obtenidos de~\eqref{eq:nk-from-eps}, y las identidades $\varepsilon_1=n^{2}-k^{2}$, $\varepsilon_2=2nk$ se verifican num\'ericamente.
 \item \textbf{Estabilidad ante lo no medido.} Las constantes que la medida \emph{no} fija (t\'ipicamente $\varepsilon_\infty$ en $\alpha$ o $k$) se declaran como tales; las que s\'i fija permanecen invariantes bajo variaciones razonables de regularizaci\'on.
 \end{enumerate}
 
-La Parte~III aplica estas condiciones al flujo de la aplicaci\'on de an\'alisis.
+Estas condiciones permiten evaluar un resultado concreto; no prueban por s\'i solas que el modelo represente de forma \'unica toda la respuesta del material. La Parte~III las organiza como protocolo de evaluaci\'on.
 
 
 \chapter{Protocolo de validaci\'on}
@@ -32,17 +32,18 @@ A partir del reporte $(\varepsilon_1,\varepsilon_2)$ se recalculan $n$ y $k$ con
 \varepsilon_2(\omega_i)-2n(\omega_i)k(\omega_i)
 \right|<\eta,
 \end{equation}
-con $\eta$ del orden del error de redondeo relativo ($10^{-10}$--$10^{-8}$ en aritm\'etica de doble precisi\'on).
+con una tolerancia absoluta $\eta$ compatible con la escala de las magnitudes y el redondeo de doble precisi\'on (por ejemplo, $10^{-10}$--$10^{-8}$ cuando son de orden unidad).
 Fallo en esta prueba indicar\'ia un error de implementaci\'on, no una ambig\"uedad f\'isica.
 
 \section{Prueba B --- Proyecci\'on de la medida}
 
 Se compara la columna experimental $y_i$ con $Q_i$ del modelo.
-Se reportan $\chi^{2}$, $\chi^{2}/\mathrm{dof}$ cuando hay menos par\'ametros que puntos, y la diferencia relativa
+Se reportan $\chi^{2}_{\mathrm{datos}}$, $\chi^{2}_{\mathrm{datos}}/\mathrm{dof}$ cuando hay menos par\'ametros que puntos, y el residuo escalado por 100
 \begin{equation}
 \delta_i=100\,(Q_i-y_i).
 \end{equation}
-Un $\chi^{2}$ bajo con una curva casi plana frente a un espectro estructurado suele se\~nalar error de unidades (por ejemplo, leer cm$^{-1}$ como nm), no ``material sin rasgos''.
+Este residuo no es relativo: para $R$ expresada como fracci\'on equivale a puntos porcentuales; para magnitudes con unidades conserva esas unidades multiplicadas por 100. Si se requiere un error relativo, debe definirse por separado y solo donde $y_i\ne 0$.
+Un $\chi^{2}_{\mathrm{datos}}$ bajo con una curva casi plana frente a un espectro estructurado suele se\~nalar error de unidades (por ejemplo, leer cm$^{-1}$ como nm), no ``material sin rasgos''.
 
 \section{Prueba C --- Kramers--Kronig num\'erica independiente}
 
@@ -50,7 +51,7 @@ Aunque el modelo es causal por construcci\'on, conviene verificar que la $\varep
 La desviaci\'on media relativa debe permanecer muy por debajo de la incertidumbre experimental.
 Esta prueba certifica que no hubo mezcla inadvertida de dos parametrizaciones.
 
-\section{Prueba D --- Sensibilidad a $\varepsilon_\infty$}
+\section{Prueba D --- Sensibilidad a \texorpdfstring{$\varepsilon_\infty$}{epsilon infinito}}
 
 Se repite el ajuste con $\varepsilon_\infty$ variado en un intervalo f\'sicamente plausible.
 \begin{itemize}[leftmargin=*]
@@ -65,50 +66,49 @@ Se barre la suavidad desde $0$ hasta un valor moderado.
 Los residuos en los datos no deben degradarse de forma dr\'astica; las oscilaciones no f\'sicas entre anclas deben atenuarse.
 Si el m\'inimo solo existe con suavidad extrema, el espectro est\'a submuestreado o mal etiquetado.
 
-\section{Prueba F --- S\'intesis hacia adelante (ground truth)}
+\section{Prueba F --- Recuperaci\'on desde una referencia sint\'etica conocida}
 
 Se sintetiza un espectro desde un $\hat\varepsilon$ conocido (por ejemplo, suma de osciladores Lorentz + Drude), se a\~nade ruido gaussiano, y se recupera el par con el an\'alisis variacional.
 Se cuantifica el error en $\varepsilon_1$, $\varepsilon_2$ y en $R$ o $\alpha$ seg\'un la medida elegida.
-Esta es la prueba m\'as directa de que el inverso no inventa estructuras ajenas a la verdad generativa.
+Esta prueba cuantifica la capacidad de recuperaci\'on bajo el modelo generador especificado; no demuestra por s\'i sola que un espectro experimental tenga una soluci\'on \'unica.
 
 
-\chapter{Resultados de validaci\'on}
+\chapter{Alcance y evidencia de validaci\'on}
 \label{ch:resultados}
+
+Las pruebas A--F definen qu\'e debe comprobarse, pero una afirmaci\'on cuantitativa de validaci\'on requiere publicar los datos de entrada, las unidades, la medida ajustada, los errores, los controles de regularizaci\'on, el estado de convergencia y los residuos obtenidos. La figura~\ref{fig:residuos} es una ilustraci\'on de curvas de un oscilador, no una comparaci\'on entre un espectro experimental y un ajuste. Por ello, los criterios que siguen deben leerse como protocolo e interpretaci\'on, no como resultados num\'ericos de pruebas A--F.
 
 \section{Cierre algebraico y causalidad}
 
-En corridas de control sobre espectros de reflectividad y de absorci\'on, las Pruebas~A y~C se satisfacen de manera sistem\'atica:
-el par reportado es internamente consistente y coincide con la transformada Kramers--Kronig de su propia $\varepsilon_2$.
-Ello demuestra que la restricci\'on causal no es un lema de presentaci\'on, sino una propiedad efectiva del resultado.
+La parametrizaci\'on impone la relaci\'on de Kramers--Kronig entre $\varepsilon_1$ y $\varepsilon_2$ en cada evaluaci\'on del modelo; esta es una propiedad estructural de la implementaci\'on, no una medici\'on independiente.
+La Prueba~A puede comprobar las identidades algebraicas punto a punto. Para documentar una Prueba~C independiente se deben indicar la malla, las colas y el algoritmo de transformaci\'on num\'erica, junto con el error m\'aximo y medio. Esos valores no se presentan en esta versi\'on, por lo que no se afirma aqu\'i una verificaci\'on num\'erica sistem\'atica.
 
 \section{Reproducci\'on de magnitudes medidas}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{graficas.png}
-\caption{Ejemplo de confrontaci\'on entre espectro experimental y proyecci\'on del modelo tras el ajuste.}
+\caption{Ejemplo ilustrativo de constantes \'opticas generadas por un oscilador Lorentziano; no corresponde a un ajuste de datos experimentales.}
 \label{fig:residuos}
 \end{figure}
 
-Cuando la unidad y el tipo de medida son correctos, el modelo triangular alcanza residuos compatibles con el ruido declarado (Prueba~B).
-En reflectividad, rayas estrechas exigen densidad de anclas y de puntos experimentales suficientes: aumentar solo el n\'umero de iteraciones no crea resoluci\'on espectral nueva.
-Ese comportamiento es el esperado de un m\'etodo lineal por tramos bajo Kramers--Kronig, y confirma que el \'exito no se finge por sobreajuste libre de $\varepsilon_1$.
+La Prueba~B debe reportar la curva ajustada junto a los datos, los residuos y los errores experimentales. Si no se entrega una tercera columna de errores, el programa toma $\sigma_i=1$; en ese caso $\chi^2$ no puede interpretarse como una bondad estad\'istica normalizada por la incertidumbre real.
+En reflectividad, las rayas estrechas exigen densidad suficiente tanto de puntos experimentales como de anclas. Aumentar las iteraciones no crea resoluci\'on espectral nueva, y un aviso de estancamiento significa que el residuo sigue siendo relevante seg\'un el criterio de parada de la implementaci\'on.
 
-\section{Lecciones sobre $\varepsilon_\infty$}
+\section{Lecciones sobre \texorpdfstring{$\varepsilon_\infty$}{epsilon infinito}}
 
-La Prueba~D reproduce el dictamen de f\'isica de materiales:
+La Prueba~D debe interpretarse junto con la informaci\'on que realmente contiene cada magnitud:
 \begin{itemize}[leftmargin=*]
 \item medir $\alpha$ determina la extinci\'on; no determina el \'indice absoluto;
 \item un $\varepsilon_\infty=1$ por defecto en un \'oxido con $n\approx 2$ en la zona transparente deforma $R$, la p\'erdida y $\sigma_2$, aunque $\alpha$ siga clavado a los datos;
 \item fijar $\varepsilon_\infty=n^{2}$ conocido restaura el conjunto completo.
 \end{itemize}
-Por tanto, un reporte cient\'ifico honesto distingue \emph{constantes fijadas por la medida} de \emph{constantes condicionadas a $\varepsilon_\infty$}.
+Por tanto, un reporte cient\'ifico debe distinguir \emph{constantes fijadas por la medida} de \emph{constantes condicionadas a $\varepsilon_\infty$}. Estos ejemplos describen dependencias del modelo; no sustituyen una tabla de resultados reproducibles para una muestra concreta.
 
-\section{Recuperaci\'on desde verdad sint\'etica}
+\section{Protocolo de recuperaci\'on sint\'etica}
 
-En espectros sint\'eticos con ruido controlado (Prueba~F), el an\'alisis recupera la posici\'on y el peso espectral de las bandas de $\varepsilon_2$ dentro de tolerancias dictadas por el ruido y por el ancho de la ventana.
-Las desviaciones mayores aparecen cerca de los bordes del intervalo medido, precisamente donde las colas de extrapolaci\'on influyen m\'as en $\varepsilon_1$.
-Ese patr\'on valida el m\'etodo y, a la vez, delimita su margen de verdad: dentro de la ventana, con metadatos correctos, los resultados son fiables; fuera, son extrapolaci\'on declarada.
+La Prueba~F debe especificar la funci\'on diel\'ectrica generadora, el muestreo, el nivel y la semilla del ruido, los controles del ajuste y los errores de recuperaci\'on. No se incluyen esos valores ni una tabla de errores en esta versi\'on; por tanto, la recuperaci\'on sint\'etica queda como protocolo pendiente, no como resultado demostrado.
+En cualquier caso, las desviaciones cerca de los bordes deben analizarse por separado, porque las colas de extrapolaci\'on influyen en $\varepsilon_1$ dentro de la ventana.
 
 \section{Materiales de referencia y lectura f\'isica}
 
@@ -128,7 +128,7 @@ Ambos reg\'imenes son accesibles al mismo formalismo, lo que confirma la tesis m
 \section{Brecha \'optica}
 
 Cuando el espectro de absorci\'on cubre el umbral, el an\'alisis de Tauc~\cite{Tauc} suministra un n\'umero interpretable de brecha, acompa\~nado de $R^{2}$.
-La Parte~III exige que ese n\'umero solo se publique si la subida est\'a contenida en la ventana y la forma $( \alpha E)^{2}$ o $(\alpha E)^{1/2}$ es efectivamente lineal.
+Ese n\'umero solo debe publicarse si la subida est\'a contenida en la ventana y la forma $( \alpha E)^{2}$ o $(\alpha E)^{1/2}$ es efectivamente lineal.
 As\'i se evita presentar como ``resultado verdadero'' un artefacto de truncamiento.
 
 
@@ -158,9 +158,9 @@ Limitaciones abiertas, ya anticipadas en el m\'etodo:
 \item La funci\'on diel\'ectrica compleja es el objeto natural para caracterizar la respuesta \'optica lineal de s\'olidos; de ella se derivan $n$, $k$, $R$, $\alpha$, $\sigma$ y $T$.
 \item Las relaciones Kramers--Kronig convierten la causalidad en una restricci\'on operativa entre $\varepsilon_1$ y $\varepsilon_2$.
 \item El an\'alisis variacional con base triangular implementa esa restricci\'on en cada evaluaci\'on del modelo y adapta $\varepsilon_2$ a datos arbitrarios sin fijar a priori un modelo de osciladores.
-\item Levenberg--Marquardt minimiza el $\chi^{2}$ de la magnitud realmente medida; las constantes restantes siguen por \'algebra.
-\item Las pruebas de cierre algebraico, fidelidad a datos, Kramers--Kronig independiente, sensibilidad a $\varepsilon_\infty$, regularizaci\'on y recuperaci\'on sint\'etica demuestran que los resultados son verdaderos en el sentido f\'isico adoptado en esta tesis.
-\item El Seminario~I fija el lenguaje de respuesta lineal; el Seminario~II fija el camino operativo del inverso; la Parte~III certifica la verdad de las constantes reportadas.
+\item Levenberg--Marquardt minimiza $\Phi$, cuyo t\'ermino $\chi^{2}_{\mathrm{datos}}$ mide la reproducci\'on de la magnitud realmente observada; las constantes restantes siguen por \'algebra.
+\item Las pruebas de cierre algebraico, fidelidad a datos, Kramers--Kronig independiente, sensibilidad a $\varepsilon_\infty$, regularizaci\'on y recuperaci\'on sint\'etica constituyen un protocolo para evaluar resultados. Para afirmar que una corrida concreta lo supera deben reportarse sus datos y m\'etricas; esta versi\'on no presenta resultados cuantitativos completos de las pruebas A--F.
+\item El Seminario~I fija el lenguaje de respuesta lineal; el Seminario~II describe el procedimiento; la Parte~III establece criterios, alcance y limitaciones de la validaci\'on.
 \end{enumerate}
 
 \section*{Trabajo futuro}
@@ -171,8 +171,5 @@ Extender el formalismo a multicapas coherentes, incorporar elipsometr\'ia anisot
 \chapter*{Cierre de la tesis}
 \addcontentsline{toc}{chapter}{Cierre de la tesis}
 
-Esta memoria presenta un arco completo:
-fundamento electromagn\'etico (Parte~I y Seminario~I),
-m\'etodo e implementaci\'on f\'isica (Parte~II y Seminario~II)
-y validaci\'on de verdad experimental (Parte~III).
-El producto cient\'ifico no es un nombre de software, sino un $\hat\varepsilon(\omega)$ causal, reproducible y honestamente delimitado por lo que la medida permite saber.
+Esta memoria presenta un recorrido desde el fundamento electromagn\'etico (Parte~I y Seminario~I), pasando por el m\'etodo y su implementaci\'on f\'isica (Parte~II y Seminario~II), hasta los criterios para evaluar sus resultados (Parte~III).
+El producto cient\'ifico no es un nombre de software, sino una reconstrucci\'on $\hat\varepsilon(\omega)$ causal dentro del modelo, reproducible con los mismos datos y controles, y delimitada por lo que la medida permite conocer.

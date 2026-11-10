@@ -1,5 +1,5 @@
 %======================================================================
-\part{Fundamentos de la respuesta \'optica\\y Seminario I}
+\part{\texorpdfstring{Fundamentos de la respuesta \'optica\\y Seminario I}{Fundamentos de la respuesta optica: Seminario I}}
 %======================================================================
 
 \chapter{El problema cient\'ifico}
@@ -21,7 +21,8 @@ El problema inverso consiste en reconstruir $\hat\varepsilon(\omega)$ ---y con e
 
 \section{Planteamiento formal}
 
-En un medio lineal, homog\'eneo e is\'otropo (redes c\'ubicas, por simplicidad), el desplazamiento el\'ectrico y el campo el\'ectrico se relacionan en el dominio de Fourier por
+Se adopta la convenci\'on temporal $e^{-i\omega t}$ y se trabaja en unidades gaussianas.
+En un medio lineal, homog\'eneo e is\'otropo, el desplazamiento el\'ectrico y el campo el\'ectrico se relacionan en el dominio de Fourier por
 \begin{equation}
 \mathbf{D}(\omega)=\hat\varepsilon(\omega)\,\mathbf{E}(\omega),
 \qquad
@@ -32,19 +33,7 @@ La conductividad \'optica compleja $\hat\sigma(\omega)=\sigma_1(\omega)+i\sigma_
 \label{eq:eps-sigma}
 \hat\varepsilon(\omega)=1+\frac{4\pi i}{\omega}\hat\sigma(\omega).
 \end{equation}
-La causalidad ---el material no responde antes de que llegue el campo--- implica que $\varepsilon_1$ y $\varepsilon_2$ no son independientes: quedan ligados por las relaciones de Kramers--Kronig~\cite{Jackson,electrodynamics}:
-\begin{align}
-\label{eq:kk1}
-\varepsilon_1(\omega)-1
-&=\frac{2}{\pi}\,\mathcal{P}\!\int_{0}^{\infty}
-\frac{x\,\varepsilon_2(x)}{x^{2}-\omega^{2}}\,dx,\\
-\label{eq:kk2}
-\varepsilon_2(\omega)
-&=-\frac{2\omega}{\pi}\,\mathcal{P}\!\int_{0}^{\infty}
-\frac{\varepsilon_1(x)-1}{x^{2}-\omega^{2}}\,dx
-+\frac{4\pi\sigma_{\mathrm{dc}}}{\omega}.
-\end{align}
-Aqu\'i $\mathcal{P}$ denota el valor principal de Cauchy y $\sigma_{\mathrm{dc}}$ es la conductividad continua.
+La causalidad ---el material no responde antes de que llegue el campo--- implica que $\varepsilon_1$ y $\varepsilon_2$ no son independientes: est\'an ligadas por las relaciones de Kramers--Kronig~\cite{Jackson,electrodynamics}. Su derivaci\'on, incluida la correcci\'on para conductividad continua, se presenta paso a paso en el cap\'itulo~\ref{ch:kk}.
 
 Si se midiera $\varepsilon_2(\omega)$ en todo el eje, $\varepsilon_1$ quedar\'ia fijada.
 En el laboratorio el eje es finito.
@@ -54,14 +43,14 @@ Ese es el n\'ucleo del an\'alisis variacional restringido de Kuzmenko~\cite{cons
 \section{Objetivos}
 
 \paragraph{Objetivo general.}
-Formular y demostrar, paso a paso, un procedimiento f\'isico completo para modelar la funci\'on diel\'ectrica compleja a partir de espectros \'opticos medibles mediante an\'alisis variacional Kramers--Kronig restringido, e implementar ese procedimiento en una aplicaci\'on de an\'alisis espectral que permita validar la consistencia de los resultados.
+Formular e implementar un procedimiento para modelar la funci\'on diel\'ectrica compleja a partir de espectros \'opticos mediante an\'alisis variacional restringido por Kramers--Kronig, y definir pruebas que permitan evaluar la consistencia de los resultados bajo las hip\'otesis del modelo.
 
 \paragraph{Objetivos espec\'ificos.}
 \begin{enumerate}[leftmargin=*]
 \item Derivar, desde las ecuaciones de Maxwell, las constantes \'opticas relevantes y sus v\'inculos con $\hat\varepsilon$.
 \item Exponer el an\'alisis variacional con base triangular y la minimizaci\'on por Levenberg--Marquardt.
-\item Especificar c\'omo cada magnitud medible ($R$, $T$, $\alpha$, $n$, $k$, $\varepsilon_1$, $\varepsilon_2$) entra en el funcional $\chi^{2}$.
-\item Validar que los resultados reconstruidos son f\'isicamente verdaderos en el sentido de causalidad, pasividad, reproducci\'on de datos y consistencia cruzada entre constantes.
+\item Especificar c\'omo cada magnitud medible ($R$, $T$, $\alpha$, $n$, $k$, $\varepsilon_1$, $\varepsilon_2$) entra en $\chi^{2}_{\mathrm{datos}}$ y en el objetivo regularizado $\Phi$.
+\item Evaluar la consistencia de los resultados mediante causalidad, pasividad, reproducci\'on de los datos y relaciones algebraicas entre constantes, sin presentar esas pruebas como una demostraci\'on universal de la respuesta del material.
 \end{enumerate}
 
 \section{Alcance}
@@ -90,10 +79,23 @@ En unidades gaussianas, las ecuaciones macrosc\'opicas leen~\cite{Jackson}
 \nabla\times\mathbf{H}&=\frac{4\pi}{c}\mathbf{J}_{\mathrm{lib}}
 +\frac{1}{c}\frac{\partial\mathbf{D}}{\partial t}.
 \end{align}
-Para campos arm\'onicos $e^{-i\omega t}$ y constitutivas lineales
-$\mathbf{D}=\hat\varepsilon\mathbf{E}$, $\mathbf{B}=\mathbf{H}$ (no magn\'etico) y $\mathbf{J}=\hat\sigma\mathbf{E}$,
-se recupera la relaci\'on~\eqref{eq:eps-sigma}.
-La funci\'on diel\'ectrica y la conductividad son dos lenguajes de la misma respuesta.
+Con la convenci\'on temporal anterior, la respuesta del material puede describirse mediante una permitividad efectiva o mediante la conductividad \'optica total. La relaci\'on~\eqref{eq:eps-sigma} expresa la segunda elecci\'on en unidades gaussianas. En la derivaci\'on de la onda se usar\'a $\mathbf{D}_{\mathrm{ef}}=\hat\varepsilon\mathbf{E}$ y $\mathbf{B}=\mathbf{H}$, sin sumar de nuevo una corriente inducida expl\'icita; hacerlo contar\'ia dos veces la misma respuesta.
+
+\section{De las ecuaciones de Maxwell a la onda en el medio}
+
+Para obtener una relaci\'on de propagaci\'on, consideramos un medio homog\'eneo, is\'otropo y no magn\'etico, sin cargas ni corrientes externas. La respuesta lineal del material se incorpora en $\hat\varepsilon(\omega)$, de modo que, para un campo arm\'onico con convenci\'on $e^{-i\omega t}$, la ley de Amp\`ere se escribe
+\begin{equation}
+\nabla\times\mathbf{H}=-\frac{i\omega}{c}\hat\varepsilon(\omega)\mathbf{E}.
+\end{equation}
+Aplicamos el rotacional a la ley de Faraday, $\nabla\times\mathbf{E}=-(1/c)\,\partial_t\mathbf{H}$. Como cada campo tiene dependencia temporal $e^{-i\omega t}$, sustituir la ley de Amp\`ere da
+\begin{equation}
+\nabla\times(\nabla\times\mathbf{E})=\frac{\omega^2}{c^2}\hat\varepsilon(\omega)\mathbf{E}.
+\end{equation}
+La identidad $\nabla\times(\nabla\times\mathbf{E})=\nabla(\nabla\cdot\mathbf{E})-\nabla^2\mathbf{E}$ simplifica la expresi\'on. En un medio homog\'eneo con $\rho_{\mathrm{lib}}=0$, la ley de Gauss implica $\nabla\cdot\mathbf{D}=0$ y, al ser $\mathbf{D}=\hat\varepsilon\mathbf{E}$ escalar y uniforme, $\nabla\cdot\mathbf{E}=0$. Se obtiene entonces la ecuaci\'on de onda
+\begin{equation}
+\nabla^2\mathbf{E}+\frac{\omega^2}{c^2}\hat\varepsilon(\omega)\mathbf{E}=0.
+\end{equation}
+Para una onda plana $\mathbf{E}=\mathbf{E}_0e^{i(qz-\omega t)}$, el operador $\nabla^2$ equivale a multiplicar por $-q^2$. Por tanto, $q^2=(\omega^2/c^2)\hat\varepsilon$. Definiendo $\hat N=cq/\omega$, resulta $\hat N^2=\hat\varepsilon$, que es la relaci\'on usada en la secci\'on siguiente.
 
 \section{Propagaci\'on y \'indice complejo}
 
@@ -108,21 +110,39 @@ Separando partes real e imaginaria,
 \varepsilon_1=n^{2}-k^{2},\qquad
 \varepsilon_2=2nk.
 \end{equation}
-La inversi\'on estable es
+La primera igualdad es la parte real de $(n+ik)^2$ y la segunda su parte imaginaria. Adem\'as, $|\hat\varepsilon|=|\hat N|^2=n^2+k^2$. Por tanto,
+\begin{equation}
+n^2=\frac{|\hat\varepsilon|+\varepsilon_1}{2},\qquad
+k^2=\frac{|\hat\varepsilon|-\varepsilon_1}{2}.
+\end{equation}
+Tomando las ra\'ices cuadradas y eligiendo la rama de $k$ seg\'un el signo de $\varepsilon_2$ se obtiene
+La expresi\'on resultante es
 \begin{equation}
 \label{eq:nk-from-eps}
 n=\sqrt{\frac{|\varepsilon|+\varepsilon_1}{2}},\qquad
-k=\sqrt{\frac{|\varepsilon|-\varepsilon_1}{2}},
+k=\begin{cases}
+\sqrt{\dfrac{|\varepsilon|-\varepsilon_1}{2}},&\varepsilon_2\ge 0,\\[4pt]
+-\sqrt{\dfrac{|\varepsilon|-\varepsilon_1}{2}},&\varepsilon_2<0,
+\end{cases}
 \end{equation}
 con $|\varepsilon|=\sqrt{\varepsilon_1^{2}+\varepsilon_2^{2}}$.
-En un medio pasivo, $\varepsilon_2\ge 0$ y se toma $k$ con el mismo signo que $\varepsilon_2$.
+As\'i, $k$ es positivo para $\varepsilon_2>0$, negativo para $\varepsilon_2<0$ y se toma la ra\'iz no negativa cuando $\varepsilon_2=0$. En un medio pasivo, $\varepsilon_2\ge 0$ y por tanto $k\ge 0$.
 
-El coeficiente de absorci\'on, con n\'umero de onda $\tilde\nu=\omega/(2\pi c)$ en cm$^{-1}$, es
+En la onda plana, la parte imaginaria de $q=(\omega/c)(n+ik)$ hace que la amplitud decaiga como $e^{-\omega kz/c}$. La intensidad, que es proporcional al cuadrado de la amplitud, decae como $I(z)=I_0e^{-2\omega kz/c}$. Al comparar con la ley de Beer $I(z)=I_0e^{-\alpha z}$ y usar $\tilde\nu=\omega/(2\pi c)$ en cm$^{-1}$, se obtiene el coeficiente de absorci\'on
 \begin{equation}
 \label{eq:alpha}
 \alpha=4\pi\tilde\nu\,k.
 \end{equation}
-La conductividad \'optica en $\Omega^{-1}\mathrm{cm}^{-1}$ admite la forma pr\'actica~\cite{electrodynamics}
+La ecuaci\'on~\eqref{eq:eps-sigma} usa la conductividad total y el fondo de vac\'io $1$. Para reportar las curvas de esta tesis se separa el fondo constante $\varepsilon_\infty$ y se define una conductividad efectiva $\hat\sigma_{\mathrm{ef}}=\sigma_1+i\sigma_2$ mediante
+\begin{equation}
+\hat\varepsilon(\omega)=\varepsilon_\infty+\frac{4\pi i}{\omega}\hat\sigma_{\mathrm{ef}}(\omega).
+\end{equation}
+Al desarrollar $i(\sigma_1+i\sigma_2)=i\sigma_1-\sigma_2$ y comparar partes real e imaginaria, se obtiene
+\begin{equation}
+\sigma_1=\frac{\omega\varepsilon_2}{4\pi},\qquad
+\sigma_2=\frac{\omega(\varepsilon_\infty-\varepsilon_1)}{4\pi}.
+\end{equation}
+Al expresar el eje como n\'umero de onda y convertir la conductividad a $\Omega^{-1}\mathrm{cm}^{-1}$, estas relaciones toman la forma pr\'actica~\cite{electrodynamics}
 \begin{equation}
 \label{eq:sigma}
 \sigma_1=\frac{\tilde\nu\,\varepsilon_2}{60},\qquad
@@ -131,12 +151,20 @@ La conductividad \'optica en $\Omega^{-1}\mathrm{cm}^{-1}$ admite la forma pr\'a
 
 \section{Reflectividad a incidencia normal}
 
-Para un medio semi-infinito iluminado desde el vac\'io a incidencia normal, el coeficiente de reflexi\'on de amplitud es
+Consideremos una onda que llega desde el vac\'io, se refleja y se transmite a un medio semi-infinito a incidencia normal. Sean $E_i$, $E_r$ y $E_t$ las amplitudes el\'ectricas en la interfaz. La continuidad de la componente tangencial de $\mathbf{E}$ exige
+\begin{equation}
+E_i+E_r=E_t.
+\end{equation}
+Para $\mu=1$, las amplitudes magn\'eticas de onda plana son $H_i=E_i$ en la onda incidente, $H_r=-E_r$ en la reflejada y $H_t=\hat N E_t$ en el medio. La continuidad de la componente tangencial de $\mathbf{H}$ da
+\begin{equation}
+E_i-E_r=\hat N E_t.
+\end{equation}
+Al sustituir $E_t=E_i+E_r$ en la segunda condici\'on y dividir entre $E_i$, se obtiene el coeficiente de reflexi\'on de amplitud
 \begin{equation}
 \label{eq:r-complex}
 \hat r=\frac{1-\hat N}{1+\hat N}=\sqrt{R}\,e^{i\phi}.
 \end{equation}
-La reflectividad de intensidad resulta
+La reflectividad es la raz\'on entre las intensidades reflejada e incidente; como ambas ondas est\'an en el vac\'io, $R=|\hat r|^2$. Escribiendo $\hat N=n+ik$ y usando $|a+ib|^2=a^2+b^2$, resulta
 \begin{equation}
 \label{eq:R}
 R=\frac{(n-1)^{2}+k^{2}}{(n+1)^{2}+k^{2}}.
@@ -172,6 +200,13 @@ y la absorbancia decadica (densidad \'optica)
 \begin{equation}
 A=-\log_{10}T.
 \end{equation}
+Para ver el origen de la expresi\'on de $T$, definimos $x=e^{-\alpha d}$ como la fracci\'on de intensidad que sobrevive a un recorrido de espesor $d$. La primera contribuci\'on transmitida es $(1-R)^2x$: un factor $(1-R)$ en cada interfaz. Cada recorrido adicional dentro de la l\'amina agrega dos reflexiones y dos recorridos, es decir, un factor $R^2x^2$. Al sumar las contribuciones incoherentes,
+\begin{equation}
+T=(1-R)^2x\left[1+R^2x^2+(R^2x^2)^2+\cdots\right]
+=(1-R)^2x\sum_{m=0}^{\infty}(R^2x^2)^m
+=\frac{(1-R)^2x}{1-R^2x^2}.
+\end{equation}
+Esta suma supone dos interfaces equivalentes aire--muestra, espesor uniforme y fases internas promediadas; no describe una pel\'icula sobre sustrato ni interferencia Fabry--P\'erot coherente.
 Sin espesor no hay $T$ ni $A$ bien definidos desde el modelo.
 
 \section{Funci\'on de p\'erdida}
@@ -200,13 +235,22 @@ En distintos rangos espectrales dominan mecanismos distintos~\cite{MarkFox,Ashcr
 \label{fig:procesos}
 \end{figure}
 
-El modelo de Drude para electrones libres,
+En el modelo de Drude, un electr\'on de carga $-e$ y masa efectiva $m^*$ responde al campo con una fuerza de amortiguamiento proporcional a la velocidad. Para un campo $E(t)=E_0e^{-i\omega t}$, la ecuaci\'on de movimiento es
+\begin{equation}
+m^*\ddot{x}+m^*\gamma\dot{x}=-eE_0e^{-i\omega t},
+\end{equation}
+donde $\gamma$ es la tasa de amortiguamiento. Buscamos una soluci\'on de la misma frecuencia, $x(t)=x_0e^{-i\omega t}$. Sustituirla en la ecuaci\'on da $m^*(-\omega^2-i\gamma\omega)x_0=-eE_0$, y por tanto $x_0=eE_0/[m^*(\omega^2+i\gamma\omega)]$.
+Si hay $N_e$ electrones por unidad de volumen, la polarizaci\'on es $P=-N_e e x$. Al usar $\varepsilon=\varepsilon_\infty+4\pi P/E$ y definir $\omega_p^2=4\pi N_e e^2/m^*$, la respuesta queda
+\begin{equation}
+\hat\varepsilon_{\mathrm{D}}(\omega)=\varepsilon_\infty-\frac{\omega_p^2}{\omega^2+i\gamma\omega}.
+\end{equation}
+Para separar sus partes, multiplicamos numerador y denominador por $\omega^2-i\gamma\omega$; el denominador resultante es $\omega^4+\gamma^2\omega^2$. As\'i se obtienen las expresiones
 \begin{align}
 \label{eq:drude}
 \varepsilon_{2,\mathrm{D}}&=\frac{\omega_p^{2}\gamma\omega}{\omega^{4}+\gamma^{2}\omega^{2}},\\
 \varepsilon_{1,\mathrm{D}}&=\varepsilon_\infty-\frac{\omega_p^{2}\omega^{2}}{\omega^{4}+\gamma^{2}\omega^{2}},
 \end{align}
-describe el fondo met\'alico.
+que describen el fondo de portadores libres en un metal.
 En el an\'alisis variacional puede restarse antes de ajustar los tri\'angulos, de modo que las anclas describan el resto del espectro~\cite{constrained}.
 
 
@@ -215,12 +259,43 @@ En el an\'alisis variacional puede restarse antes de ajustar los tri\'angulos, d
 
 \section{De la respuesta temporal a la frecuencia}
 
-Si la polarizaci\'on es
+En respuesta lineal, la polarizaci\'on en el instante $t$ depende de los campos presentes y pasados:
 \begin{equation}
-\mathbf{P}(t)=\int_{-\infty}^{t}\chi(t-t')\,\mathbf{E}(t')\,dt',
+\mathbf{P}(t)=\int_{-\infty}^{t}\chi(t-t')\,\mathbf{E}(t')\,dt'.
 \end{equation}
-la funci\'on de respuesta $\chi(\tau)$ se anula para $\tau<0$.
-En frecuencia, $\hat\varepsilon(\omega)=1+4\pi\hat\chi(\omega)$ es anal\'itica en el semiplano superior (con convenciones habituales), y las relaciones~\eqref{eq:kk1}--\eqref{eq:kk2} siguen del teorema de Cauchy~\cite{Jackson}.
+Al definir el retardo $\tau=t-t'$, la causalidad se expresa como $\chi(\tau)=0$ para $\tau<0$, y la integral se puede escribir
+\begin{equation}
+\mathbf{P}(t)=\int_{0}^{\infty}\chi(\tau)\,\mathbf{E}(t-\tau)\,d\tau.
+\end{equation}
+Para un campo arm\'onico $\mathbf{E}(t)=\mathbf{E}_0e^{-i\omega t}$, sustituir $\mathbf{E}(t-\tau)=\mathbf{E}_0e^{-i\omega t}e^{i\omega\tau}$ muestra que la respuesta ocurre a la misma frecuencia y que la susceptibilidad es
+\begin{equation}
+\hat\chi(\omega)=\int_{0}^{\infty}\chi(\tau)e^{i\omega\tau}\,d\tau,
+\qquad \hat\varepsilon(\omega)=1+4\pi\hat\chi(\omega).
+\end{equation}
+Si se extiende la frecuencia a $z=\omega+i\eta$, con $\eta>0$, el integrando contiene el factor $e^{-\eta\tau}$. Bajo la condici\'on f\'isica de que la respuesta no crezca sin l\'imite, la integral converge y $\hat\varepsilon(z)-1$ es anal\'itica en el semiplano superior.
+
+Sea $F(\omega)=\hat\varepsilon(\omega)-1$. Si $F$ tiende a cero a alta frecuencia y no tiene un polo en el origen, el teorema integral de Cauchy aplicado a un contorno en el semiplano superior da, sobre el eje real,
+\begin{equation}
+F(\omega)=\frac{1}{i\pi}\,\mathcal{P}\!\int_{-\infty}^{\infty}\frac{F(\omega')}{\omega'-\omega}\,d\omega'.
+\end{equation}
+La respuesta temporal es real, por lo que $F_1(-\omega)=F_1(\omega)$ y $F_2(-\omega)=-F_2(\omega)$, donde $F=F_1+iF_2$. Separar las partes real e imaginaria en la integral anterior produce
+\begin{align}
+F_1(\omega)&=\frac{1}{\pi}\,\mathcal{P}\!\int_{-\infty}^{\infty}\frac{F_2(\omega')}{\omega'-\omega}\,d\omega',\\
+F_2(\omega)&=-\frac{1}{\pi}\,\mathcal{P}\!\int_{-\infty}^{\infty}\frac{F_1(\omega')}{\omega'-\omega}\,d\omega'.
+\end{align}
+Al usar la paridad, se agrupan las contribuciones de $+\omega'$ y $-\omega'$; los denominadores se combinan como $1/(\omega'-\omega)+1/(\omega'+\omega)=2\omega'/[(\omega')^2-\omega^2]$. As\'i se obtienen las relaciones de frecuencia positiva
+\begin{align}
+\label{eq:kk1}
+\varepsilon_1(\omega)-1
+&=\frac{2}{\pi}\,\mathcal{P}\!\int_{0}^{\infty}
+\frac{x\,\varepsilon_2(x)}{x^{2}-\omega^{2}}\,dx,\\
+\label{eq:kk2}
+\varepsilon_2(\omega)
+&=-\frac{2\omega}{\pi}\,\mathcal{P}\!\int_{0}^{\infty}
+\frac{\varepsilon_1(x)-1}{x^{2}-\omega^{2}}\,dx
++\frac{4\pi\sigma_{\mathrm{dc}}}{\omega}.
+\end{align}
+El t\'ermino $4\pi\sigma_{\mathrm{dc}}/\omega$ se separa cuando hay conductividad continua: representa la contribuci\'on de baja frecuencia de un conductor, con $\sigma_{\mathrm{dc}}=\sigma_1(0)$. El s\'imbolo $\mathcal{P}$ indica valor principal de Cauchy; es necesario porque el denominador se anula en $x=\omega$.
 
 \begin{figure}[H]
 \centering
@@ -229,7 +304,7 @@ En frecuencia, $\hat\varepsilon(\omega)=1+4\pi\hat\chi(\omega)$ es anal\'itica e
 \label{fig:kk-pair}
 \end{figure}
 
-\section{Ventana experimental y $\varepsilon_\infty$}
+\section{Ventana experimental y \texorpdfstring{$\varepsilon_\infty$}{epsilon infinito}}
 
 La integral Kramers--Kronig requiere, en principio, todo el eje.
 En la pr\'actica se escribe
@@ -299,4 +374,4 @@ Al final, el auditorio debe poder responder sin ambig\"uedad:
 
 \section*{S.I.5 Puente hacia la Parte~II}
 
-El Seminario~II tratar\'a c\'omo construir $\varepsilon_2$ con tri\'angulos, c\'omo evaluar $\varepsilon_1$ en forma cerrada y c\'omo minimizar $\chi^{2}$ sin abandonar Kramers--Kronig en ning\'un paso.
+El Seminario~II tratar\'a c\'omo construir $\varepsilon_2$ con tri\'angulos, c\'omo evaluar $\varepsilon_1$ en forma cerrada y c\'omo minimizar $\Phi$ sin abandonar Kramers--Kronig en ning\'un paso.

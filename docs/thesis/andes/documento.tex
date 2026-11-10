@@ -10,7 +10,7 @@
 \usepackage{setspace}
 \usepackage{geometry}
 \usepackage{microtype}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hypertexnames=false,hidelinks]{hyperref}
 \usepackage{cite}
 \usepackage{caption}
 \usepackage{enumitem}
@@ -58,21 +58,22 @@ M\'erida, Venezuela\\[0.2cm]
 
 \chapter*{Resumen}
 \addcontentsline{toc}{chapter}{Resumen}
-La respuesta lineal de un s\'olido a un campo electromagn\'etico queda codificada en la funci\'on diel\'ectrica compleja
+La respuesta lineal de un s\'olido a un campo electromagn\'etico se describe mediante la funci\'on diel\'ectrica compleja
 $\hat\varepsilon(\omega)=\varepsilon_1(\omega)+i\varepsilon_2(\omega)$.
 De ella se derivan el \'indice de refracci\'on, la extinci\'on, la reflectividad, la absorci\'on y la conductividad \'optica.
-En la pr\'actica experimental rara vez se mide el par $(\varepsilon_1,\varepsilon_2)$ de forma directa en todo el eje de frecuencias.
-Este trabajo formula, implementa y valida un an\'alisis variacional con restricci\'on de Kramers--Kronig:
-se parametriza $\varepsilon_2$ sobre una base triangular de anclas, se obtiene $\varepsilon_1$ por transformada anal\'itica y se ajustan las alturas mediante Levenberg--Marquardt hasta reproducir la magnitud medida.
-La tesis se organiza en tres partes: fundamentos con Seminario~I; m\'etodo e implementaci\'on f\'isica con Seminario~II; y validaci\'on cuantitativa de que los resultados son f\'isicamente consistentes.
+En un experimento, por lo general se mide una de esas magnitudes en una ventana finita de frecuencias, no el par $(\varepsilon_1,\varepsilon_2)$ en todo el eje.
+Este trabajo formula e implementa un an\'alisis variacional restringido por Kramers--Kronig: representa $\varepsilon_2$ mediante una base triangular, calcula $\varepsilon_1$ con la transformada anal\'itica de esa base y ajusta sus amplitudes con Levenberg--Marquardt para reproducir la magnitud medida.
+Adem\'as, establece criterios para evaluar consistencia algebraica, causalidad, fidelidad a los datos y sensibilidad a las cantidades que el experimento no determina.
+La tesis se organiza en tres partes: fundamentos y Seminario~I; m\'etodo e implementaci\'on f\'isica y Seminario~II; y criterios de validaci\'on, alcance y limitaciones.
 
 \vspace{0.8cm}
 \noindent\textbf{Palabras clave:} funci\'on diel\'ectrica, Kramers--Kronig, an\'alisis variacional, espectroscop\'ia \'optica, Levenberg--Marquardt.
 
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
-The linear optical response of a solid is encoded in the complex dielectric function.
-This thesis develops a Kramers--Kronig constrained variational analysis that recovers optical constants from measurable spectra, documents the physics step by step, and validates the reconstructed dielectric response.
+The linear optical response of a solid is described by its complex dielectric function.
+This thesis formulates and implements a Kramers--Kronig constrained variational analysis: it represents the imaginary part with triangular basis functions, obtains the real part from their analytic transforms, and fits the measured optical quantity with Levenberg--Marquardt.
+It also defines tests for algebraic consistency, causality, data fidelity, and sensitivity to quantities that the measurement does not determine. Its conclusions are limited to the evidence and assumptions stated for each test.
 
 \mainmatter
 \input{parte1}
