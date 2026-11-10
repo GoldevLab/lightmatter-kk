@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.goldevlab.lightmatter",
   "build": {
-    "beforeDevCommand": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$root = (git rev-parse --show-toplevel).Trim(); & \"\"$root\\scripts\\build-desktop.ps1\"\"\"",
-    "beforeBuildCommand": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$root = (git rev-parse --show-toplevel).Trim(); & \"\"$root\\scripts\\build-desktop.ps1\"\"\"",
+    "beforeDevCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File \"../scripts/build-desktop.ps1\"",
+    "beforeBuildCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File \"../scripts/build-desktop.ps1\"",
     "frontendDist": "../public"
   },
   "app": {
