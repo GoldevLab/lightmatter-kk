@@ -5,7 +5,6 @@ use std::thread;
 use std::time::Duration;
 use std::{fs, path::PathBuf};
 
-use tauri::{WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_updater::UpdaterExt;
 
 fn start_local_server() {
@@ -24,28 +23,44 @@ fn start_local_server() {
         None => return,
     };
 
-    let data_dir = root.join("data");
-    std::fs::create_dir_all(&data_dir).ok();
+    let portable_data_dir = root.join("data");
+    let data_dir = if fs::create_dir_all(&portable_data_dir).is_ok() {
+        portable_data_dir
+    } else {
+        let Some(local_data) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from) else {
+            return;
+        };
+        let data_dir = local_data.join("Lightmatter").join("data");
+        if fs::create_dir_all(&data_dir).is_err() {
+            return;
+        }
+        data_dir
+    };
 
     let candidates = [
         root.join("lightmatter"),
         root.join("lightmatter.exe"),
+        root.join("resources").join("lightmatter.exe"),
         root.join("target").join("release").join("lightmatter"),
         root.join("target").join("release").join("lightmatter.exe"),
     ];
+    let resources = root.join("resources");
 
     let binary = candidates
         .into_iter()
         .find(|path| path.exists())
+        .or_else(|| find_sidecar(&resources))
         .or_else(|| find_sidecar(&root))
         .or_else(|| find_sidecar(&root.join("binaries")));
     let Some(binary) = binary else {
         return;
     };
 
+    let backend_root = if resources.is_dir() { resources } else { root };
     let _ = Command::new(binary)
         .env("RESUMA_ADDR", server_addr)
         .env("RESUMA_DATA_DIR", &data_dir)
+        .current_dir(&backend_root)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn();
@@ -71,20 +86,16 @@ fn main() {
     start_local_server();
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            let _window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External("http://127.0.0.1:4321".parse().unwrap()))
-                .title("Lightmatter")
-                .build()?;
-
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Ok(updater) = app_handle.updater() {
-                    let _ = updater.check().await;
+                    if let Ok(Some(update)) = updater.check().await {
+                        let _ = update.download_and_install(|_, _| {}, || {}).await;
+                    }
                 }
             });
-
             Ok(())
         })
         .run(tauri::generate_context!())

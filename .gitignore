@@ -1,3 +1,6 @@
 /target
 /data
 *.db
+
+src-tauri/target
+

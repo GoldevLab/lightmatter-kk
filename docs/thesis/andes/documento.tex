@@ -1,0 +1,85 @@
+\documentclass[a4paper,openright,12pt]{book}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{setspace}
+\usepackage{geometry}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cite}
+\usepackage{caption}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+\onehalfspacing
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\captionsetup{font=small,labelfont=bf}
+
+\begin{document}
+
+%======================================================================
+\begin{titlepage}
+\begin{center}
+\vspace*{0.4cm}
+{\large UNIVERSIDAD DE LOS ANDES}\\[0.35cm]
+{\large FACULTAD DE CIENCIAS}\\[0.25cm]
+{\large DEPARTAMENTO DE F\'ISICA APLICADA}\\[1.6cm]
+
+{\LARGE\bfseries An\'alisis variacional Kramers--Kronig restringido\\[0.25cm]
+de espectros \'opticos:\\[0.35cm]
+modelado de la funci\'on diel\'ectrica\\[0.15cm]
+y validaci\'on de constantes \'opticas}\\[1.4cm]
+
+\rule{70mm}{0.4pt}\\[1.0cm]
+
+\begin{tabular}{ll}
+Autor: & Golfredo P\'erez Fern\'andez \\[0.35cm]
+Tutor: & Juan Mart\'in \\[0.35cm]
+Cotutor: & --- \\
+\end{tabular}
+
+\vspace{2.2cm}
+\textit{Trabajo de grado}\\[0.4cm]
+Bogot\'a, Colombia\\[0.2cm]
+\today
+\end{center}
+\end{titlepage}
+
+\frontmatter
+\tableofcontents
+\clearpage
+\listoffigures
+
+\chapter*{Resumen}
+\addcontentsline{toc}{chapter}{Resumen}
+La respuesta lineal de un s\'olido a un campo electromagn\'etico queda codificada en la funci\'on diel\'ectrica compleja
+$\hat\varepsilon(\omega)=\varepsilon_1(\omega)+i\varepsilon_2(\omega)$.
+De ella se derivan el \'indice de refracci\'on, la extinci\'on, la reflectividad, la absorci\'on y la conductividad \'optica.
+En la pr\'actica experimental rara vez se mide el par $(\varepsilon_1,\varepsilon_2)$ de forma directa en todo el eje de frecuencias.
+Este trabajo formula, implementa y valida un an\'alisis variacional con restricci\'on de Kramers--Kronig:
+se parametriza $\varepsilon_2$ sobre una base triangular de anclas, se obtiene $\varepsilon_1$ por transformada anal\'itica y se ajustan las alturas mediante Levenberg--Marquardt hasta reproducir la magnitud medida.
+La tesis se organiza en tres partes: fundamentos con Seminario~I; m\'etodo e implementaci\'on f\'isica con Seminario~II; y validaci\'on cuantitativa de que los resultados son f\'isicamente consistentes.
+
+\vspace{0.8cm}
+\noindent\textbf{Palabras clave:} funci\'on diel\'ectrica, Kramers--Kronig, an\'alisis variacional, espectroscop\'ia \'optica, Levenberg--Marquardt.
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+The linear optical response of a solid is encoded in the complex dielectric function.
+This thesis develops a Kramers--Kronig constrained variational analysis that recovers optical constants from measurable spectra, documents the physics step by step, and validates the reconstructed dielectric response.
+
+\mainmatter
+\input{parte1}
+\input{parte2}
+\input{parte3}
+
+\bibliographystyle{unsrt}
+\bibliography{bibliografia}
+
+\end{document}
