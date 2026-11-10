@@ -36,7 +36,7 @@ impl Default for FormState {
             gamma: String::new(),
             log_mesh: false,
             extended: false,
-            iter: "20".into(),
+            iter: "800".into(),
             smooth: "0.08".into(),
             neg: "100".into(),
             measure: Measure::Eps2,

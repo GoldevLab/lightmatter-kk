@@ -87,7 +87,7 @@ fn default_negativity() -> f64 {
     100.0
 }
 fn default_iter() -> usize {
-    20
+    800
 }
 
 impl Default for FitOptions {
