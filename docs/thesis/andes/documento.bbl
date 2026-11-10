@@ -1,0 +1,54 @@
+\begin{thebibliography}{10}
+
+\bibitem{electrodynamics}
+Martin Dressel and George Gr{\"u}ner.
+\newblock {\em Electrodynamics of Solids}.
+\newblock Cambridge University Press, Cambridge, 2003.
+
+\bibitem{MarkFox}
+Mark Fox.
+\newblock {\em Optical Properties of Solids}.
+\newblock Oxford University Press, Oxford, 2001.
+
+\bibitem{Jackson}
+John~David Jackson.
+\newblock {\em Classical Electrodynamics}.
+\newblock Wiley, New York, 3 edition, 1999.
+
+\bibitem{constrained}
+A.~B. Kuzmenko.
+\newblock Kramers--kronig constrained variational analysis of optical spectra.
+\newblock {\em Review of Scientific Instruments}, 76:083108, 2005.
+
+\bibitem{OpticalTechniques}
+Rohit~P. Prasankumar and Antoinette~J. Taylor.
+\newblock {\em Optical Techniques for Solid-State Materials Characterization}.
+\newblock CRC Press, Boca Raton, 2012.
+
+\bibitem{Ashcroft}
+Neil~W. Ashcroft and N.~David Mermin.
+\newblock {\em Solid State Physics}.
+\newblock Holt, Rinehart and Winston, New York, 1976.
+
+\bibitem{NR}
+William~H. Press, Saul~A. Teukolsky, William~T. Vetterling, and Brian~P.
+  Flannery.
+\newblock {\em Numerical Recipes: The Art of Scientific Computing}.
+\newblock Cambridge University Press, Cambridge, 3 edition, 2007.
+
+\bibitem{guide}
+A.~B. Kuzmenko.
+\newblock {\em Guide to RefFIT: software to fit optical spectra}.
+\newblock University of Geneva, Geneva, 2005.
+
+\bibitem{Roosbroeck}
+W.~van Roosbroeck and W.~Shockley.
+\newblock Photon-radiative recombination of electrons and holes in germanium.
+\newblock {\em Physical Review}, 94:1558--1560, 1954.
+
+\bibitem{Tauc}
+J.~Tauc, R.~Grigorovici, and A.~Vancu.
+\newblock Optical properties and electronic structure of amorphous germanium.
+\newblock {\em Physica Status Solidi B}, 15:627--637, 1966.
+
+\end{thebibliography}

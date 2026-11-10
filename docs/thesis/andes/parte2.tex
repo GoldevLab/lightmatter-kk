@@ -1,0 +1,248 @@
+%======================================================================
+\part{M\'etodo variacional, implementaci\'on f\'isica\\y Seminario II}
+%======================================================================
+
+\chapter{An\'alisis variacional Kramers--Kronig restringido}
+\label{ch:variacional}
+
+\section{Idea del m\'etodo}
+
+En lugar de ajustar un modelo microsc\'opico con pocos polos, se representa $\varepsilon_2(\omega)$ como superposici\'on de funciones base triangulares centradas en anclas de frecuencia fijas~\cite{constrained}:
+\begin{equation}
+\label{eq:eps2-tri}
+\varepsilon_2(\omega)=\sum_{k}A_k\,\Lambda_k(\omega)
++\varepsilon_{2,\mathrm{D}}(\omega),
+\end{equation}
+donde $\Lambda_k$ vale $1$ en la ancla $\omega_k$, cae linealmente a $0$ en las anclas vecinas y es nula fuera de ese soporte, y $\varepsilon_{2,\mathrm{D}}$ es un fondo Drude opcional.
+Los par\'ametros libres son las alturas $A_k$ (y, cuando procede, $\varepsilon_\infty$).
+
+La parte real se obtiene por Kramers--Kronig \emph{exacta} de esa parametrizaci\'on:
+\begin{equation}
+\label{eq:eps1-tri}
+\varepsilon_1(\omega)
+=\varepsilon_\infty
++\sum_{k}A_k\,g_k(\omega)
++\bigl[\varepsilon_{1,\mathrm{D}}(\omega)-\varepsilon_\infty\bigr],
+\end{equation}
+donde $g_k$ es la transformada anal\'itica del tri\'angulo unitario.
+As\'i, en cada iteraci\'on del ajuste el par $(\varepsilon_1,\varepsilon_2)$ es causal por construcci\'on.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{learn-triangles.jpg}
+\caption{Base triangular: cada ancla aporta un ``sombrero'' a $\varepsilon_2$; su pareja dispersiva entra en $\varepsilon_1$ con pesos cerrados.}
+\label{fig:triangles}
+\end{figure}
+
+\section{N\'ucleo anal\'itico del tri\'angulo}
+
+Sea un tri\'angulo de altura unitaria apoyado en $(\omega_{k-1},\omega_k,\omega_{k+1})$.
+Su contribuci\'on a $\varepsilon_1$ puede escribirse mediante la funci\'on auxiliar~\cite{constrained}
+\begin{equation}
+g(x,y)=(x+y)\ln|x+y|+(x-y)\ln|x-y|,
+\end{equation}
+combinada en diferencias finitas sobre los tres nodos.
+El detalle algebraico no cambia el mensaje f\'isico: \emph{no hace falta reintegrar num\'ericamente Kramers--Kronig en cada paso}; basta una suma ponderada de $A_k$.
+
+\section{Malla de anclas y colas}
+
+Las anclas se colocan de forma densa en picos y valles del espectro y se reparte el resto del intervalo medido.
+Fuera de la primera y la \'ultima ancla interior se a\~naden extremos con coeficiente nulo, de modo que $\varepsilon_2$ baja en l\'inea recta hasta cero.
+Esa cola no est\'a fijada por los datos y puede desplazar $\varepsilon_1$ dentro de la ventana; por eso $\varepsilon_\infty$ y la extrapolaci\'on deben declararse con claridad al reportar resultados.
+
+Cuando la magnitud medida no es $\varepsilon_2$ sino $R$, $T$, $n$, $k$ o $\alpha$, el n\'umero de anclas se limita (orden de cientos) porque $\varepsilon_1$ en cada punto acopla todas las alturas.
+Todos los puntos experimentales, sean o no ancla, entran en $\chi^{2}$.
+
+\section{Funcional a minimizar}
+
+Dados $N$ puntos $\{(\omega_i,y_i,\sigma_i)\}$, se define
+\begin{equation}
+\label{eq:chi2}
+\chi^{2}=\sum_{i=1}^{N}
+\left(\frac{y_i-Q\bigl(\omega_i;\{A_k\},\varepsilon_\infty\bigr)}{\sigma_i}\right)^{2},
+\end{equation}
+donde $Q$ es la magnitud declarada por el experimentalista, calculada desde el par $(\varepsilon_1,\varepsilon_2)$ del modelo.
+Si no se suministra error, $\sigma_i=1$.
+
+Se a\~naden regularizaciones:
+\begin{itemize}[leftmargin=*]
+\item \textbf{suavidad:} penaliza la segunda diferencia $A_{k-1}-2A_k+A_{k+1}$ para evitar oscilaciones espurias entre anclas;
+\item \textbf{negatividad:} penaliza $A_k$ (o $\varepsilon_2$) negativos, en coherencia con pasividad.
+\end{itemize}
+Esas penalizaciones gu\'ian el m\'inimo pero no se suman al $\chi^{2}$ de datos que se reporta como bondad de ajuste a la medida.
+
+
+\chapter{Minimizaci\'on: Levenberg--Marquardt}
+\label{ch:lm}
+
+\section{Gradiente y curvatura}
+
+Sea $\mathbf{p}$ el vector de par\'ametros ($A_k$ y eventualmente $\varepsilon_\infty$).
+El algoritmo de Levenberg--Marquardt interpola entre descenso por gradiente e inversi\'on de la curvatura~\cite{NR,guide}.
+Con
+\begin{align}
+\beta_k
+&=-\frac12\frac{\partial\chi^{2}}{\partial p_k}
+=\sum_i\frac{y_i-Q_i}{\sigma_i^{2}}\frac{\partial Q_i}{\partial p_k},\\
+\alpha_{kl}
+&=\sum_i\frac{1}{\sigma_i^{2}}
+\frac{\partial Q_i}{\partial p_k}\frac{\partial Q_i}{\partial p_l},
+\end{align}
+se resuelve en cada iteraci\'on
+\begin{equation}
+\sum_l \alpha_{kl}(1+\lambda\delta_{kl})\,\delta p_l=\beta_k.
+\end{equation}
+Si el paso mejora $\chi^{2}$, $\lambda$ se reduce (r\'egimen gauss-newtoniano); si no, $\lambda$ crece (r\'egimen de descenso m\'as pronunciado).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{diagrama.png}
+\caption{Esquema del ciclo de Levenberg--Marquardt.}
+\label{fig:lm}
+\end{figure}
+
+\section{Convergencia e incertidumbres}
+
+Un criterio pr\'actico de parada es que $\chi^{2}$ deje de mejorar m\'as de un porcentaje peque\~no y que ning\'un residuo quede fuera de una franja razonable del rango de la medida.
+Tras converger, la matriz de covarianza $\alpha^{-1}$ suministra barras $\pm 1\sigma$ de los par\'ametros cuando existen errores experimentales~\cite{NR}:
+\begin{equation}
+\delta p_k=\sqrt{(\delta\chi^{2})\,(\alpha^{-1})^{kk}}.
+\end{equation}
+La suavidad no debe entrar en esa estimaci\'on si se desea reportar incertidumbre condicionada solo a los datos.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{learn-fit.jpg}
+\caption{Los puntos son la medida; la curva es la proyecci\'on $Q$ del modelo causal.}
+\label{fig:fit}
+\end{figure}
+
+
+\chapter{De la medida a la magnitud modelo}
+\label{ch:medidas}
+
+\section{Datos de entrada}
+
+Cada fila experimental aporta $\omega>0$ y el valor medido; una tercera columna opcional es el error.
+Las unidades de $\omega$ admitidas en la implementaci\'on de referencia son cm$^{-1}$, eV, nm (convertidos a energ\'ia) u ``otra'' (eje adimensional, con el que no se reportan $\alpha$ ni $\sigma$ en unidades absolutas).
+Conversiones \'utiles:
+\begin{equation}
+E\,(\mathrm{eV})=\frac{1239.84193}{\lambda\,(\mathrm{nm})},\qquad
+\tilde\nu\,(\mathrm{cm}^{-1})=\frac{E\,(\mathrm{eV})}{1.23984193\times 10^{-4}}.
+\end{equation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.80\textwidth]{learn-data.jpg}
+\caption{El espectro es una lista de puntos $(\omega,y,\sigma)$; el modelo se confronta punto a punto.}
+\label{fig:data}
+\end{figure}
+
+\section{Magnitudes \'opticas soportadas}
+
+Para cada medida, el ajuste busca $\{A_k\}$ (y $\varepsilon_\infty$ si aplica) tales que $Q(\omega)$ reproduzca $y$:
+
+\begin{center}
+\begin{tabular}{@{}llp{6.2cm}@{}}
+\toprule
+Medida & $Q$ & Notas f\'isicas \\
+\midrule
+$\varepsilon_2$ & $\varepsilon_2$ & magnitud nativa del modelo \\
+$\varepsilon_1$ & $\varepsilon_1$ & suele ajustar $\varepsilon_\infty$ \\
+$n$ & $n(\varepsilon)$ & idem; semilla tipica $n^{2}$ del extremo \\
+$k$ & $k(\varepsilon)$ & no fija $\varepsilon_\infty$ \\
+$R$ & eq.~\eqref{eq:R} & semi-infinito; $R\in[0,1]$ \\
+$\alpha$ & eq.~\eqref{eq:alpha} & exige unidad de $\omega$ \\
+$T$ & eq.~\eqref{eq:T} & exige espesor $d$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La luminiscencia se trata aparte: se analizan picos, integral, centroide y, si procede, una absorci\'on relativa v\'ia van Roosbroeck--Shockley~\cite{Roosbroeck}, sin fingir un par $(\varepsilon_1,\varepsilon_2)$.
+
+\section{Constantes derivadas}
+
+Una vez fijado el par diel\'ectrico, el resto es \'algebra~\cite{electrodynamics}:
+$n$, $k$, $R$, $-\mathrm{Im}(1/\varepsilon)$, $\alpha$, $\sigma_1$, $\sigma_2$, y ---con espesor--- $T$ y $A$.
+Ninguna de esas curvas es un segundo ajuste independiente.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.84\textwidth]{learn-constants.jpg}
+\caption{De $\hat\varepsilon$ se leen reflexi\'on, refracci\'on y atenuaci\'on sin nuevos grados de libertad.}
+\label{fig:constants}
+\end{figure}
+
+\section{Borde de Tauc}
+
+Cuando $\alpha(E)$ arranca cerca de cero en el visible--UV, el an\'alisis de Tauc~\cite{Tauc} estima brechas \'opticas mediante
+$(\alpha E)^{2}$ (directo) y $(\alpha E)^{1/2}$ (indirecto).
+El corte se obtiene de la tangente m\'as empinada en la subida, y se reporta el $R^{2}$ de la recta en la zona lineal.
+Si la ventana corta la subida, el valor num\'erico puede quedar por encima del umbral visible: es un aviso de cobertura espectral, no una segunda brecha.
+
+\section{Flujo operativo del an\'alisis}
+
+\begin{enumerate}[leftmargin=*]
+\item Leer el espectro, unidad y tipo de medida; normalizar $R$ si vino en porcentaje.
+\item Construir la malla de anclas y sembrar $A_k$ (por ejemplo desde una estimaci\'on local de $\varepsilon_2$).
+\item Fijar o estimar $\varepsilon_\infty$; opcionalmente restar Drude.
+\item Iterar Levenberg--Marquardt sobre $\chi^{2}$ de la magnitud $Q$.
+\item Exportar $(\varepsilon_1,\varepsilon_2)$ y constantes derivadas; inspeccionar residuos y avisos.
+\end{enumerate}
+
+
+\chapter{Papel de la aplicaci\'on de an\'alisis}
+\label{ch:app}
+
+La aplicaci\'on desarrollada en este trabajo es el veh\'iculo num\'erico del m\'etodo: recibe espectros, impone la restricci\'on Kramers--Kronig en cada evaluaci\'on del modelo, minimiza $\chi^{2}$ y devuelve el conjunto de constantes \'opticas con m\'etricas de ajuste.
+Para la comunidad de f\'isica de materiales lo esencial no es el nombre del programa, sino que:
+\begin{itemize}[leftmargin=*]
+\item el modelo sea causal en todo momento;
+\item la magnitud comparada con el experimento sea exactamente la medida;
+\item $\varepsilon_\infty$, el espesor y las unidades queden explicitados;
+\item los resultados puedan reproducirse con los mismos controles.
+\end{itemize}
+La Parte~III traduce esos requisitos en pruebas de verdad.
+
+
+\chapter*{Seminario II\\Del espectro medido al par $(\varepsilon_1,\varepsilon_2)$}
+\addcontentsline{toc}{chapter}{Seminario II}
+\label{sem:2}
+
+\noindent\textit{Parte~II --- exposici\'on de seminario.}
+
+\section*{S.II.1 Prop\'osito}
+
+Mostrar, sin ambig\"uedad operativa, c\'omo se pasa de un archivo de datos a una funci\'on diel\'ectrica causal y a las constantes derivadas.
+
+\section*{S.II.2 Mensaje central}
+
+\begin{enumerate}[leftmargin=*]
+\item $\varepsilon_2=\sum A_k\Lambda_k$ es un modelo flexible: no presupone Lorentz ni Fano.
+\item $\varepsilon_1$ no se ajusta por separado: se calcula por Kramers--Kronig de esos tri\'angulos.
+\item Levenberg--Marquardt mueve las alturas hasta que la proyecci\'on $Q$ coincida con la medida.
+\item El \'exito del ajuste a $Q$ es necesario, pero no suficiente, para afirmar que \emph{todas} las constantes derivadas son las del material: hay que leer qu\'e fija realmente la medida ($\varepsilon_\infty$, espesor, cobertura espectral).
+\end{enumerate}
+
+\section*{S.II.3 Demostraci\'on guiada}
+
+\begin{enumerate}[leftmargin=*]
+\item Dibujar tres tri\'angulos solapados y su suma $\varepsilon_2$.
+\item Indicar que cada tri\'angulo aporta un $g_k$ a $\varepsilon_1$.
+\item Elegir medida $R$: escribir $Q=R(n,k)$ y subrayar el acoplamiento global.
+\item Escribir $\chi^{2}$ y el paso $(\alpha'\,\delta\mathbf{p}=\boldsymbol\beta)$.
+\item Discutir un caso $\alpha$ con $\varepsilon_\infty=1$ frente a $\varepsilon_\infty=n^{2}$ conocido: $\alpha$ y $k$ estables; $n$ y $R$ sensibles.
+\end{enumerate}
+
+\section*{S.II.4 Criterio de \'exito del seminario}
+
+El auditorio debe ser capaz de:
+\begin{itemize}[leftmargin=*]
+\item explicar por qu\'e el m\'etodo no ``inventa'' un segundo ajuste de $\varepsilon_1$;
+\item listar qu\'e metadatos (unidad, medida, $\varepsilon_\infty$, $d$) son imprescindibles en un reporte;
+\item anticipar qu\'e constantes son fiables para cada tipo de medida.
+\end{itemize}
+
+\section*{S.II.5 Puente hacia la Parte~III}
+
+La validaci\'on final exige demostrar que los resultados no solo minimizan $\chi^{2}$, sino que satisfacen pruebas de consistencia f\'isica independientes del nombre de la herramienta.
