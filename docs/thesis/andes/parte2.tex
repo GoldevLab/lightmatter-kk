@@ -72,8 +72,8 @@ Las anclas se colocan de forma densa en picos y valles del espectro y se reparte
 Fuera de la primera y la \'ultima ancla interior se a\~naden extremos con coeficiente nulo, de modo que $\varepsilon_2$ baja en l\'inea recta hasta cero.
 Esa cola no est\'a fijada por los datos y puede desplazar $\varepsilon_1$ dentro de la ventana; por eso $\varepsilon_\infty$ y la extrapolaci\'on deben declararse con claridad al reportar resultados.
 
-Cuando la magnitud medida no es $\varepsilon_2$ sino $R$, $T$, $n$, $k$ o $\alpha$, el n\'umero de anclas se limita al orden de cientos porque $\varepsilon_1$ en cada punto acopla globalmente las alturas. No se requiere una ancla por dato: todas las mediciones, sean o no anclas, entran en $\chi^{2}$.
-En la implementaci\'on descrita aqu\'i se permiten hasta 500 anclas para espectros de hasta 5400 puntos; por encima de ese tama\~no se usan hasta 400 para respetar el presupuesto de c\'omputo a 800 iteraciones. Esta es una decisi\'on num\'erica de la implementaci\'on, no un requisito general del m\'etodo.
+Cuando la magnitud medida no es $\varepsilon_2$ sino $R$, $T$, $n$, $k$ o $\alpha$, el n\'umero de anclas se limita porque $\varepsilon_1$ en cada punto acopla globalmente las alturas. No se requiere una ancla por dato: todas las mediciones, sean o no anclas, entran en $\chi^{2}$.
+Con $R$ se parte de los puntos medios entre frecuencias medidas ($N_{\mathrm{exp}}-2$), como en la malla de Kuzmenko, y se recorta si hace falta al presupuesto de c\'omputo. En la implementaci\'on descrita aqu\'i el tope es 2000 anclas interiores a 8000 puntos y 800 iteraciones; la selecci\'on conserva primero los extremos locales por prominencia y densifica vecinos en los m\'as afilados. Esta es una decisi\'on num\'erica de la implementaci\'on, no un requisito general del m\'etodo.
 
 \section{Funcional a minimizar}
 

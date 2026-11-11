@@ -72,7 +72,7 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"T, transmitancia de una lámina en aire. Necesita unidad de ω y el espesor en µm. Sin espesor el análisis no arranca."</li>
                     <li>"Luminiscencia. Es emisión, no absorción: la intensidad medida no es ε₂ y no determina una pareja ε₁/ε₂. Se analizan picos y propiedades de la emisión, sin fingir una constante dieléctrica."</li>
                 </ul>
-                <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. El modelo usa hasta 500 anclas, o 400 si hay más de 2500 puntos, y admite hasta 8000 filas. Las anclas se ponen en los picos y los valles y el resto se reparte. Todos los puntos, aunque no sean ancla, entran en el χ²."</p>
+                <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. El modelo usa hasta 2000 anclas (prioridad a picos y valles afilados) y admite hasta 8000 filas. Con R parte de los puntos medios de la malla medida, como en la tesis. Todos los puntos, aunque no sean ancla, entran en el χ²."</p>
             </section>
 
             <section id="metodo">
@@ -90,6 +90,7 @@ pub fn page(_req: FlowRequest) -> View {
                 <p>"Esa integral no se calcula numéricamente en cada paso. ε₂ se construye sumando triángulos de altura Aₖ, uno por ancla. Cada triángulo vale 1 en su ancla y 0 en las vecinas. Su Kramers–Kronig tiene forma cerrada, así que ε₁ es la misma suma, con otros pesos."</p>
                 <p class="formula">"ε₂(ω) = Σ Aₖ · triánguloₖ(ω) + ε₂ de Drude, si lo pediste"</p>
                 <p class="formula">"ε₁(ω) = ε∞ + Σ Aₖ · ε₁,ₖ(ω) + la parte real de Drude, sin volver a sumar ε∞"</p>
+                {triangle_story(lang)}
                 {open_proof(
                     "proof-g",
                     tx(lang, "Ver el triángulo y g(x, y)", "See the triangle and g(x, y)", "查看三角和 g(x, y)", "Ver o triângulo e g(x, y)"),
@@ -255,6 +256,7 @@ fn guide_links(lang: lightmatter::i18n::Lang) -> View {
             <a href="#medidas">{tx(lang, "Qué puedes medir", "What you can measure", "可以测量什么", "O que você pode medir")}</a>
             <p>{tx(lang, "El análisis", "The analysis", "分析", "A análise")}</p>
             <a href="#metodo">{tx(lang, "El método", "The method", "方法", "O método")}</a>
+            <a href="#triangulos">{tx(lang, "Triángulos de ε₂", "ε₂ triangles", "ε₂ 的三角", "Triângulos de ε₂")}</a>
             <a href="#ajuste">{tx(lang, "El ajuste", "The fit", "拟合", "O ajuste")}</a>
             <a href="#constantes">{tx(lang, "Cada constante", "Each constant", "每个常数", "Cada constante")}</a>
             <p>{tx(lang, "El resultado", "The result", "结果", "O resultado")}</p>
@@ -336,23 +338,115 @@ fn mesh_figure(lang: lightmatter::i18n::Lang) -> View {
     let kk_svg = View::raw(r##"<svg class="mesh-svg" viewBox="0 0 480 250" role="img" aria-label="Dispersive epsilon one curve determined by epsilon two"><line class="mesh-axis mesh-zero" x1="32" y1="128" x2="448" y2="128"/><line class="mesh-axis" x1="32" y1="204" x2="448" y2="204"/><path class="mesh-kk-guide" d="M42 204 L94 158 L146 132 L198 88 L250 120 L302 106 L354 164 L406 185"/><path class="mesh-kk-line" d="M42 83 C86 81 110 74 140 78 C176 83 186 123 206 151 C224 178 245 190 263 176 C288 156 292 106 323 83 C351 62 384 68 406 80"/><text class="mesh-label" x="48" y="45">ε₁(ω)</text><text class="mesh-small" x="390" y="232">ω</text><text class="mesh-small" x="38" y="118">0</text></svg>"##);
     view! {
         <figure class="learn-figure mesh-figure">
-            <div class="mesh-steps">
-                <div class="mesh-step">
+            <div class="learn-mesh-steps">
+                <div class="learn-mesh-step">
                     <h3>{basis_title}</h3>
                     {basis_svg}
                     <p>{basis_copy}</p>
                 </div>
-                <div class="mesh-step">
+                <div class="learn-mesh-step">
                     <h3>{sum_title}</h3>
                     {sum_svg}
                     <p>{sum_copy}</p>
                 </div>
-                <div class="mesh-step">
+                <div class="learn-mesh-step">
                     <h3>{kk_title}</h3>
                     {kk_svg}
                     <p>{kk_copy}</p>
                 </div>
             </div>
+            <figcaption>{caption}</figcaption>
+        </figure>
+    }
+}
+
+fn triangle_story(lang: lightmatter::i18n::Lang) -> View {
+    let title = tx(
+        lang,
+        "Cómo se arma ε₂ con triángulos",
+        "How ε₂ is built from triangles",
+        "如何用三角拼出 ε₂",
+        "Como se monta ε₂ com triângulos",
+    );
+    let lead = tx(
+        lang,
+        "Mira la animación: primero una ancla, luego su triángulo de altura Aₖ, después los vecinos, y al final la curva negra que es la suma. Eso es ε₂. El ajuste solo mueve esas alturas.",
+        "Watch the animation: first an anchor, then its triangle of height Aₖ, then the neighbors, and finally the black curve that is the sum. That is ε₂. The fit only moves those heights.",
+        "看动画：先是锚点，再是高度为 Aₖ 的三角，然后是邻居，最后黑色曲线是它们的和。那就是 ε₂。拟合只动这些高度。",
+        "Veja a animação: primeiro uma âncora, depois o triângulo de altura Aₖ, depois os vizinhos, e por fim a curva preta que é a soma. Isso é ε₂. O ajuste só mexe nessas alturas.",
+    );
+    let step1 = tx(lang, "1 · Anclas fijas en ω", "1 · Fixed anchors in ω", "1 · 频率上的固定锚点", "1 · Âncoras fixas em ω");
+    let step2 = tx(lang, "2 · Un triángulo por ancla", "2 · One triangle per anchor", "2 · 每个锚点一个三角", "2 · Um triângulo por âncora");
+    let step3 = tx(lang, "3 · Se suman → ε₂", "3 · They add → ε₂", "3 · 相加 → ε₂", "3 · Somam → ε₂");
+    let caption = tx(
+        lang,
+        "Animación en bucle. Las anclas no se mueven en frecuencia: solo cambian las alturas A₁, A₂, A₃ durante el ajuste.",
+        "Looping animation. Anchors do not move in frequency: only the heights A₁, A₂, A₃ change during the fit.",
+        "循环动画。锚点在频率上不动：拟合时只改变高度 A₁、A₂、A₃。",
+        "Animação em loop. As âncoras não se movem em frequência: só as alturas A₁, A₂, A₃ mudam no ajuste.",
+    );
+    let beat1 = tx(lang, "anclas", "anchors", "锚点", "âncoras");
+    let beat2 = tx(lang, "triángulos", "triangles", "三角", "triângulos");
+    let beat3 = tx(lang, "suma = ε₂", "sum = ε₂", "求和 = ε₂", "soma = ε₂");
+    let aria = tx(
+        lang,
+        "Animación de bases triangulares que se suman para formar épsilon dos",
+        "Animation of triangular basis functions summing to epsilon two",
+        "三角基函数相加形成 ε₂ 的动画",
+        "Animação de bases triangulares que somam para formar épsilon dois",
+    );
+    let svg = View::raw(format!(
+        r##"<svg class="tri-story-svg" viewBox="0 0 640 320" role="img" aria-label="{aria}">
+  <defs>
+    <linearGradient id="triStoryInk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0.06"/>
+    </linearGradient>
+  </defs>
+  <rect class="tri-story-stage" x="16" y="16" width="608" height="248" rx="14"/>
+  <line class="mesh-axis" x1="56" y1="230" x2="600" y2="230"/>
+  <g class="tri-story-ticks">
+    <line x1="140" y1="230" x2="140" y2="238"/><text class="mesh-small" x="126" y="256">ω₁</text>
+    <line x1="280" y1="230" x2="280" y2="238"/><text class="mesh-small" x="266" y="256">ω₂</text>
+    <line x1="420" y1="230" x2="420" y2="238"/><text class="mesh-small" x="406" y="256">ω₃</text>
+    <line x1="560" y1="230" x2="560" y2="238"/><text class="mesh-small" x="548" y="256">ω</text>
+  </g>
+  <g class="tri-story-anchors">
+    <circle cx="140" cy="230" r="4"/><circle cx="280" cy="230" r="4"/><circle cx="420" cy="230" r="4"/>
+  </g>
+  <g class="tri-story-ink">
+    <path class="tri-story-tri tri-a1" d="M40 230 L140 120 L280 230 Z"/>
+    <path class="tri-story-tri tri-a2" d="M140 230 L280 70 L420 230 Z"/>
+    <path class="tri-story-tri tri-a3" d="M280 230 L420 150 L560 230 Z"/>
+  </g>
+  <path class="tri-story-sum" d="M40 230 L140 120 L280 70 L420 150 L560 230"/>
+  <g class="tri-story-labels">
+    <text class="tri-story-ak tri-ak1" x="118" y="108">A₁</text>
+    <text class="tri-story-ak tri-ak2" x="258" y="58">A₂</text>
+    <text class="tri-story-ak tri-ak3" x="398" y="138">A₃</text>
+    <text class="tri-story-eq" x="48" y="48">ε₂(ω) = A₁φ₁ + A₂φ₂ + A₃φ₃</text>
+  </g>
+  <text class="tri-story-beat tri-beat1" x="48" y="292">{beat1}</text>
+  <text class="tri-story-beat tri-beat2" x="160" y="292">{beat2}</text>
+  <text class="tri-story-beat tri-beat3" x="310" y="292">{beat3}</text>
+</svg>"##,
+        aria = aria,
+        beat1 = beat1,
+        beat2 = beat2,
+        beat3 = beat3,
+    ));
+    view! {
+        <figure class="learn-figure tri-story" id="triangulos">
+            <div class="tri-story-head">
+                <h3>{title}</h3>
+                <p>{lead}</p>
+            </div>
+            <ol class="tri-story-legend">
+                <li>{step1}</li>
+                <li>{step2}</li>
+                <li>{step3}</li>
+            </ol>
+            {svg}
             <figcaption>{caption}</figcaption>
         </figure>
     }

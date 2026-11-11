@@ -1098,18 +1098,12 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
 
 const MAX_FIT_POINTS: usize = 8_000;
 const MAX_FIT_ITERATIONS: usize = 800;
-const MAX_DENSE_ANCHORS: usize = 500;
-const LARGE_SPECTRUM_ANCHORS: usize = 400;
-const LARGE_SPECTRUM_THRESHOLD: usize = 5_400;
-const DENSE_WORK_BUDGET: u64 = 1_100_000_000_000;
-
-fn anchor_limit_for_points(points: usize) -> usize {
-    if points > LARGE_SPECTRUM_THRESHOLD {
-        LARGE_SPECTRUM_ANCHORS
-    } else {
-        MAX_DENSE_ANCHORS
-    }
-}
+/// Tope de anclas interiores en medidas densas (R, T, n, k, α).
+/// Con R la tesis usa ~N−2 puntos medios; aquí se acerca a ese ideal sin
+/// disparar el presupuesto O(N·M²·pasos) del LM acoplado por Kramers–Kronig.
+const MAX_DENSE_ANCHORS: usize = 2_000;
+/// Presupuesto: cabe `MAX_DENSE_ANCHORS` a `MAX_FIT_POINTS`×`MAX_FIT_ITERATIONS`.
+const DENSE_WORK_BUDGET: u64 = 26_000_000_000_000;
 
 fn dense_work(points: usize, parameters: usize, iterations: usize) -> u64 {
     (points as u64)
@@ -1118,29 +1112,61 @@ fn dense_work(points: usize, parameters: usize, iterations: usize) -> u64 {
         .saturating_mul(iterations as u64)
 }
 
+fn max_anchors_for_budget(points: usize, iterations: usize) -> usize {
+    let denom = (points as u64).saturating_mul(iterations.max(1) as u64).max(1);
+    let square = DENSE_WORK_BUDGET / denom;
+    (square as f64).sqrt().floor() as usize
+}
+
+/// Elige hasta `limit` índices: extremos, luego extremos locales por prominencia
+/// (y vecinos de los más afilados), y rellena el resto de forma uniforme.
 fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
     if values.len() <= limit {
         return (0..values.len()).collect();
     }
 
-    let mut selected = vec![false; values.len()];
+    let n = values.len();
+    let mut selected = vec![false; n];
     selected[0] = true;
-    selected[values.len() - 1] = true;
-    let slots = limit.saturating_sub(2);
-    let extrema: Vec<usize> = (1..values.len() - 1)
+    selected[n - 1] = true;
+    let mut remaining = limit.saturating_sub(2);
+
+    let mut extrema: Vec<(usize, f64)> = (1..n - 1)
         .filter(|&i| {
             (values[i] >= values[i - 1] && values[i] > values[i + 1])
                 || (values[i] <= values[i - 1] && values[i] < values[i + 1])
         })
+        .map(|i| {
+            let prom = (2.0 * values[i] - values[i - 1] - values[i + 1]).abs();
+            (i, prom)
+        })
         .collect();
-    if extrema.len() <= slots {
-        for i in extrema {
-            selected[i] = true;
+    extrema.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    for &(i, _) in &extrema {
+        if remaining == 0 {
+            break;
         }
-    } else if slots > 0 {
-        for slot in 0..slots {
-            let index = slot * (extrema.len() - 1) / slots.saturating_sub(1).max(1);
-            selected[extrema[index]] = true;
+        if !selected[i] {
+            selected[i] = true;
+            remaining -= 1;
+        }
+    }
+
+    // Densifica los reststrahlen: vecinos de los extremos más prominentes.
+    let sharp = (extrema.len() / 4).max(8).min(extrema.len()).min(remaining);
+    for &(i, _) in extrema.iter().take(sharp) {
+        for neighbor in [i.saturating_sub(1), i + 1] {
+            if remaining == 0 {
+                break;
+            }
+            if neighbor > 0 && neighbor + 1 < n && !selected[neighbor] {
+                selected[neighbor] = true;
+                remaining -= 1;
+            }
+        }
+        if remaining == 0 {
+            break;
         }
     }
 
@@ -1153,7 +1179,7 @@ fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
         if indices.len() >= limit {
             break;
         }
-        let candidate = slot * (values.len() - 1) / limit.saturating_sub(1).max(1);
+        let candidate = slot * (n - 1) / limit.saturating_sub(1).max(1);
         if !selected[candidate] {
             selected[candidate] = true;
             indices.push(candidate);
@@ -1299,7 +1325,9 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let auto_log = log_mesh && !input.log_mesh;
     // R usa los puntos medios de los intervalos medidos, como en la malla de la tesis.
     let full_r_mesh = measure == Measure::R;
-    let anchor_limit = anchor_limit_for_points(ndat);
+    let anchor_limit = max_anchors_for_budget(ndat, iter_max)
+        .min(MAX_DENSE_ANCHORS)
+        .max(3);
     let (mut anchors, anchor_count_note) = if full_r_mesh {
         let candidates: Vec<f64> = w
             .windows(2)
@@ -2422,17 +2450,21 @@ mod tests {
 
     #[test]
     fn dense_work_budget_allows_requested_point_and_iteration_limits() {
-        assert!(dense_work(MAX_FIT_POINTS, LARGE_SPECTRUM_ANCHORS + 1, MAX_FIT_ITERATIONS) <= DENSE_WORK_BUDGET);
-        assert!(dense_work(MAX_FIT_POINTS, LARGE_SPECTRUM_ANCHORS + 20, MAX_FIT_ITERATIONS) > DENSE_WORK_BUDGET);
+        assert!(dense_work(MAX_FIT_POINTS, MAX_DENSE_ANCHORS, MAX_FIT_ITERATIONS) <= DENSE_WORK_BUDGET);
+        assert!(dense_work(MAX_FIT_POINTS, MAX_DENSE_ANCHORS + 80, MAX_FIT_ITERATIONS) > DENSE_WORK_BUDGET);
     }
 
     #[test]
-    fn anchor_limit_preserves_density_until_dense_work_requires_reduction() {
-        assert_eq!(anchor_limit_for_points(4_793), MAX_DENSE_ANCHORS);
-        assert_eq!(anchor_limit_for_points(LARGE_SPECTRUM_THRESHOLD), MAX_DENSE_ANCHORS);
-        assert_eq!(anchor_limit_for_points(LARGE_SPECTRUM_THRESHOLD + 1), LARGE_SPECTRUM_ANCHORS);
-        assert_eq!(anchor_limit_for_points(MAX_FIT_POINTS), LARGE_SPECTRUM_ANCHORS);
-        assert!(dense_work(4_793, MAX_DENSE_ANCHORS + 1, MAX_FIT_ITERATIONS) <= DENSE_WORK_BUDGET);
+    fn anchor_limit_tracks_budget_and_dense_cap() {
+        let limit = |points: usize| {
+            max_anchors_for_budget(points, MAX_FIT_ITERATIONS)
+                .min(MAX_DENSE_ANCHORS)
+                .max(3)
+        };
+        assert_eq!(limit(4_793), MAX_DENSE_ANCHORS);
+        assert_eq!(limit(MAX_FIT_POINTS), MAX_DENSE_ANCHORS);
+        assert!(max_anchors_for_budget(4_793, MAX_FIT_ITERATIONS) >= MAX_DENSE_ANCHORS);
+        assert!(dense_work(4_793, MAX_DENSE_ANCHORS, MAX_FIT_ITERATIONS) <= DENSE_WORK_BUDGET);
     }
 
     #[test]
@@ -2446,6 +2478,17 @@ mod tests {
         assert_eq!(indices.last(), Some(&999));
         assert!(indices.contains(&377));
         assert!(indices.contains(&811));
+    }
+
+    #[test]
+    fn dense_mesh_sampling_prefers_sharp_extrema_over_shallow_ones() {
+        let mut values = vec![0.0; 400];
+        values[40] = 0.2;
+        values[200] = 5.0;
+        values[360] = -4.0;
+        let indices = mesh_sample_indices(&values, 12);
+        assert!(indices.contains(&200));
+        assert!(indices.contains(&360));
     }
 
     #[test]

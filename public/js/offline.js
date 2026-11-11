@@ -1,15 +1,17 @@
 "use strict";
 
 const SERVER_MAX_POINTS = 8_000;
-const DENSE_ANCHOR_LIMIT = 500;
-const LARGE_SPECTRUM_ANCHORS = 400;
-const LARGE_SPECTRUM_THRESHOLD = 5_400;
-const DENSE_WORK_BUDGET = 1_100_000_000_000;
+const DENSE_ANCHOR_LIMIT = 2_000;
+const DENSE_WORK_BUDGET = 26_000_000_000_000;
+
+function maxAnchorsForBudget(points, iterations) {
+  const denom = Math.max(1, points * Math.max(1, iterations));
+  return Math.floor(Math.sqrt(DENSE_WORK_BUDGET / denom));
+}
 
 function denseWorkEstimate(points, iterations, measure) {
   if (measure === "eps2" || measure === "lum") return 0;
-  const anchorLimit = points > LARGE_SPECTRUM_THRESHOLD ? LARGE_SPECTRUM_ANCHORS : DENSE_ANCHOR_LIMIT;
-  const anchors = Math.min(anchorLimit, Math.max(1, points));
+  const anchors = Math.min(DENSE_ANCHOR_LIMIT, Math.max(3, maxAnchorsForBudget(points, iterations)));
   return points * anchors * anchors * iterations;
 }
 const LOCAL_SLOW_WORK = 200_000_000;

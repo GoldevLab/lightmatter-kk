@@ -612,6 +612,145 @@ body.chart-expanded { overflow: hidden; }
 @keyframes mesh-rise { from { opacity: 0; transform: scaleY(0.08); } to { opacity: 0.62; transform: scaleY(1); } }
 @keyframes mesh-fade { to { opacity: 0.16; } }
 @keyframes mesh-draw { to { stroke-dashoffset: 0; } }
+
+.tri-story { padding-bottom: 0.2rem; }
+.tri-story-head { padding: 1rem 1.1rem 0.35rem; }
+.tri-story-head h3 { margin: 0 0 0.35rem; font-size: 1.12rem; color: var(--text); }
+.tri-story-head p { margin: 0; color: var(--muted); line-height: 1.55; }
+.tri-story-legend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  list-style: none;
+  margin: 0.7rem 1.1rem 0.35rem;
+  padding: 0;
+}
+.tri-story-legend li {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-strong) 70%, transparent);
+  color: var(--text);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+.tri-story-svg { display: block; width: 100%; height: auto; padding: 0.35rem 0.7rem 0; color: var(--accent); }
+.tri-story-ink { color: var(--accent); }
+.tri-story-stage { fill: color-mix(in srgb, var(--panel-strong) 78%, transparent); stroke: var(--line); }
+.tri-story-ticks line { stroke: var(--muted); stroke-width: 1.5; }
+.tri-story-anchors circle {
+  fill: var(--text);
+  opacity: 0;
+  animation: tri-anchor 8s ease-in-out infinite;
+}
+.tri-story-tri {
+  fill: url(#triStoryInk);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  opacity: 0;
+}
+.tri-a1 { animation: tri-rise-a1 8s ease-in-out infinite; }
+.tri-a2 { animation: tri-rise-a2 8s ease-in-out infinite; }
+.tri-a3 { animation: tri-rise-a3 8s ease-in-out infinite; }
+.tri-story-sum {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: tri-sum 8s ease-in-out infinite;
+}
+.tri-story-ak {
+  fill: var(--text);
+  font: 700 15px var(--font);
+  opacity: 0;
+}
+.tri-ak1 { animation: tri-label 8s ease-in-out infinite; }
+.tri-ak2 { animation: tri-label-mid 8s ease-in-out infinite; }
+.tri-ak3 { animation: tri-label-late 8s ease-in-out infinite; }
+.tri-story-eq {
+  fill: var(--text);
+  font: 600 15px var(--font);
+  opacity: 0;
+  animation: tri-eq 8s ease-in-out infinite;
+}
+.tri-story-beat {
+  fill: var(--muted);
+  font: 600 12px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.28;
+}
+.tri-beat1 { animation: tri-beat-1 8s ease-in-out infinite; }
+.tri-beat2 { animation: tri-beat-2 8s ease-in-out infinite; }
+.tri-beat3 { animation: tri-beat-3 8s ease-in-out infinite; }
+
+@keyframes tri-anchor {
+  0%, 6% { opacity: 0; }
+  12%, 92% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes tri-rise-a2 {
+  0%, 12% { opacity: 0; transform: scaleY(0.06); }
+  22%, 88% { opacity: 0.85; transform: scaleY(1); }
+  100% { opacity: 0; transform: scaleY(0.06); }
+}
+@keyframes tri-rise-a1 {
+  0%, 28% { opacity: 0; transform: scaleY(0.06); }
+  38%, 88% { opacity: 0.7; transform: scaleY(1); }
+  100% { opacity: 0; transform: scaleY(0.06); }
+}
+@keyframes tri-rise-a3 {
+  0%, 34% { opacity: 0; transform: scaleY(0.06); }
+  44%, 88% { opacity: 0.7; transform: scaleY(1); }
+  100% { opacity: 0; transform: scaleY(0.06); }
+}
+@keyframes tri-sum {
+  0%, 48% { stroke-dashoffset: 900; opacity: 0; }
+  50% { opacity: 1; }
+  68%, 88% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 900; opacity: 0; }
+}
+@keyframes tri-label-mid {
+  0%, 18% { opacity: 0; }
+  24%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes tri-label {
+  0%, 36% { opacity: 0; }
+  42%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes tri-label-late {
+  0%, 42% { opacity: 0; }
+  48%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes tri-eq {
+  0%, 58% { opacity: 0; }
+  66%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes tri-beat-1 {
+  0%, 8% { opacity: 0.28; fill: var(--muted); }
+  10%, 24% { opacity: 1; fill: var(--accent); }
+  30%, 100% { opacity: 0.28; fill: var(--muted); }
+}
+@keyframes tri-beat-2 {
+  0%, 24% { opacity: 0.28; fill: var(--muted); }
+  28%, 48% { opacity: 1; fill: var(--accent); }
+  54%, 100% { opacity: 0.28; fill: var(--muted); }
+}
+@keyframes tri-beat-3 {
+  0%, 48% { opacity: 0.28; fill: var(--muted); }
+  54%, 88% { opacity: 1; fill: var(--accent); }
+  94%, 100% { opacity: 0.28; fill: var(--muted); }
+}
 .learn-page { display: block; padding: 1.5rem 0 3rem; }
 .learn-page section[id],
 .learn-page h2[id],
@@ -860,8 +999,18 @@ dialog.proof-sheet::backdrop { background: var(--modal-scrim); }
   }
 }
 
+@media (max-width: 820px) {
+  .tri-story-legend { grid-template-columns: 1fr; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mesh-triangle { opacity: 0.62; transform: none; animation: none; }
   .mesh-sum-fill { opacity: 0.16; animation: none; }
   .mesh-sum-line, .mesh-kk-line { stroke-dashoffset: 0; animation: none; }
+  .tri-story-anchors circle,
+  .tri-story-tri,
+  .tri-story-ak,
+  .tri-story-eq,
+  .tri-story-beat { opacity: 1; animation: none; transform: none; }
+  .tri-story-sum { stroke-dashoffset: 0; opacity: 1; animation: none; }
 }
