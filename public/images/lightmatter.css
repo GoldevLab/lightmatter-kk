@@ -476,6 +476,7 @@ select option { background: var(--option-bg); color: var(--text); }
 .server-job p { margin: 0; }
 .server-job-id { color: var(--muted); font: 0.78rem var(--mono); }
 .server-job-state { min-width: 0; overflow-wrap: anywhere; }
+.server-job-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: end; justify-self: end; }
 .server-job .btn { justify-self: end; }
 .results { display: grid; gap: 0.8rem; }
 .results > .chart-primary { order: 1; }

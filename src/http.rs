@@ -1,5 +1,9 @@
 //! Endpoint del laboratorio y worker Resuma para ajustes persistentes.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
 use axum::body::Body;
 use axum::extract::Multipart;
 use axum::http::{header, Response, StatusCode};
@@ -7,7 +11,7 @@ use axum::response::IntoResponse;
 use resuma::core::ResumaError;
 use tokio::sync::Semaphore;
 
-use lightmatter::fit::{export, fit_text, TextFit};
+use lightmatter::fit::{export, fit_text_with_cancel, TextFit};
 
 use crate::store;
 
@@ -40,27 +44,80 @@ pub fn fit_worker(
             if status.state == store::JobState::Completed {
                 return Ok(serde_json::json!({"report_id": status.report_id}));
             }
+            if matches!(
+                status.state,
+                store::JobState::Failed | store::JobState::Cancelled
+            ) {
+                return Err(ResumaError::Other(
+                    status
+                        .error
+                        .unwrap_or_else(|| "el trabajo ya no está activo".into()),
+                ));
+            }
         }
         let _fit_slot = FIT_SLOTS
             .acquire()
             .await
             .map_err(|error| ResumaError::Other(error.to_string()))?;
+        if store::job_is_cancelled(&id) {
+            return Err(ResumaError::Other("cancelado".into()));
+        }
         let job = store::load_fit_job(&id)
             .ok_or_else(|| ResumaError::Validation("no se pudo recuperar el espectro guardado".into()))?;
         store::mark_job_running(&id).map_err(ResumaError::Other)?;
         let source = job.source.clone();
-        let fit = match context.run_blocking(move || fit_text(&job.text, &job.options)).await {
+        let cancel = Arc::new(AtomicBool::new(false));
+        let stop_watch = Arc::new(AtomicBool::new(false));
+        {
+            let id_watch = id.clone();
+            let cancel_watch = Arc::clone(&cancel);
+            let stop_watch = Arc::clone(&stop_watch);
+            std::thread::spawn(move || {
+                while !stop_watch.load(Ordering::Relaxed) {
+                    if store::job_is_cancelled(&id_watch) {
+                        cancel_watch.store(true, Ordering::Relaxed);
+                        break;
+                    }
+                    let _ = store::touch_job(&id_watch);
+                    std::thread::sleep(Duration::from_secs(15));
+                }
+            });
+        }
+        let options = job.options.clone();
+        let text = job.text.clone();
+        let cancel_fit = Arc::clone(&cancel);
+        let fit = match context
+            .run_blocking(move || fit_text_with_cancel(&text, &options, Some(cancel_fit)))
+            .await
+        {
             Ok(fit) => fit,
             Err(error) => {
+                stop_watch.store(true, Ordering::Relaxed);
                 crate::stats::record_error();
+                if store::job_is_cancelled(&id) || cancel.load(Ordering::Relaxed) {
+                    let _ = store::mark_job_cancelled(&id);
+                    return Err(ResumaError::Other("cancelado".into()));
+                }
                 let _ = store::mark_job_failed(&id, &error.to_string());
                 return Err(error);
             }
         };
+        stop_watch.store(true, Ordering::Relaxed);
         let report = match fit {
-            Ok(report) => report,
+            Ok(report) => {
+                if store::job_is_cancelled(&id) || cancel.load(Ordering::Relaxed) {
+                    let _ = store::mark_job_cancelled(&id);
+                    return Err(ResumaError::Other("cancelado".into()));
+                }
+                report
+            }
             Err(error) => {
                 crate::stats::record_error();
+                if error == "cancelado" || store::job_is_cancelled(&id) || cancel.load(Ordering::Relaxed)
+                {
+                    let _ = store::mark_job_cancelled(&id);
+                    return Err(ResumaError::Other("cancelado".into()));
+                }
                 let _ = store::mark_job_failed(&id, &error);
                 return Err(ResumaError::Other(error));
             }
@@ -187,6 +244,19 @@ pub async fn job_status(axum::extract::Path(id): axum::extract::Path<String>) ->
     match store::job_status(&id) {
         Some(status) => axum::Json(status).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+pub async fn cancel_job(axum::extract::Path(id): axum::extract::Path<String>) -> Response<Body> {
+    if !store::valid_job_id(&id) {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    match store::mark_job_cancelled(&id) {
+        Ok(()) => match store::job_status(&id) {
+            Some(status) => axum::Json(status).into_response(),
+            None => StatusCode::NOT_FOUND.into_response(),
+        },
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }
 

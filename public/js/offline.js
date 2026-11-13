@@ -34,10 +34,10 @@ function chartToolText(key) {
 }
 
 const JOB_TEXT = {
-  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", waiting: "Consultando estado…", view: "Ver resultado", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez." },
-  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", waiting: "Checking status…", view: "View result", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again." },
-  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", waiting: "正在查询状态…", view: "查看结果", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。" },
-  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", waiting: "Consultando estado…", view: "Ver resultado", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo." },
+  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez." },
+  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "View result", cancel: "Cancel", cancelling: "Cancelling…", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again." },
+  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "查看结果", cancel: "取消", cancelling: "正在取消…", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。" },
+  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo." },
 };
 
 function jobText(key) {
@@ -657,6 +657,34 @@ function initServerJobs() {
     const state = document.createElement("p");
     state.className = "server-job-state";
     state.textContent = jobText("waiting");
+    const actions = document.createElement("div");
+    actions.className = "server-job-actions";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "btn btn-ghost btn-small";
+    cancel.textContent = jobText("cancel");
+    cancel.hidden = true;
+    cancel.addEventListener("click", async () => {
+      cancel.disabled = true;
+      cancel.textContent = jobText("cancelling");
+      try {
+        const response = await fetch(`/lab/job/${encodeURIComponent(job.id)}/cancel`, {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (!response.ok && response.status !== 404) throw new Error("cancel failed");
+        const status = response.ok ? await response.json() : null;
+        card.state.textContent = (status && status.error) || jobText("cancelled");
+        cancel.hidden = true;
+        card.link.disabled = true;
+        delete card.link.dataset.href;
+      } catch {
+        cancel.disabled = false;
+        cancel.textContent = jobText("cancel");
+        card.state.textContent = jobText("statusError");
+      }
+    });
     const link = document.createElement("button");
     link.type = "button";
     link.className = "btn btn-ghost btn-small";
@@ -665,9 +693,11 @@ function initServerJobs() {
     link.addEventListener("click", () => {
       if (link.dataset.href) window.location.assign(link.dataset.href);
     });
-    article.append(label, state, link);
+    actions.append(cancel, link);
+    article.append(label, state, actions);
     list.append(article);
-    cards.set(job.id, { state, link });
+    const card = { state, link, cancel };
+    cards.set(job.id, card);
   }
   slot.append(heading, list);
 
@@ -684,6 +714,7 @@ function initServerJobs() {
         if (response.status === 404) {
           forgetServerJob(job.id);
           card.state.textContent = jobText("statusError");
+          card.cancel.hidden = true;
           continue;
         }
         if (!response.ok) throw new Error("job status unavailable");
@@ -691,16 +722,30 @@ function initServerJobs() {
         if (status.state === "queued" || status.state === "running") {
           pending = true;
           card.state.textContent = jobText(status.state);
+          card.cancel.hidden = false;
+          card.cancel.disabled = false;
+          card.cancel.textContent = jobText("cancel");
+          card.link.disabled = true;
+          delete card.link.dataset.href;
         } else if (status.state === "completed" && status.report_id) {
           card.state.textContent = jobText("completed");
+          card.cancel.hidden = true;
           card.link.dataset.href = `/lab?r=${encodeURIComponent(status.report_id)}`;
           card.link.disabled = false;
           if (job.id === currentId) {
             window.location.assign(card.link.dataset.href);
             return;
           }
+        } else if (status.state === "cancelled") {
+          card.state.textContent = status.error || jobText("cancelled");
+          card.cancel.hidden = true;
+          card.link.disabled = true;
+          delete card.link.dataset.href;
         } else {
           card.state.textContent = status.error || jobText("failed");
+          card.cancel.hidden = true;
+          card.link.disabled = true;
+          delete card.link.dataset.href;
         }
       } catch {
         pending = true;

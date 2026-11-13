@@ -49,6 +49,8 @@ pub struct FitRequest {
     /// La tercera columna vino en el espectro.
     pub errors_given: bool,
     pub physics: Physics,
+    /// Si pasa a true entre pasos de Levenberg–Marquardt, el ajuste se corta.
+    pub cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -930,6 +932,7 @@ fn levenberg<M: SysMat>(
     floor: f64,
     alpha: &mut M,
     covar: &mut M,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
 ) -> Result<LmResult, String> {
     let mfit = alpha.size();
     let lamda_high: f64 = 10.0;
@@ -948,6 +951,9 @@ fn levenberg<M: SysMat>(
     let mut iters_used = 0usize;
     let mut stalled = false;
     for _ in 0..iter_max {
+        if cancel.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed)) {
+            return Err("cancelado".into());
+        }
         iters_used += 1;
         if done >= 1 {
             alamda = 0.0;
@@ -1462,10 +1468,11 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
 
     // Con ε₂ nada acopla anclas lejanas: la matriz es de banda y el paso cuesta O(n) en vez de O(n³).
     let banded = measure == Measure::Eps2 && !fit_base;
+    let cancel = input.cancel.as_deref();
     let (lm, cov) = if banded {
         let mut alpha = Band::new(mfit);
         let mut covar = Band::new(mfit);
-        let lm = levenberg(&model, &mut a, &active_pos, iter_max, floor, &mut alpha, &mut covar)?;
+        let lm = levenberg(&model, &mut a, &active_pos, iter_max, floor, &mut alpha, &mut covar, cancel)?;
         let cov = if errors_given {
             model.curvature(&a, &mut alpha);
             alpha.covariance()
@@ -1476,7 +1483,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     } else {
         let mut alpha = Dense::new(mfit);
         let mut covar = Dense::new(mfit);
-        let lm = levenberg(&model, &mut a, &active_pos, iter_max, floor, &mut alpha, &mut covar)?;
+        let lm = levenberg(&model, &mut a, &active_pos, iter_max, floor, &mut alpha, &mut covar, cancel)?;
         let cov = if errors_given {
             model.curvature(&a, &mut alpha);
             alpha.covariance()
@@ -1880,6 +1887,14 @@ pub struct TextFit {
 }
 
 pub fn fit_text(text: &str, opts: &TextFit) -> Result<FitReport, String> {
+    fit_text_with_cancel(text, opts, None)
+}
+
+pub fn fit_text_with_cancel(
+    text: &str,
+    opts: &TextFit,
+    cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+) -> Result<FitReport, String> {
     let (x, y, sigma, errors_given) = parse_spectrum(text)?;
     let eps_inf = parse_maybe(&opts.eps_inf);
     let measure = Measure::parse(&opts.measure);
@@ -1911,6 +1926,7 @@ pub fn fit_text(text: &str, opts: &TextFit) -> Result<FitReport, String> {
             temperature_k: parse_opt(&opts.temperature, 300.0).max(0.0),
             eps_inf,
         },
+        cancel,
     })
 }
 
@@ -2218,6 +2234,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics { measure, unit: Unit::Cm, thickness_um: d_um, temperature_k: 300.0, eps_inf },
+            cancel: None,
         })
         .unwrap();
         let mut err = 0.0;
@@ -2290,6 +2307,7 @@ mod tests {
                 eps_inf: Some(2.5),
                 ..Physics::default()
             },
+        cancel: None,
         })
         .unwrap();
         let rms = (report
@@ -2438,6 +2456,7 @@ mod tests {
             sigma: vec![0.01; 8_000],
             errors_given: true,
             physics: Physics { unit: Unit::Cm, ..Physics::default() },
+            cancel: None,
         })
         .unwrap();
         assert_eq!(report.points_used, 8_000);
@@ -2515,6 +2534,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         });
         assert!(result.unwrap_err().contains("hasta 8000 puntos"));
     }
@@ -2544,6 +2564,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         }).unwrap();
         assert!(report.chisq.is_finite());
         assert_eq!(report.eps1.len(), report.eps2.len());
@@ -2569,6 +2590,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         assert!(report.points_used <= 3);
@@ -2589,6 +2611,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         }).unwrap_err();
         assert!(err.contains("positiva"));
     }
@@ -2627,6 +2650,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         assert!(report.warnings.iter().any(|w| w.contains("ε₂ no queda fijada por los datos")));
@@ -2663,6 +2687,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         assert!((report.eps2[0] - y[0]).abs() < 0.015, "inicio {}", report.eps2[0]);
@@ -2685,6 +2710,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         assert_eq!(report.points_used, 40);
@@ -2716,6 +2742,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         let peak = report.model_eps2.iter().copied().fold(0.0_f64, f64::max);
@@ -2740,6 +2767,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         let held = run_fit(&FitRequest {
@@ -2754,6 +2782,7 @@ mod tests {
             sigma: Vec::new(),
             errors_given: false,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         assert!(free.model_eps2[3] < -0.4, "libre {}", free.model_eps2[3]);
@@ -2777,6 +2806,7 @@ mod tests {
             sigma,
             errors_given,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         assert!(report.chisq < 1e-6, "χ² {}", report.chisq);
@@ -2803,6 +2833,7 @@ mod tests {
             sigma: vec![0.01, 0.01, 10.0, 0.01, 0.01],
             errors_given: true,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         let tight = run_fit(&FitRequest {
@@ -2817,6 +2848,7 @@ mod tests {
             sigma: vec![0.01; 5],
             errors_given: true,
             physics: Physics::default(),
+        cancel: None,
         })
         .unwrap();
         assert!(loose.model_eps2[2] < 1.0, "error grande {}", loose.model_eps2[2]);

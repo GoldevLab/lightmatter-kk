@@ -87,7 +87,11 @@ pub enum JobState {
     Running,
     Completed,
     Failed,
+    Cancelled,
 }
+
+/// Si un trabajo en cola o en curso no recibe latido, la máquina se detuvo o el proceso murió.
+const STALE_ACTIVE_SECS: u64 = 20 * 60;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct DiskJob {
@@ -199,6 +203,7 @@ pub fn load_fit_job(id: &str) -> Option<FitJob> {
 }
 
 pub fn job_status(id: &str) -> Option<JobStatus> {
+    reconcile_stale_job(id);
     let job = read_job(id)?;
     Some(JobStatus {
         id: job.id,
@@ -217,7 +222,7 @@ fn update_job(id: &str, state: JobState, report_id: Option<String>, error: Optio
     job.error = error;
     job.updated_at = now();
     write_job(&job)?;
-    if matches!(state, JobState::Completed | JobState::Failed) {
+    if matches!(state, JobState::Completed | JobState::Failed | JobState::Cancelled) {
         let _ = fs::remove_file(job_input_path(&jobs_dir(), id));
         prune_jobs();
     }
@@ -236,6 +241,56 @@ pub fn mark_job_failed(id: &str, error: &str) -> Result<(), String> {
     update_job(id, JobState::Failed, None, Some(error.to_string()))
 }
 
+pub fn mark_job_cancelled(id: &str) -> Result<(), String> {
+    let job = read_job(id).ok_or_else(|| "no se encontró el trabajo".to_string())?;
+    if matches!(job.state, JobState::Completed | JobState::Failed | JobState::Cancelled) {
+        return Ok(());
+    }
+    update_job(
+        id,
+        JobState::Cancelled,
+        None,
+        Some("Cancelado.".into()),
+    )
+}
+
+pub fn touch_job(id: &str) -> Result<(), String> {
+    let mut job = read_job(id).ok_or_else(|| "no se encontró el trabajo".to_string())?;
+    if !matches!(job.state, JobState::Queued | JobState::Running) {
+        return Ok(());
+    }
+    job.updated_at = now();
+    write_job(&job)
+}
+
+pub fn job_is_cancelled(id: &str) -> bool {
+    matches!(read_job(id).map(|j| j.state), Some(JobState::Cancelled))
+}
+
+pub fn job_is_active(id: &str) -> bool {
+    matches!(read_job(id).map(|j| j.state), Some(JobState::Queued | JobState::Running))
+}
+
+fn reconcile_stale_job(id: &str) {
+    let Some(job) = read_job(id) else { return };
+    if !matches!(job.state, JobState::Queued | JobState::Running) {
+        return;
+    }
+    let age = now().saturating_sub(job.updated_at);
+    if age <= STALE_ACTIVE_SECS {
+        return;
+    }
+    let _ = update_job(
+        id,
+        JobState::Failed,
+        None,
+        Some(
+            "El análisis se interrumpió (sin latido: la máquina se detuvo o el proceso terminó). Cancela o vuelve a enviarlo."
+                .into(),
+        ),
+    );
+}
+
 fn prune_jobs() {
     let folder = jobs_dir();
     let Ok(entries) = fs::read_dir(&folder) else { return };
@@ -245,7 +300,7 @@ fn prune_jobs() {
         .filter_map(|entry| {
             let bytes = fs::read(entry.path()).ok()?;
             let job: DiskJob = serde_json::from_slice(&bytes).ok()?;
-            matches!(job.state, JobState::Completed | JobState::Failed)
+            matches!(job.state, JobState::Completed | JobState::Failed | JobState::Cancelled)
                 .then_some((job.updated_at, job.id))
         })
         .collect::<Vec<_>>();
