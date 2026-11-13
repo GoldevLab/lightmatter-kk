@@ -750,6 +750,7 @@ function initServerJobs() {
       } catch {
         pending = true;
         card.state.textContent = jobText("statusError");
+        card.cancel.hidden = true;
       }
     }
     if (pending) jobPollingTimer = window.setTimeout(refresh, 2500);

@@ -276,6 +276,7 @@ h2 { margin: 0; font-size: 1.4rem; }
 }
 .hero-lead, .muted { color: var(--muted); line-height: 1.65; }
 .hero-actions, .result-head { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; }
+.btn[hidden] { display: none !important; }
 .btn {
   display: inline-flex;
   align-items: center;
