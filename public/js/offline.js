@@ -1,8 +1,8 @@
 "use strict";
 
 const SERVER_MAX_POINTS = 8_000;
-const DENSE_ANCHOR_LIMIT = 2_000;
-const DENSE_WORK_BUDGET = 26_000_000_000_000;
+const DENSE_ANCHOR_LIMIT = 800;
+const DENSE_WORK_BUDGET = 4_200_000_000_000;
 
 function maxAnchorsForBudget(points, iterations) {
   const denom = Math.max(1, points * Math.max(1, iterations));
@@ -34,10 +34,10 @@ function chartToolText(key) {
 }
 
 const JOB_TEXT = {
-  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez." },
-  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "View result", cancel: "Cancel", cancelling: "Cancelling…", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again." },
-  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "查看结果", cancel: "取消", cancelling: "正在取消…", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。" },
-  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo." },
+  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez." },
+  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "View result", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again." },
+  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "查看结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。" },
+  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo." },
 };
 
 function jobText(key) {
@@ -721,7 +721,16 @@ function initServerJobs() {
         const status = await response.json();
         if (status.state === "queued" || status.state === "running") {
           pending = true;
-          card.state.textContent = jobText(status.state);
+          let label = jobText(status.state);
+          if (status.state === "running" && status.progress_max) {
+            const step = Number(status.progress_step) || 0;
+            const max = Number(status.progress_max) || 0;
+            if (max > 0) {
+              label += " · " + jobText("step").replace("{step}", String(step)).replace("{max}", String(max));
+            }
+            if (status.progress_note) label += " · " + status.progress_note;
+          }
+          card.state.textContent = label;
           card.cancel.hidden = false;
           card.cancel.disabled = false;
           card.cancel.textContent = jobText("cancel");

@@ -72,7 +72,7 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"T, transmitancia de una lámina en aire. Necesita unidad de ω y el espesor en µm. Sin espesor el análisis no arranca."</li>
                     <li>"Luminiscencia. Es emisión, no absorción: la intensidad medida no es ε₂ y no determina una pareja ε₁/ε₂. Se analizan picos y propiedades de la emisión, sin fingir una constante dieléctrica."</li>
                 </ul>
-                <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. El modelo usa hasta 2000 anclas (prioridad a picos y valles afilados) y admite hasta 8000 filas. Con R parte de los puntos medios de la malla medida, como en la tesis. Todos los puntos, aunque no sean ancla, entran en el χ²."</p>
+                <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. El modelo usa hasta 800 anclas (prioridad a picos y valles afilados) y admite hasta 8000 filas. Con R parte de los puntos medios de la malla medida, como en la tesis. Todos los puntos, aunque no sean ancla, entran en el χ²."</p>
             </section>
 
             <section id="metodo">

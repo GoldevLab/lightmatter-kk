@@ -1,6 +1,6 @@
 //! Endpoint del laboratorio y worker Resuma para ajustes persistentes.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,7 +11,7 @@ use axum::response::IntoResponse;
 use resuma::core::ResumaError;
 use tokio::sync::Semaphore;
 
-use lightmatter::fit::{export, fit_text_with_cancel, TextFit};
+use lightmatter::fit::{export, fit_text_with_hooks, TextFit};
 
 use crate::store;
 
@@ -67,10 +67,14 @@ pub fn fit_worker(
         store::mark_job_running(&id).map_err(ResumaError::Other)?;
         let source = job.source.clone();
         let cancel = Arc::new(AtomicBool::new(false));
+        let progress = Arc::new(AtomicUsize::new(0));
         let stop_watch = Arc::new(AtomicBool::new(false));
+        let iter_max = job.options.iter_max.clamp(1, 800);
+        let _ = store::set_job_progress(&id, 0, iter_max, Some("preparando malla"));
         {
             let id_watch = id.clone();
             let cancel_watch = Arc::clone(&cancel);
+            let progress_watch = Arc::clone(&progress);
             let stop_watch = Arc::clone(&stop_watch);
             std::thread::spawn(move || {
                 while !stop_watch.load(Ordering::Relaxed) {
@@ -78,16 +82,25 @@ pub fn fit_worker(
                         cancel_watch.store(true, Ordering::Relaxed);
                         break;
                     }
-                    let _ = store::touch_job(&id_watch);
-                    std::thread::sleep(Duration::from_secs(15));
+                    let step = progress_watch.load(Ordering::Relaxed);
+                    let note = if step == 0 {
+                        Some("preparando malla")
+                    } else {
+                        Some("Levenberg–Marquardt")
+                    };
+                    let _ = store::set_job_progress(&id_watch, step, iter_max, note);
+                    std::thread::sleep(Duration::from_secs(2));
                 }
             });
         }
         let options = job.options.clone();
         let text = job.text.clone();
         let cancel_fit = Arc::clone(&cancel);
+        let progress_fit = Arc::clone(&progress);
         let fit = match context
-            .run_blocking(move || fit_text_with_cancel(&text, &options, Some(cancel_fit)))
+            .run_blocking(move || {
+                fit_text_with_hooks(&text, &options, Some(cancel_fit), Some(progress_fit))
+            })
             .await
         {
             Ok(fit) => fit,

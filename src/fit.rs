@@ -51,6 +51,8 @@ pub struct FitRequest {
     pub physics: Physics,
     /// Si pasa a true entre pasos de Levenberg–Marquardt, el ajuste se corta.
     pub cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    /// Paso actual de LM (1…iter_max), para mostrar progreso en el servidor.
+    pub progress_step: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -933,6 +935,7 @@ fn levenberg<M: SysMat>(
     alpha: &mut M,
     covar: &mut M,
     cancel: Option<&std::sync::atomic::AtomicBool>,
+    progress_step: Option<&std::sync::atomic::AtomicUsize>,
 ) -> Result<LmResult, String> {
     let mfit = alpha.size();
     let lamda_high: f64 = 10.0;
@@ -955,6 +958,9 @@ fn levenberg<M: SysMat>(
             return Err("cancelado".into());
         }
         iters_used += 1;
+        if let Some(step) = progress_step {
+            step.store(iters_used, std::sync::atomic::Ordering::Relaxed);
+        }
         if done >= 1 {
             alamda = 0.0;
         }
@@ -1105,11 +1111,12 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
 const MAX_FIT_POINTS: usize = 8_000;
 const MAX_FIT_ITERATIONS: usize = 800;
 /// Tope de anclas interiores en medidas densas (R, T, n, k, α).
-/// Con R la tesis usa ~N−2 puntos medios; aquí se acerca a ese ideal sin
-/// disparar el presupuesto O(N·M²·pasos) del LM acoplado por Kramers–Kronig.
-const MAX_DENSE_ANCHORS: usize = 2_000;
+/// Con R la tesis usa ~N−2 puntos medios; el coste del LM acoplado por KK
+/// es ~O(N·M²·pasos), así que 2000 anclas con ~5000 puntos tarda horas.
+/// 800 + prioridad a extremos afilados resuelve reststrahlen sin irse de tiempo.
+const MAX_DENSE_ANCHORS: usize = 800;
 /// Presupuesto: cabe `MAX_DENSE_ANCHORS` a `MAX_FIT_POINTS`×`MAX_FIT_ITERATIONS`.
-const DENSE_WORK_BUDGET: u64 = 26_000_000_000_000;
+const DENSE_WORK_BUDGET: u64 = 4_200_000_000_000;
 
 fn dense_work(points: usize, parameters: usize, iterations: usize) -> u64 {
     (points as u64)
@@ -1469,10 +1476,21 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     // Con ε₂ nada acopla anclas lejanas: la matriz es de banda y el paso cuesta O(n) en vez de O(n³).
     let banded = measure == Measure::Eps2 && !fit_base;
     let cancel = input.cancel.as_deref();
+    let progress_step = input.progress_step.as_deref();
     let (lm, cov) = if banded {
         let mut alpha = Band::new(mfit);
         let mut covar = Band::new(mfit);
-        let lm = levenberg(&model, &mut a, &active_pos, iter_max, floor, &mut alpha, &mut covar, cancel)?;
+        let lm = levenberg(
+            &model,
+            &mut a,
+            &active_pos,
+            iter_max,
+            floor,
+            &mut alpha,
+            &mut covar,
+            cancel,
+            progress_step,
+        )?;
         let cov = if errors_given {
             model.curvature(&a, &mut alpha);
             alpha.covariance()
@@ -1483,7 +1501,17 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     } else {
         let mut alpha = Dense::new(mfit);
         let mut covar = Dense::new(mfit);
-        let lm = levenberg(&model, &mut a, &active_pos, iter_max, floor, &mut alpha, &mut covar, cancel)?;
+        let lm = levenberg(
+            &model,
+            &mut a,
+            &active_pos,
+            iter_max,
+            floor,
+            &mut alpha,
+            &mut covar,
+            cancel,
+            progress_step,
+        )?;
         let cov = if errors_given {
             model.curvature(&a, &mut alpha);
             alpha.covariance()
@@ -1895,6 +1923,15 @@ pub fn fit_text_with_cancel(
     opts: &TextFit,
     cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
 ) -> Result<FitReport, String> {
+    fit_text_with_hooks(text, opts, cancel, None)
+}
+
+pub fn fit_text_with_hooks(
+    text: &str,
+    opts: &TextFit,
+    cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    progress_step: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
+) -> Result<FitReport, String> {
     let (x, y, sigma, errors_given) = parse_spectrum(text)?;
     let eps_inf = parse_maybe(&opts.eps_inf);
     let measure = Measure::parse(&opts.measure);
@@ -1927,6 +1964,7 @@ pub fn fit_text_with_cancel(
             eps_inf,
         },
         cancel,
+        progress_step,
     })
 }
 
@@ -2235,6 +2273,7 @@ mod tests {
             errors_given: false,
             physics: Physics { measure, unit: Unit::Cm, thickness_um: d_um, temperature_k: 300.0, eps_inf },
             cancel: None,
+        progress_step: None,
         })
         .unwrap();
         let mut err = 0.0;
@@ -2308,6 +2347,7 @@ mod tests {
                 ..Physics::default()
             },
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         let rms = (report
@@ -2457,6 +2497,7 @@ mod tests {
             errors_given: true,
             physics: Physics { unit: Unit::Cm, ..Physics::default() },
             cancel: None,
+        progress_step: None,
         })
         .unwrap();
         assert_eq!(report.points_used, 8_000);
@@ -2535,6 +2576,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         });
         assert!(result.unwrap_err().contains("hasta 8000 puntos"));
     }
@@ -2565,6 +2607,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         }).unwrap();
         assert!(report.chisq.is_finite());
         assert_eq!(report.eps1.len(), report.eps2.len());
@@ -2591,6 +2634,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         assert!(report.points_used <= 3);
@@ -2612,6 +2656,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         }).unwrap_err();
         assert!(err.contains("positiva"));
     }
@@ -2651,6 +2696,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         assert!(report.warnings.iter().any(|w| w.contains("ε₂ no queda fijada por los datos")));
@@ -2688,6 +2734,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         assert!((report.eps2[0] - y[0]).abs() < 0.015, "inicio {}", report.eps2[0]);
@@ -2711,6 +2758,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         assert_eq!(report.points_used, 40);
@@ -2743,6 +2791,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         let peak = report.model_eps2.iter().copied().fold(0.0_f64, f64::max);
@@ -2768,6 +2817,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         let held = run_fit(&FitRequest {
@@ -2783,6 +2833,7 @@ mod tests {
             errors_given: false,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         assert!(free.model_eps2[3] < -0.4, "libre {}", free.model_eps2[3]);
@@ -2807,6 +2858,7 @@ mod tests {
             errors_given,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         assert!(report.chisq < 1e-6, "χ² {}", report.chisq);
@@ -2834,6 +2886,7 @@ mod tests {
             errors_given: true,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         let tight = run_fit(&FitRequest {
@@ -2849,6 +2902,7 @@ mod tests {
             errors_given: true,
             physics: Physics::default(),
         cancel: None,
+        progress_step: None,
         })
         .unwrap();
         assert!(loose.model_eps2[2] < 1.0, "error grande {}", loose.model_eps2[2]);

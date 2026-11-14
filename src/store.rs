@@ -101,6 +101,12 @@ struct DiskJob {
     state: JobState,
     report_id: Option<String>,
     error: Option<String>,
+    #[serde(default)]
+    progress_step: Option<usize>,
+    #[serde(default)]
+    progress_max: Option<usize>,
+    #[serde(default)]
+    progress_note: Option<String>,
     created_at: u64,
     updated_at: u64,
 }
@@ -111,6 +117,9 @@ pub struct JobStatus {
     pub state: JobState,
     pub report_id: Option<String>,
     pub error: Option<String>,
+    pub progress_step: Option<usize>,
+    pub progress_max: Option<usize>,
+    pub progress_note: Option<String>,
     pub created_at: u64,
     pub updated_at: u64,
 }
@@ -180,6 +189,9 @@ pub fn create_job(
         state: JobState::Queued,
         report_id: None,
         error: None,
+        progress_step: None,
+        progress_max: None,
+        progress_note: None,
         created_at: timestamp,
         updated_at: timestamp,
     };
@@ -210,6 +222,9 @@ pub fn job_status(id: &str) -> Option<JobStatus> {
         state: job.state,
         report_id: job.report_id,
         error: job.error,
+        progress_step: job.progress_step,
+        progress_max: job.progress_max,
+        progress_note: job.progress_note,
         created_at: job.created_at,
         updated_at: job.updated_at,
     })
@@ -258,6 +273,25 @@ pub fn touch_job(id: &str) -> Result<(), String> {
     let mut job = read_job(id).ok_or_else(|| "no se encontró el trabajo".to_string())?;
     if !matches!(job.state, JobState::Queued | JobState::Running) {
         return Ok(());
+    }
+    job.updated_at = now();
+    write_job(&job)
+}
+
+pub fn set_job_progress(
+    id: &str,
+    step: usize,
+    max: usize,
+    note: Option<&str>,
+) -> Result<(), String> {
+    let mut job = read_job(id).ok_or_else(|| "no se encontró el trabajo".to_string())?;
+    if !matches!(job.state, JobState::Queued | JobState::Running) {
+        return Ok(());
+    }
+    job.progress_step = Some(step);
+    job.progress_max = Some(max);
+    if let Some(note) = note {
+        job.progress_note = Some(note.to_string());
     }
     job.updated_at = now();
     write_job(&job)
