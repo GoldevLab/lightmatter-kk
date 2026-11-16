@@ -1107,16 +1107,11 @@ fn levenberg<M: SysMat>(
                 flat_streak += 1;
             }
             // Una bajada menor que el 1 % cierra el ajuste solo si ya no queda un punto lejos.
-            // Si no, una raya estrecha (el reststrahlen) se abandona cuando la banda ancha ya cuadra.
+            // Mientras still_far (p. ej. reststrahlen), no cortar por racha plana: hay que seguir excavando.
             if !model.still_far(a) && !meaningful {
                 done += 1;
-            } else if flat_streak >= FLAT_STOP {
-                // χ² ya no baja: el contador no debe seguir hasta iter_max.
-                if model.still_far(a) {
-                    stalled = true;
-                } else {
-                    done = done.max(1);
-                }
+            } else if flat_streak >= FLAT_STOP && !model.still_far(a) {
+                done = done.max(1);
                 break;
             }
         } else {
@@ -1125,14 +1120,18 @@ fn levenberg<M: SysMat>(
             let flat = (chisq - ochisq) <= floor.max(tol * ochisq.abs());
             alamda *= lamda_high;
             flat_streak += 1;
-            if !model.still_far(a) && flat && alamda >= 1.0 {
+            let far = model.still_far(a);
+            if !far && flat && alamda >= 1.0 {
                 done += 1;
-            } else if alamda > 1.0e8 || flat_streak >= FLAT_STOP {
-                if model.still_far(a) {
+            } else if alamda > 1.0e8 {
+                if far {
                     stalled = true;
                 } else {
                     done = done.max(1);
                 }
+                break;
+            } else if flat_streak >= FLAT_STOP && !far {
+                done = done.max(1);
                 break;
             }
         }
@@ -1254,6 +1253,12 @@ fn max_anchors_for_budget(points: usize, iterations: usize) -> usize {
 /// Elige hasta `limit` índices: extremos, luego extremos locales por prominencia
 /// relativa (y varios anillos de vecinos en los más afilados), y rellena el resto.
 fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
+    mesh_sample_indices_with_axis(values, None, limit)
+}
+
+/// Como [`mesh_sample_indices`], pero si `omega` cubre décadas el relleno de fondo
+/// se reparte en log(ω) para no amontonar anclas a baja frecuencia en eje log.
+fn mesh_sample_indices_with_axis(values: &[f64], omega: Option<&[f64]>, limit: usize) -> Vec<usize> {
     if values.len() <= limit {
         return (0..values.len()).collect();
     }
@@ -1328,11 +1333,32 @@ fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
         .enumerate()
         .filter_map(|(i, chosen)| chosen.then_some(i))
         .collect();
+
+    let log_fill = omega
+        .filter(|w| w.len() == n && w[0] > 0.0 && w[n - 1] / w[0] > 20.0)
+        .map(|w| (w[0].ln(), w[n - 1].ln()));
+
     for slot in 0..limit {
         if indices.len() >= limit || remaining == 0 {
             break;
         }
-        let candidate = slot * (n - 1) / limit.saturating_sub(1).max(1);
+        let candidate = if let Some((lo, hi)) = log_fill {
+            let t = slot as f64 / (limit.saturating_sub(1).max(1) as f64);
+            let target = (lo + t * (hi - lo)).exp();
+            let w = omega.unwrap();
+            let mut best = 0usize;
+            let mut best_d = (w[0] - target).abs();
+            for (i, &om) in w.iter().enumerate() {
+                let d = (om - target).abs();
+                if d < best_d {
+                    best = i;
+                    best_d = d;
+                }
+            }
+            best
+        } else {
+            slot * (n - 1) / limit.saturating_sub(1).max(1)
+        };
         if !selected[candidate] {
             selected[candidate] = true;
             indices.push(candidate);
@@ -1490,13 +1516,13 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             .map(|pair| pair[0] + (pair[1] - pair[0]) * 0.5)
             .collect();
         let values: Vec<f64> = y_data.windows(2).take(candidates.len()).map(|pair| (pair[0] + pair[1]) * 0.5).collect();
-        let indices = mesh_sample_indices(&values, anchor_limit);
+        let indices = mesh_sample_indices_with_axis(&values, Some(&candidates), anchor_limit);
         let anchors = indices.iter().map(|&i| candidates[i]).collect::<Vec<_>>();
         (anchors, candidates.len())
     } else if measure == Measure::Eps2 {
         (w.clone(), w.len())
     } else {
-        let indices = mesh_sample_indices(&y_data, anchor_limit);
+        let indices = mesh_sample_indices_with_axis(&y_data, Some(&w), anchor_limit);
         let anchors = indices.iter().map(|&i| w[i]).collect::<Vec<_>>();
         (anchors, w.len())
     };
