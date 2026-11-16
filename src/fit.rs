@@ -1046,6 +1046,9 @@ fn levenberg<M: SysMat>(
     let mut done = 0i32;
     let mut iters_used = 0usize;
     let mut stalled = false;
+    // Si χ² no baja en muchos pasos (p. ej. un punto sigue “lejos” al 2 %), no quemar los 800.
+    let mut flat_streak = 0usize;
+    const FLAT_STOP: usize = 25;
     for _ in 0..iter_max {
         if cancel.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Relaxed)) {
             return Err("cancelado".into());
@@ -1091,25 +1094,40 @@ fn levenberg<M: SysMat>(
         }
         if chisq <= ochisq {
             let improvement = ochisq - chisq;
+            let meaningful = improvement > floor.max(tol * ochisq.abs());
             alamda *= lamda_low;
             ochisq = chisq;
             std::mem::swap(alpha, covar);
             std::mem::swap(&mut beta, &mut da);
             a.copy_from_slice(&atry);
             publish_progress_curve(progress_curve, model, a, omega, anchors, Some(ochisq));
+            if meaningful {
+                flat_streak = 0;
+            } else {
+                flat_streak += 1;
+            }
             // Una bajada menor que el 1 % cierra el ajuste solo si ya no queda un punto lejos.
             // Si no, una raya estrecha (el reststrahlen) se abandona cuando la banda ancha ya cuadra.
-            if !model.still_far(a) && improvement < floor.max(tol * chisq.abs()) {
+            if !model.still_far(a) && !meaningful {
                 done += 1;
+            } else if flat_streak >= FLAT_STOP {
+                // χ² ya no baja: el contador no debe seguir hasta iter_max.
+                if model.still_far(a) {
+                    stalled = true;
+                } else {
+                    done = done.max(1);
+                }
+                break;
             }
         } else {
             // Un paso que no baja el objetivo, y casi no lo mueve, es la misma parada.
             // Si no, λ crecía hasta 1e8 y un ajuste ya exacto se anunciaba como fallo.
             let flat = (chisq - ochisq) <= floor.max(tol * ochisq.abs());
             alamda *= lamda_high;
+            flat_streak += 1;
             if !model.still_far(a) && flat && alamda >= 1.0 {
                 done += 1;
-            } else if alamda > 1.0e8 {
+            } else if alamda > 1.0e8 || flat_streak >= FLAT_STOP {
                 if model.still_far(a) {
                     stalled = true;
                 } else {
@@ -1652,6 +1670,9 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         (lm, cov)
     };
     let LmResult { iters_used, converged, stalled } = lm;
+    if let Some((lo, hi)) = eps_inf_bounds {
+        a[ma] = a[ma].clamp(lo, hi);
+    }
     let base = a[ma];
     if fit_base && measure == Measure::R {
         warnings.push(format!(
