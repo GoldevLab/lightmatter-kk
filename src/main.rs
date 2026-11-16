@@ -198,7 +198,7 @@ fn seo_kit() -> SeoKit {
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=30\"></script>";
+    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=31\"></script>";
     const ICON: &[u8] = include_bytes!("icon.svg");
     let runtime_root = app_root();
     let public = app_dir("public");
@@ -270,7 +270,7 @@ async fn main() -> std::io::Result<()> {
                 "/images/learn-triangles.jpg".into(),
                 "/images/learn-fit.jpg".into(),
                 "/images/learn-constants.jpg".into(),
-                "/js/offline.js?v=30".into(),
+                "/js/offline.js?v=31".into(),
                 "/js/fit-worker.js?v=1".into(),
                 "/robots.txt".into(),
                 "/llms.txt".into(),

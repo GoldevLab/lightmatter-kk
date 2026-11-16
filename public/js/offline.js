@@ -922,12 +922,12 @@ function initServerJobs() {
   for (const job of jobs.slice().reverse()) {
     const article = document.createElement("article");
     article.className = "server-job";
-    if (job.id === currentId) article.classList.add("is-open", "is-current");
+    if (job.id === currentId) article.classList.add("is-current");
 
     const head = document.createElement("button");
     head.type = "button";
     head.className = "server-job-head";
-    head.setAttribute("aria-expanded", job.id === currentId ? "true" : "false");
+    head.setAttribute("aria-expanded", "false");
 
     const label = document.createElement("span");
     label.className = "server-job-id";
@@ -943,7 +943,7 @@ function initServerJobs() {
 
     const toggle = document.createElement("span");
     toggle.className = "server-job-toggle";
-    toggle.textContent = job.id === currentId ? "▾" : "▸";
+    toggle.textContent = "▸";
 
     head.append(label, measureChip, state, toggle);
 
@@ -991,7 +991,7 @@ function initServerJobs() {
 
     const body = document.createElement("div");
     body.className = "server-job-body";
-    body.hidden = job.id !== currentId;
+    body.hidden = true;
 
     const progress = document.createElement("div");
     progress.className = "server-job-progress";
@@ -1084,10 +1084,6 @@ function initServerJobs() {
           card.cancel.hidden = true;
           card.link.dataset.href = `/lab?r=${encodeURIComponent(status.report_id)}`;
           card.link.disabled = false;
-          card.article.classList.add("is-open");
-          card.body.hidden = false;
-          card.head.setAttribute("aria-expanded", "true");
-          card.toggle.textContent = "▾";
           void embedJobResult(card, status.report_id, opts.measure || job.measure, opts.unit || job.unit);
         } else if (status.state === "cancelled") {
           card.article.classList.remove("is-running");
