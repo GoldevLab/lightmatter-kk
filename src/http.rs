@@ -240,7 +240,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         eps_inf,
         omega_p,
         gamma,
-        smoothness: parse_nonneg(&smooth, 0.08),
+        smoothness: parse_nonneg(&smooth, 0.0),
         negativity: parse_nonneg(&neg, 100.0),
         measure,
         unit,

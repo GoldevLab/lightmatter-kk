@@ -61,7 +61,7 @@ fn text_fit_from_json(raw: &str) -> TextFit {
         eps_inf: text("eps_inf"),
         omega_p: text("omega_p"),
         gamma: text("gamma"),
-        smoothness: num("smooth", 0.08).min(1.0e6),
+        smoothness: num("smooth", 0.0).min(1.0e6),
         negativity: num("neg", 100.0).min(1.0e6),
         measure: text("measure"),
         unit: text("unit"),

@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         iter_max,
         log_mesh: true,
         drude: None,
-        smoothness: 0.08,
+        smoothness: 0.0,
         negativity: 100.0,
         extended: false,
         sigma,

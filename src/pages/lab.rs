@@ -37,7 +37,7 @@ impl Default for FormState {
             log_mesh: false,
             extended: false,
             iter: "800".into(),
-            smooth: "0.08".into(),
+            smooth: "0".into(),
             neg: "100".into(),
             measure: Measure::Eps2,
             unit: Unit::Other,
@@ -235,7 +235,7 @@ pub fn page(req: FlowRequest) -> View {
     let steps = tx(lang, "Pasos", "Steps", "步数", "Passos");
     let steps_help = tx(lang, "Máximo: 800. Sigue mientras un punto quede lejos. En un reststrahlen, pasar de 80 baja el χ² y rellena el valle; la punta se estanca.", "Maximum: 800. It continues while a point is still far. On a reststrahlen, going past 80 lowers χ² and fills the valley; the tip stalls.", "上限：800。只要还有点离得远就继续。对剩余射线，超过 80 步会降低 χ² 并填平谷；尖峰会停住。", "Máximo: 800. Continua enquanto um ponto estiver longe. Num reststrahlen, passar de 80 baixa o χ² e enche o vale; a ponta estaciona.");
     let smooth = tx(lang, "Suavidad", "Smoothness", "平滑", "Suavidade");
-    let smooth_help = tx(lang, "Frena oscilaciones entre anclas interiores. En un reststrahlen afilado de R usa 0: la suavidad aplana los valles. 0 = solo los datos.", "Holds back oscillations between interior anchors. On a sharp R reststrahlen use 0: smoothness flattens the valleys. 0 = data only.", "抑制内部锚点之间的振荡。对尖锐的 R 剩余射线用 0：平滑会抹平谷。0 = 只用数据。", "Freia oscilações entre âncoras interiores. Num reststrahlen afilado de R use 0: a suavidade aplaina os vales. 0 = só os dados.");
+    let smooth_help = tx(lang, "Por defecto 0 (solo los datos). Sube un poco si el espectro es ruidoso; en reststrahlen afilados de R déjala en 0 o aplana los valles.", "Default 0 (data only). Raise it a little if the spectrum is noisy; on sharp R reststrahlen leave it at 0 or it flattens the valleys.", "默认 0（只用数据）。光谱很噪时可略提高；对尖锐的 R 剩余射线保持 0，否则会抹平谷。", "Por padrão 0 (só os dados). Suba um pouco se o espectro for ruidoso; em reststrahlen afilado de R deixe 0 ou aplaina os vales.");
     let neg = tx(lang, "Si ε₂ baja de 0", "If ε₂ goes below 0", "若 ε₂ 低于 0", "Se ε₂ fica abaixo de 0");
     let neg_help = tx(lang, "Castiga ε₂ negativa. 0 = se permite. En un medio pasivo ε₂ es mayor o igual que 0.", "Penalizes negative ε₂. 0 = allowed. In a passive medium ε₂ is greater than or equal to 0.", "惩罚负的 ε₂。0 = 允许。无源介质中 ε₂ 大于或等于 0。", "Penaliza ε₂ negativa. 0 = permitida. Num meio passivo ε₂ é maior ou igual a 0.");
     let submit = tx(lang, "Analizar la medida", "Fit the measurement", "分析测量", "Analisar a medida");

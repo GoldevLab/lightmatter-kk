@@ -102,7 +102,7 @@ fn default_temperature() -> f64 {
 }
 
 fn default_smoothness() -> f64 {
-    0.08
+    0.0
 }
 fn default_negativity() -> f64 {
     100.0
@@ -2129,7 +2129,7 @@ pub fn fit_text_with_progress(
         iter_max: opts.iter_max.clamp(1, MAX_FIT_ITERATIONS),
         log_mesh: opts.log_mesh,
         drude,
-        smoothness: finite_nonneg(opts.smoothness, 0.08),
+        smoothness: finite_nonneg(opts.smoothness, 0.0),
         negativity: finite_nonneg(opts.negativity, 100.0),
         extended: opts.extended,
         sigma,
