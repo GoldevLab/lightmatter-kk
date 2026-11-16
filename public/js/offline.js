@@ -838,23 +838,24 @@ async function embedJobResult(card, reportId, measureKey, unitKey) {
       Number.isFinite(eps) ? `ε∞ ${fmtSci(eps)}` : "",
       points ? `${jobText("points")} ${points}` : "",
     ].filter(Boolean).join(" · ");
-    const charts = document.createElement("div");
-    charts.className = "server-job-charts";
+    // Un solo par de gráficas: actualizar las del job; no duplicar en el embed.
     const x = report.data_x || [];
     const data = report.data_y || [];
     const model = report.model_q?.length === x.length ? report.model_q : (report.model_eps2 || []);
     const meshX = report.omega || [];
     const meshY = report.eps2 || [];
-    drawJobSpark(charts, {
-      x,
-      data,
-      model,
-      mesh_x: meshX,
-      mesh_y: meshY,
-      chisq,
-      resid_rms: Number.isFinite(chisq) && x.length ? Math.sqrt(chisq / Math.max(1, x.length)) : null,
-    }, measureKey, unitKey);
-    card.embed.replaceChildren(summary, charts);
+    if (card.charts) {
+      drawJobSpark(card.charts, {
+        x,
+        data,
+        model,
+        mesh_x: meshX,
+        mesh_y: meshY,
+        chisq,
+        resid_rms: Number.isFinite(chisq) && x.length ? Math.sqrt(chisq / Math.max(1, x.length)) : null,
+      }, measureKey, unitKey);
+    }
+    card.embed.replaceChildren(summary);
     if (!card.body.hidden) card.article.classList.add("is-open");
   } catch {
     card.embed.innerHTML = `<p class="server-job-embed-note">${jobText("statusError")}</p>`;

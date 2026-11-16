@@ -1263,8 +1263,8 @@ fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
     selected[0] = true;
     selected[n - 1] = true;
     let mut remaining = limit.saturating_sub(2);
-    // Reserva ~70 % del cupo a picos/valles y su vecindario; el resto es malla de fondo.
-    let feature_budget = ((limit as f64) * 0.70).round() as usize;
+    // Reserva ~82 % del cupo a picos/valles y su vecindario; el resto es malla de fondo.
+    let feature_budget = ((limit as f64) * 0.82).round() as usize;
     let mut feature_left = feature_budget.min(remaining);
 
     let mut extrema: Vec<(usize, f64)> = (1..n - 1)
@@ -1275,8 +1275,19 @@ fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
         .map(|i| {
             let prom = (2.0 * values[i] - values[i - 1] - values[i + 1]).abs();
             let scale = (values[i - 1].abs() + values[i].abs() + values[i + 1].abs()) / 3.0 + 1e-12;
-            // Prominencia relativa: un valle estrecho en R pesa más que un lomo ancho.
-            (i, prom / scale)
+            // Ancho local: reststrahlen estrechos pesan más que lomos anchos.
+            let left = (1..=4)
+                .map(|k| i.saturating_sub(k))
+                .take_while(|&j| j < i && (values[j] - values[i]).abs() < 0.5 * prom.max(1e-12) + 1e-15)
+                .count()
+                .max(1);
+            let right = (1..=4)
+                .map(|k| i + k)
+                .take_while(|&j| j < n && (values[j] - values[i]).abs() < 0.5 * prom.max(1e-12) + 1e-15)
+                .count()
+                .max(1);
+            let width = (left + right) as f64;
+            (i, (prom / scale) / width)
         })
         .collect();
     extrema.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -1297,9 +1308,9 @@ fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
         }
     }
 
-    // Densifica reststrahlen: anillos ±1…±4 alrededor de los extremos más afilados.
-    let sharp = (extrema.len() / 3).max(12).min(extrema.len());
-    for ring in 1usize..=4 {
+    // Densifica reststrahlen: anillos ±1…±8 alrededor de los extremos más afilados.
+    let sharp = (extrema.len() / 2).max(16).min(extrema.len());
+    for ring in 1usize..=8 {
         for &(i, _) in extrema.iter().take(sharp) {
             if feature_left == 0 || remaining == 0 {
                 break;
