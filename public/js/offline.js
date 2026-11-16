@@ -34,10 +34,10 @@ function chartToolText(key) {
 }
 
 const JOB_TEXT = {
-  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez.", conditions: "Condiciones", measure: "Medida", unit: "Unidad de ω", points: "Puntos", steps: "Pasos", smooth: "Suavidad", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Datos y modelo", triangles: "ε₂ de la malla triangular", open: "Ver detalle", close: "Ocultar", live: "En vivo", auto: "auto", on: "sí", off: "no", data: "datos", model: "modelo", chisq: "χ²", resid: "rms residuo", result: "Resultado", loadingResult: "Cargando resultado…" },
-  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "Open full", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again.", conditions: "Conditions", measure: "Measure", unit: "Unit of ω", points: "Points", steps: "Steps", smooth: "Smoothness", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Data and model", triangles: "ε₂ from triangular mesh", open: "Show detail", close: "Hide", live: "Live", auto: "auto", on: "yes", off: "no", data: "data", model: "model", chisq: "χ²", resid: "rms residual", result: "Result", loadingResult: "Loading result…" },
-  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "打开完整结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。", conditions: "条件", measure: "测量量", unit: "ω 单位", points: "点数", steps: "步数", smooth: "平滑", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "数据与模型", triangles: "三角网格的 ε₂", open: "展开", close: "收起", live: "实时", auto: "auto", on: "是", off: "否", data: "数据", model: "模型", chisq: "χ²", resid: "残差 rms", result: "结果", loadingResult: "正在加载结果…" },
-  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo.", conditions: "Condições", measure: "Medida", unit: "Unidade de ω", points: "Pontos", steps: "Passos", smooth: "Suavidade", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Dados e modelo", triangles: "ε₂ da malha triangular", open: "Ver detalhe", close: "Ocultar", live: "Ao vivo", auto: "auto", on: "sim", off: "não", data: "dados", model: "modelo", chisq: "χ²", resid: "rms resíduo", result: "Resultado", loadingResult: "Carregando resultado…" },
+  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez.", conditions: "Condiciones", measure: "Medida", unit: "Unidad de ω", points: "Puntos", steps: "Pasos", smooth: "Suavidad", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Datos y modelo", triangles: "ε₂ de la malla triangular", anchors: "anclas", open: "Ver detalle", close: "Ocultar", live: "En vivo", auto: "auto", on: "sí", off: "no", data: "datos", model: "modelo", chisq: "χ²", resid: "rms residuo", result: "Resultado", loadingResult: "Cargando resultado…" },
+  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "Open full", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again.", conditions: "Conditions", measure: "Measure", unit: "Unit of ω", points: "Points", steps: "Steps", smooth: "Smoothness", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Data and model", triangles: "ε₂ from triangular mesh", anchors: "anchors", open: "Show detail", close: "Hide", live: "Live", auto: "auto", on: "yes", off: "no", data: "data", model: "model", chisq: "χ²", resid: "rms residual", result: "Result", loadingResult: "Loading result…" },
+  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "打开完整结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。", conditions: "条件", measure: "测量量", unit: "ω 单位", points: "点数", steps: "步数", smooth: "平滑", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "数据与模型", triangles: "三角网格的 ε₂", anchors: "锚点", open: "展开", close: "收起", live: "实时", auto: "auto", on: "是", off: "否", data: "数据", model: "模型", chisq: "χ²", resid: "残差 rms", result: "结果", loadingResult: "正在加载结果…" },
+  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo.", conditions: "Condições", measure: "Medida", unit: "Unidade de ω", points: "Pontos", steps: "Passos", smooth: "Suavidade", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Dados e modelo", triangles: "ε₂ da malha triangular", anchors: "âncoras", open: "Ver detalhe", close: "Ocultar", live: "Ao vivo", auto: "auto", on: "sim", off: "não", data: "dados", model: "modelo", chisq: "χ²", resid: "rms resíduo", result: "Resultado", loadingResult: "Carregando resultado…" },
 };
 
 function jobText(key) {
@@ -723,6 +723,32 @@ function drawJobSpark(host, curve, measureKey, unitKey) {
     `<circle cx="${left}" cy="${height - 14}" r="3" fill="#3ee0c5"/><text x="${left + 8}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("data")}</text>`,
     `<circle cx="${left + 70}" cy="${height - 14}" r="3" fill="#f2c14e"/><text x="${left + 78}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("model")}</text>`,
   ];
+  // Anclas sobre el mismo eje ω que los datos: marcas abajo + rayas tenues en picos/valles.
+  if (meshX.length >= 3) {
+    parts.push(
+      `<line x1="${left + 150}" y1="${height - 14}" x2="${left + 158}" y2="${height - 14}" stroke="rgba(122,162,255,0.95)" stroke-width="2"/>` +
+      `<text x="${left + 162}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("anchors")}</text>`
+    );
+    const rugY0 = top + ph;
+    const rugY1 = rugY0 + 7;
+    let rug = "";
+    let guides = "";
+    const guideStep = Math.max(1, Math.floor(meshX.length / 120));
+    for (let i = 0; i < meshX.length; i++) {
+      const px = xOf(meshX[i]);
+      if (!Number.isFinite(px) || px < left - 1 || px > left + pw + 1) continue;
+      rug += `M${px.toFixed(1)},${rugY0.toFixed(1)} L${px.toFixed(1)},${rugY1.toFixed(1)} `;
+      if (i % guideStep === 0) {
+        guides += `M${px.toFixed(1)},${top.toFixed(1)} L${px.toFixed(1)},${rugY0.toFixed(1)} `;
+      }
+    }
+    if (guides) {
+      parts.push(`<path d="${guides}" fill="none" stroke="rgba(122,162,255,0.12)" stroke-width="0.8"/>`);
+    }
+    if (rug) {
+      parts.push(`<path d="${rug}" fill="none" stroke="rgba(122,162,255,0.85)" stroke-width="1.2"/>`);
+    }
+  }
   const dataPath = pathOf(x, data);
   if (dataPath) parts.push(`<path fill="none" stroke="#3ee0c5" stroke-width="1.8" d="${dataPath}"/>`);
   if (model.length === x.length) {
