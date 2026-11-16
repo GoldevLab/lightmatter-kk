@@ -82,7 +82,7 @@ De ella se derivan el \'indice de refracci\'on, la extinci\'on, la reflectividad
 En un experimento suele medirse una sola de esas magnitudes en una ventana finita de frecuencias, no el par $(\varepsilon_1,\varepsilon_2)$ en todo el eje.
 Este trabajo formula e implementa un an\'alisis variacional restringido por Kramers--Kronig: representa $\varepsilon_2$ con una base triangular, calcula $\varepsilon_1$ con la transformada anal\'itica de esa base y ajusta las amplitudes con Levenberg--Marquardt para reproducir la magnitud medida.
 Define un protocolo de validaci\'on (cierre algebraico, fidelidad a datos, Kramers--Kronig independiente, sensibilidad a $\varepsilon_\infty$, regularizaci\'on y recuperaci\'on sint\'etica) y lo completa con una comparaci\'on frente a RefFIT, el programa de referencia de Kuzmenko que implementa el mismo formalismo y modelos de osciladores.
-La memoria se organiza en tres partes alineadas con el itinerario de seminarios del Departamento: Seminario~I (fundamentos), Seminario~II (m\'etodo e implementaci\'on) y Seminario~III (validaci\'on, comparaci\'on con RefFIT y defensa final).
+La memoria se organiza en tres partes alineadas con el itinerario de seminarios del Departamento: Seminario~I (fundamentos), Seminario~II (m\'etodo e implementaci\'on en Rust de la aplicaci\'on) y Seminario~III (validaci\'on, comparaci\'on con RefFIT y defensa final).
 
 \vspace{0.8cm}
 \noindent\textbf{Palabras clave:} funci\'on diel\'ectrica, Kramers--Kronig, an\'alisis variacional, espectroscop\'ia \'optica, Levenberg--Marquardt, RefFIT, Universidad de los Andes.
@@ -92,7 +92,7 @@ La memoria se organiza en tres partes alineadas con el itinerario de seminarios 
 The linear optical response of a solid is described by its complex dielectric function.
 This undergraduate thesis formulates and implements a Kramers--Kronig constrained variational analysis: it represents the imaginary part with triangular basis functions, obtains the real part from their analytic transforms, and fits the measured optical quantity with Levenberg--Marquardt.
 It defines validation tests for algebraic consistency, causality, data fidelity and sensitivity to quantities that the measurement does not determine, and compares the approach with RefFIT, Kuzmenko's reference software for the same method and for oscillator models.
-The manuscript is organized around three departmental seminars: foundations; method and implementation; validation, RefFIT comparison and final defense.
+The manuscript is organized around three departmental seminars: foundations; method and Rust implementation of the application; validation, RefFIT comparison and final defense.
 
 \mainmatter
 \input{parte1}

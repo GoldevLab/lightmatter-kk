@@ -230,21 +230,131 @@ Estas reglas son criterios num\'ericos de la aplicaci\'on, no leyes adicionales 
 \end{enumerate}
 
 
-\chapter{Papel de la aplicaci\'on de an\'alisis}
+\chapter{La aplicaci\'on y su implementaci\'on en Rust}
 \label{ch:app}
 
-La aplicaci\'on desarrollada en este trabajo es el veh\'iculo num\'erico del m\'etodo: recibe espectros, impone la restricci\'on Kramers--Kronig en cada evaluaci\'on del modelo, minimiza $\Phi$ y devuelve el conjunto de constantes \'opticas junto con $\chi^{2}_{\mathrm{datos}}$ y otras m\'etricas de ajuste.
-Para la comunidad de f\'isica de materiales lo esencial no es el nombre del programa, sino que:
+La aplicaci\'on desarrollada en este trabajo ---Lightmatter--- es el veh\'iculo num\'erico del m\'etodo: recibe espectros, impone la restricci\'on Kramers--Kronig en cada evaluaci\'on del modelo, minimiza $\Phi$ y devuelve el conjunto de constantes \'opticas junto con $\chi^{2}_{\mathrm{datos}}$ y otras m\'etricas de ajuste.
+Para la comunidad de f\'isica de materiales lo esencial no es el nombre del programa, sino que el modelo sea causal en todo momento, que la magnitud comparada con el experimento sea exactamente la medida, que $\varepsilon_\infty$, el espesor y las unidades queden explicitados, y que los resultados puedan reproducirse con los mismos controles.
+
+Este cap\'itulo describe \emph{c\'omo est\'a hecha} esa garant\'ia en c\'odigo: arquitectura del sistema, m\'odulos Rust del an\'alisis y el flujo concreto desde el texto pegado hasta el informe \texttt{FitReport}. Es el material central del Seminario~II.
+
+\section{Arquitectura del sistema}
+
+El n\'ucleo num\'erico vive en un \emph{crate} Rust compartido (\texttt{lightmatter}), expuesto de dos maneras:
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Servidor web} (framework Resuma + Axum): p\'aginas HTML del laboratorio, cola de trabajos (\texttt{jobs}), descargas e informes persistentes.
+\item \textbf{Cliente PWA / WASM:} el mismo \texttt{fit} puede ejecutarse en el navegador cuando no hay red, sin duplicar la f\'isica en JavaScript.
+\end{enumerate}
+
+La interfaz del laboratorio (formularios, vista en vivo de jobs, gr\'aficas SVG) est\'a en Rust (p\'aginas Resuma) y en JavaScript m\'inimo para el sondeo de estado y el dibujo de las curvas en vivo.
+El an\'alisis propiamente dicho ---parseo, malla, Kramers--Kronig, Levenberg--Marquardt, constantes derivadas--- \textbf{no} se reimplementa en JS: se llama a Rust.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.92\textwidth}{\centering\small
+usuario $\to$ laboratorio (HTML) $\to$
+\texttt{fit\_text\_with\_progress} (Rust)\\[0.25em]
+$\to$ \texttt{run\_fit} $\to$ \texttt{FitReport} $\to$ gr\'aficas / JSON / CSV / job en disco
+}}
+\caption{Flujo de alto nivel: la f\'isica del ajuste est\'a en Rust; la UI solo presenta y dispara.}
+\label{fig:arch-flujo}
+\end{figure}
+
+\section{Mapa de m\'odulos del an\'alisis}
+
+\begin{description}[style=nextline,leftmargin=1.15cm]
+\item[\texttt{src/measure.rs}]
+Tipos \texttt{Measure} y \texttt{Unit}; proyecciones $Q(\varepsilon_1,\varepsilon_2)$ y sus derivadas parciales (\texttt{quantity}, \texttt{quantity\_grad}); \'optica $n,k,R$ (\texttt{optics}); siembra de $\varepsilon_2$ (\texttt{seed\_eps2}); estimaci\'on de $\varepsilon_\infty$ (\texttt{guess\_eps\_inf}); Tauc, picos y utilidades espectrales.
+\item[\texttt{src/fit.rs}]
+N\'ucleo del an\'alisis: parseo del espectro, malla de anclas, n\'ucleo $K_k$ / $G(x,y)$, modelo \texttt{Model}, matrices densas o de banda, Levenberg--Marquardt, \texttt{run\_fit}, informe \texttt{FitReport}, exportaci\'on y bater\'ia de pruebas.
+\item[\texttt{src/http.rs}]
+Worker del servidor: un sem\'aforo (un ajuste denso a la vez), cancelaci\'on at\'omica, progreso y curva en vivo cada $\sim 2\,\mathrm{s}$, guardado del informe.
+\item[\texttt{src/store.rs}]
+Persistencia de jobs e informes en disco (\texttt{data/jobs}, reportes JSON).
+\item[\texttt{src/pages/lab.rs}, \texttt{learn.rs}, \ldots]
+Interfaz del laboratorio y de la gu\'ia; no recalculan $\hat\varepsilon$.
+\item[\texttt{src/chart.rs}, \texttt{informe.rs}]
+Gr\'aficas del resultado completo e informe HTML/PDF-ready.
+\item[\texttt{src/lib.rs} + \texttt{wasm\_api}]
+API compartida servidor / WASM.
+\end{description}
+
+\section{De texto a \texttt{FitRequest}}
+
+La entrada del usuario es texto de dos o tres columnas. La funci\'on \texttt{parse\_spectrum} lee $\omega$, $y$ y, si existe, $\sigma$; ignora l\'ineas vac\'ias o comentadas (\texttt{\#}, \texttt{*}, \ldots).
+\texttt{fit\_text\_with\_progress} construye un \texttt{TextFit} (medida, unidad, $\varepsilon_\infty$, suavidad, negatividad, pasos, Drude, espesor) y llama a \texttt{run\_fit} con:
+
 \begin{itemize}[leftmargin=*]
-\item el modelo sea causal en todo momento;
-\item la magnitud comparada con el experimento sea exactamente la medida;
-\item $\varepsilon_\infty$, el espesor y las unidades queden explicitados;
-\item los resultados puedan reproducirse con los mismos controles.
+\item vectores $x$, $y$, $\sigma$;
+\item opcional \texttt{Drude}\{$\varepsilon_\infty,\omega_p,\gamma$\};
+\item \texttt{Physics}\{medida, unidad, espesor, $T$, $\varepsilon_\infty$\};
+\item ganchos de progreso: bandera at\'omica de cancelaci\'on, contador de paso y ranura para la curva en vivo (\texttt{FitProgressCurve}).
 \end{itemize}
-La Parte~III traduce esos requisitos en pruebas de verdad.
+
+\section{Pipeline interno de \texttt{run\_fit}}
+
+Una vez validado el espectro (longitudes, $\omega>0$, l\'imites de puntos, unidad si $\alpha$ o $T$ lo exigen), el flujo es:
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Normalizaci\'on.} Si la unidad es nm, se convierte a eV. Si $R$ o $T$ vienen en \% (m\'aximo entre $1.5$ y $100.5$), se dividen entre $100$. Se ordena por $\omega$ y se colapsan duplicados.
+\item \textbf{$\varepsilon_\infty$.} Si el usuario lo escribi\'o, queda fijo. Si no: con $R$, \texttt{guess\_eps\_inf} promedia la cola alta, invierte $n=(1+\sqrt{R})/(1-\sqrt{R})$ y toma $\varepsilon_\infty=n^{2}$ en $[1,50]$; con $n$ o $\varepsilon_1$ se inicia un valor y se ajusta; con $\alpha$, $k$ o $T$ se usa $1$ fijo.
+\item \textbf{Malla.} Con $R$ se parte de puntos medios entre frecuencias medidas (estilo Kuzmenko) y se recorta al presupuesto (hasta $800$ anclas interiores): \texttt{mesh\_sample\_indices} prioriza extremos locales por prominencia relativa y densifica anillos de vecinos en los m\'as afilados. Con $\varepsilon_2$ cada punto puede ser ancla.
+\item \textbf{Siembra.} Las alturas $A_k$ se inicializan interpolando una estimaci\'on local de $\varepsilon_2$ (\texttt{seed\_eps2}).
+\item \textbf{Modelo.} Para cada dato se guardan los pesos de los dos tri\'angulos que lo tocan y, si la medida no es $\varepsilon_2$, la fila del n\'ucleo Kramers--Kronig $K_k(\omega_i)$. El fondo Drude, si est\'a activo, se resta en $\varepsilon_2$ y se suma su parte real en $\varepsilon_1$ sin volver a contar $\varepsilon_\infty$.
+\item \textbf{Levenberg--Marquardt.} Se minimiza $\Phi$. Con $\varepsilon_2$ puro (sin ajustar $\varepsilon_\infty$) la curvatura es de banda; con $R$, $T$, $n$, \ldots es densa porque $\varepsilon_1$ acopla todas las anclas. En $R$ con $\varepsilon_\infty$ libre, cada paso de prueba acota $\varepsilon_\infty\in[1,50]$.
+\item \textbf{Parada.} Mejora $<1\%$ y ning\'un residuo ``lejos'' ($>2\%$ del rango de la medida); o $\lambda$ grande; o $25$ pasos sin mejora significativa (para no quemar $800$ iteraciones cuando el $\chi^{2}$ ya est\'a plano).
+\item \textbf{Informe.} Se construye \texttt{FitReport}: $\varepsilon_1$, $\varepsilon_2$, $n$, $k$, $R$, p\'erdida, $\sigma_1$, $\sigma_2$, $\alpha$, $T$, Tauc si aplica, $\chi^{2}$, avisos, opciones usadas.
+\end{enumerate}
+
+\section{Estructuras clave en Rust}
+
+\paragraph{Modelo.}
+El struct \texttt{Model} concentra, en cada evaluaci\'on de par\'ametros $p=\{A_k,\varepsilon_\infty\}$:
+\begin{equation}
+\varepsilon_2(i)=e_{2,\mathrm{fijo}}(i)+A_{j_0}b_0+A_{j_0+1}b_1,
+\qquad
+\varepsilon_1(i)=\varepsilon_\infty+e_{1,\mathrm{fijo}}(i)+\sum_j A_j K_j(\omega_i).
+\end{equation}
+Luego $Q=\texttt{quantity}(\mathrm{medida},\varepsilon_1,\varepsilon_2,\tilde\nu,d)$ y el residuo $y_i-Q_i$ alimenta $\chi^{2}_{\mathrm{datos}}$ y las derivadas para la matriz de curvatura.
+
+\paragraph{N\'ucleo triangular.}
+\texttt{kk\_kernel} / \texttt{kuzmenko\_g} implementan $G(x,y)$ y $K_k$ de las ecuaciones~\eqref{eq:G}--\eqref{eq:Kk}: no hay integraci\'on num\'erica de Kramers--Kronig en el bucle de ajuste.
+
+\paragraph{Progreso en vivo.}
+La rutina de progreso escribe una malla reducida de datos/modelo y las alturas $A_k$ en las anclas. El worker de \texttt{http.rs} la copia al estado del job; el cliente dibuja $R$ (o la magnitud) y la malla $\varepsilon_2$, con marcas de anclas sobre el mismo eje $\omega$.
+
+\section{Jobs en el servidor}
+
+Para espectros densos (miles de puntos, cientos de anclas) el ajuste corre en un worker:
+\begin{enumerate}[leftmargin=*]
+\item el cliente crea un \texttt{job\_id} y env\'ia el espectro;
+\item \texttt{store} guarda el texto y las opciones;
+\item el worker adquiere el sem\'aforo, marca \texttt{running}, lanza un hilo que cada $2\,\mathrm{s}$ publica paso + curva;
+\item \texttt{fit\_text\_with\_progress} corre en un hilo de bloqueo (c\'alculo CPU-bound);
+\item al terminar se guarda el \texttt{FitReport} y el job pasa a \texttt{completed} con \texttt{report\_id}.
+\end{enumerate}
+La cancelaci\'on pone un \texttt{AtomicBool} que Levenberg--Marquardt consulta al inicio de cada iteraci\'on.
+
+\section{Pruebas automatizadas del n\'ucleo}
+
+El m\'odulo \texttt{fit::tests} sintetiza un $\hat\varepsilon$ conocido (dos Lorentz + $\varepsilon_\infty=2.5$), proyecta $R$, $\alpha$, $k$, $T$, $n$ y comprueba que \texttt{run\_fit} recupera $\varepsilon_2$ bajo umbrales fijados (tabla~\ref{tab:pruebaF} en la Parte~III).
+Hay tests adicionales de malla (\texttt{mesh\_sample\_indices}), presupuesto de anclas, estimaci\'on de $\varepsilon_\infty$ desde $R$ y cierre algebraico.
+Esas pruebas no sustituyen un experimento de laboratorio, pero anclan el Seminario~II a evidencia reproducible del c\'odigo.
+
+\section{Qu\'e no hace el c\'odigo (l\'imites de implementaci\'on)}
+
+\begin{itemize}[leftmargin=*]
+\item no resuelve multicapas coherentes ni elipsometr\'ia anisotr\'opica;
+\item la luminiscencia no pasa por Kramers--Kronig (rama aparte en \texttt{run\_fit});
+\item el tope de $800$ anclas / $8000$ puntos / $800$ pasos es un presupuesto de c\'omputo, no una ley f\'isica;
+\item JavaScript solo visualiza; cualquier cambio de f\'isica debe hacerse en Rust.
+\end{itemize}
+
+La Parte~III traduce estos contratos en pruebas de verdad A--G y en la comparaci\'on con RefFIT.
 
 
-\chapter*{Seminario II\\Del espectro medido al par $(\varepsilon_1,\varepsilon_2)$}
+\chapter*{Seminario II\\Del espectro medido al par $(\varepsilon_1,\varepsilon_2)$\\y c\'omo est\'a hecho el an\'alisis en Rust}
 \addcontentsline{toc}{chapter}{Seminario II}
 \label{sem:2}
 
@@ -252,25 +362,27 @@ La Parte~III traduce esos requisitos en pruebas de verdad.
 
 \section*{S.II.1 Prop\'osito}
 
-Mostrar, sin ambig\"uedad operativa, c\'omo se pasa de un archivo de datos a una funci\'on diel\'ectrica causal y a las constantes derivadas.
+Mostrar, sin ambig\"uedad operativa, c\'omo se pasa de un archivo de datos a una funci\'on diel\'ectrica causal \textbf{y} c\'omo esa cadena est\'a implementada en Rust dentro de la aplicaci\'on (m\'odulos, \texttt{run\_fit}, jobs).
 
 \section*{S.II.2 Mensaje central}
 
 \begin{enumerate}[leftmargin=*]
 \item $\varepsilon_2=\sum A_k\Lambda_k$ es un modelo flexible: no presupone Lorentz ni Fano.
-\item $\varepsilon_1$ no se ajusta por separado: se calcula por Kramers--Kronig de esos tri\'angulos.
-\item Levenberg--Marquardt ajusta las alturas para reducir $\Phi$ y hacer que la proyecci\'on $Q$ reproduzca la medida.
+\item $\varepsilon_1$ no se ajusta por separado: se calcula por Kramers--Kronig de esos tri\'angulos (\texttt{kk\_kernel} en cada evaluaci\'on).
+\item Levenberg--Marquardt ajusta las alturas para reducir $\Phi$ y hacer que la proyecci\'on $Q$ (\texttt{quantity}) reproduzca la medida.
 \item El \'exito del ajuste a $Q$ es necesario, pero no suficiente, para afirmar que \emph{todas} las constantes derivadas son las del material: hay que leer qu\'e fija realmente la medida ($\varepsilon_\infty$, espesor, cobertura espectral).
+\item La UI no es el an\'alisis: \texttt{measure.rs} + \texttt{fit.rs} son la f\'isica; \texttt{http.rs}/\texttt{store.rs} solo orquestan.
 \end{enumerate}
 
-\section*{S.II.3 Demostraci\'on guiada}
+\section*{S.II.3 Demostraci\'on guiada (pizarra + c\'odigo)}
 
 \begin{enumerate}[leftmargin=*]
-\item Dibujar tres tri\'angulos solapados y su suma $\varepsilon_2$.
-\item Indicar que cada tri\'angulo aporta un n\'ucleo $K_k$ a $\varepsilon_1$.
-\item Elegir medida $R$: escribir $Q=R(n,k)$ y subrayar el acoplamiento global.
-\item Escribir $\Phi=\chi^{2}_{\mathrm{datos}}+P_s+P_-$ y el paso amortiguado de Levenberg--Marquardt.
-\item Discutir un caso $\alpha$ con $\varepsilon_\infty=1$ frente a $\varepsilon_\infty=n^{2}$ conocido: $\alpha$ y $k$ estables; $n$ y $R$ sensibles.
+\item Dibujar tres tri\'angulos solapados y su suma $\varepsilon_2$; se\~nalar el struct \texttt{Model} y los pesos $(j_0,b_0,b_1)$.
+\item Indicar que cada tri\'angulo aporta un n\'ucleo $K_k$ a $\varepsilon_1$ (funci\'on \texttt{kk\_kernel} / $G$).
+\item Elegir medida $R$: escribir $Q=R(n,k)$ v\'ia \texttt{quantity}; subrayar el acoplamiento global (matriz densa).
+\item Escribir $\Phi=\chi^{2}_{\mathrm{datos}}+P_s+P_-$ y el paso amortiguado de Levenberg--Marquardt (\texttt{levenberg}).
+\item Mostrar el flujo \texttt{parse\_spectrum} $\to$ malla $\to$ LM $\to$ \texttt{FitReport}; con job: progreso + curva en vivo.
+\item Discutir $\varepsilon_\infty$: auto en $R$ con cota $[1,50]$ frente a fijar $n^{2}$; d\'onde se hace en \texttt{guess\_eps\_inf} y en el clamp del LM.
 \end{enumerate}
 
 \section*{S.II.4 Criterio de \'exito del seminario}
@@ -279,10 +391,21 @@ El auditorio debe ser capaz de:
 \begin{itemize}[leftmargin=*]
 \item explicar por qu\'e el m\'etodo no ``inventa'' un segundo ajuste de $\varepsilon_1$;
 \item listar qu\'e metadatos (unidad, medida, $\varepsilon_\infty$, $d$) son imprescindibles en un reporte;
-\item anticipar qu\'e constantes son fiables para cada tipo de medida.
+\item anticipar qu\'e constantes son fiables para cada tipo de medida;
+\item se\~nalar en un diagrama qu\'e m\'odulo Rust hace el KK, cu\'al proyecta $Q$ y cu\'al solo pinta la gr\'afica;
+\item decir qu\'e har\'ia falta tocar en el c\'odigo para cambiar la f\'isica (pista: no el JS).
 \end{itemize}
 
-\section*{S.II.5 Puente hacia la Parte~III y el Seminario~III}
+\section*{S.II.5 Material m\'inimo a llevar}
+
+\begin{itemize}[leftmargin=*]
+\item Diagrama de la figura~\ref{fig:arch-flujo} y mapa de m\'odulos de este cap\'itulo.
+\item Una captura del laboratorio con job en vivo (datos/modelo + malla + anclas).
+\item Lista de funciones: \texttt{run\_fit}, \texttt{levenberg}, \texttt{kk\_kernel}, \texttt{quantity}, \texttt{mesh\_sample\_indices}, \texttt{guess\_eps\_inf}.
+\item Un test de recuperaci\'on sint\'etica (nombre del test y umbral) como prueba de que el binario hace lo que se afirma.
+\end{itemize}
+
+\section*{S.II.6 Puente hacia la Parte~III y el Seminario~III}
 
 La validaci\'on final exige comprobar que los resultados minimizan $\Phi$, reproducen los datos dentro de la incertidumbre declarada y satisfacen las pruebas A--G.
-El Seminario~III cierra el trabajo de grado con recuperaci\'on sint\'etica y comparaci\'on frente a RefFIT~\cite{guide}.
+El Seminario~III cierra el trabajo de grado con recuperaci\'on sint\'etica, comparaci\'on frente a RefFIT~\cite{guide} y la defensa de que el c\'odigo Rust implementa el formalismo aqu\'i descrito.

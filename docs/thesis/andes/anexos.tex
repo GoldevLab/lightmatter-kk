@@ -59,7 +59,32 @@ Todo resultado que se presente en un seminario o en un art\'iculo derivado debe 
 \item[Seminario~I.]
 Cap\'itulos~\ref{ch:problema}--\ref{ch:kk}. Mensaje: causalidad y $\hat\varepsilon$.
 \item[Seminario~II.]
-Cap\'itulos~\ref{ch:variacional}--\ref{ch:app}. Mensaje: tri\'angulos, $\Phi$, cada medida.
+Cap\'itulos~\ref{ch:variacional}--\ref{ch:app}. Mensaje: tri\'angulos, $\Phi$, cada medida, \textbf{arquitectura Rust} (\texttt{measure}, \texttt{fit}, \texttt{http}, \texttt{run\_fit}).
 \item[Seminario~III (final).]
 Cap\'itulos~\ref{ch:verdad}--\ref{ch:conclusiones} y Secci\'on~\ref{sem:3}. Mensaje: validaci\'on, RefFIT, l\'imites.
 \end{description}
+
+\chapter{Mapa r\'apido del c\'odigo Rust (Seminario~II)}
+\label{ap:rust}
+
+\begin{longtable}{@{}lp{9.6cm}@{}}
+\toprule
+Archivo / s\'imbolo & Rol \\
+\midrule
+\endfirsthead
+\toprule
+Archivo / s\'imbolo & Rol \\
+\midrule
+\endhead
+\texttt{measure::quantity} & Proyecta $(\varepsilon_1,\varepsilon_2)\to Q$ (la magnitud medida) \\
+\texttt{measure::guess\_eps\_inf} & Auto $\varepsilon_\infty$ desde cola de $R$ o desde $n$ \\
+\texttt{fit::kk\_kernel} & N\'ucleo anal\'itico $K_k$ del tri\'angulo \\
+\texttt{fit::mesh\_sample\_indices} & Elige anclas (picos/valles + fondo) \\
+\texttt{fit::Model} & $\varepsilon_1$, $\varepsilon_2$, $\chi^{2}$ y derivadas en un punto de par\'ametros \\
+\texttt{fit::levenberg} & Paso amortiguado, cotas, parada temprana \\
+\texttt{fit::run\_fit} & Pipeline completo $\to$ \texttt{FitReport} \\
+\texttt{fit::fit\_text\_with\_progress} & Entrada texto + ganchos de progreso \\
+\texttt{http::fit\_worker} & Job en servidor, cancelaci\'on, curva en vivo \\
+\texttt{store::*} & Disco: jobs e informes \\
+\bottomrule
+\end{longtable}
