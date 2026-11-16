@@ -2,7 +2,7 @@
 
 const SERVER_MAX_POINTS = 8_000;
 const DENSE_ANCHOR_LIMIT = 800;
-const DENSE_WORK_BUDGET = 4_200_000_000_000;
+const DENSE_WORK_BUDGET = 10_500_000_000_000;
 
 function maxAnchorsForBudget(points, iterations) {
   const denom = Math.max(1, points * Math.max(1, iterations));
@@ -34,10 +34,10 @@ function chartToolText(key) {
 }
 
 const JOB_TEXT = {
-  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez.", conditions: "Condiciones", measure: "Medida", unit: "Unidad de ω", points: "Puntos", steps: "Pasos", smooth: "Suavidad", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Datos y modelo", triangles: "ε₂ de la malla triangular", anchors: "anclas", open: "Ver detalle", close: "Ocultar", live: "En vivo", auto: "auto", on: "sí", off: "no", data: "datos", model: "modelo", chisq: "χ²", resid: "rms residuo", result: "Resultado", loadingResult: "Cargando resultado…" },
-  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "Open full", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again.", conditions: "Conditions", measure: "Measure", unit: "Unit of ω", points: "Points", steps: "Steps", smooth: "Smoothness", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Data and model", triangles: "ε₂ from triangular mesh", anchors: "anchors", open: "Show detail", close: "Hide", live: "Live", auto: "auto", on: "yes", off: "no", data: "data", model: "model", chisq: "χ²", resid: "rms residual", result: "Result", loadingResult: "Loading result…" },
-  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "打开完整结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。", conditions: "条件", measure: "测量量", unit: "ω 单位", points: "点数", steps: "步数", smooth: "平滑", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "数据与模型", triangles: "三角网格的 ε₂", anchors: "锚点", open: "展开", close: "收起", live: "实时", auto: "auto", on: "是", off: "否", data: "数据", model: "模型", chisq: "χ²", resid: "残差 rms", result: "结果", loadingResult: "正在加载结果…" },
-  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo.", conditions: "Condições", measure: "Medida", unit: "Unidade de ω", points: "Pontos", steps: "Passos", smooth: "Suavidade", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Dados e modelo", triangles: "ε₂ da malha triangular", anchors: "âncoras", open: "Ver detalhe", close: "Ocultar", live: "Ao vivo", auto: "auto", on: "sim", off: "não", data: "dados", model: "modelo", chisq: "χ²", resid: "rms resíduo", result: "Resultado", loadingResult: "Carregando resultado…" },
+  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez.", conditions: "Condiciones", measure: "Medida", unit: "Unidad de ω", points: "Puntos", steps: "Pasos", smooth: "Suavidad", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Datos y modelo", triangles: "ε₂ malla", anchors: "anclas", open: "Ver detalle", close: "Ocultar", live: "En vivo", auto: "auto", on: "sí", off: "no", data: "datos", model: "modelo", chisq: "χ²", resid: "rms residuo", result: "Resultado", loadingResult: "Cargando resultado…" },
+  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "Open full", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again.", conditions: "Conditions", measure: "Measure", unit: "Unit of ω", points: "Points", steps: "Steps", smooth: "Smoothness", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Data and model", triangles: "ε₂ mesh", anchors: "anchors", open: "Show detail", close: "Hide", live: "Live", auto: "auto", on: "yes", off: "no", data: "data", model: "model", chisq: "χ²", resid: "rms residual", result: "Result", loadingResult: "Loading result…" },
+  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "打开完整结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。", conditions: "条件", measure: "测量量", unit: "ω 单位", points: "点数", steps: "步数", smooth: "平滑", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "数据与模型", triangles: "ε₂ 网格", anchors: "锚点", open: "展开", close: "收起", live: "实时", auto: "auto", on: "是", off: "否", data: "数据", model: "模型", chisq: "χ²", resid: "残差 rms", result: "结果", loadingResult: "正在加载结果…" },
+  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo.", conditions: "Condições", measure: "Medida", unit: "Unidade de ω", points: "Pontos", steps: "Passos", smooth: "Suavidade", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Dados e modelo", triangles: "ε₂ malha", anchors: "âncoras", open: "Ver detalhe", close: "Ocultar", live: "Ao vivo", auto: "auto", on: "sim", off: "não", data: "dados", model: "modelo", chisq: "χ²", resid: "rms resíduo", result: "Resultado", loadingResult: "Carregando resultado…" },
 };
 
 function jobText(key) {
@@ -629,7 +629,7 @@ function jobMetaFromForm(form, text) {
   return {
     measure: String(form.querySelector("select[name='measure']")?.value || "eps2"),
     unit: String(form.querySelector("select[name='unit']")?.value || "otra"),
-    iter: Number(form.querySelector("input[name='iter']")?.value) || 800,
+    iter: Number(form.querySelector("input[name='iter']")?.value) || 2000,
     smooth: Number(form.querySelector("input[name='smooth']")?.value ?? 0),
     neg: Number(form.querySelector("input[name='neg']")?.value ?? 100),
     eps_inf: String(form.querySelector("input[name='eps_inf']")?.value || ""),
@@ -716,6 +716,7 @@ function drawJobSpark(host, curve, measureKey, unitKey) {
   const metrics = [];
   if (Number.isFinite(curve?.chisq)) metrics.push(`${jobText("chisq")} ${fmtSci(curve.chisq)}`);
   if (Number.isFinite(curve?.resid_rms)) metrics.push(`${jobText("resid")} ${fmtSci(curve.resid_rms)}`);
+  const hasMesh = meshX.length >= 3 && meshY.length === meshX.length;
   const parts = [
     `<rect width="${width}" height="${height}" rx="12" fill="var(--chart-bg)"/>`,
     `<text x="${left}" y="16" fill="var(--muted)" font-size="11">${jobText("dataFit")} · ${yName}</text>`,
@@ -723,32 +724,62 @@ function drawJobSpark(host, curve, measureKey, unitKey) {
     `<circle cx="${left}" cy="${height - 14}" r="3" fill="#3ee0c5"/><text x="${left + 8}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("data")}</text>`,
     `<circle cx="${left + 70}" cy="${height - 14}" r="3" fill="#f2c14e"/><text x="${left + 78}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("model")}</text>`,
   ];
-  // Anclas sobre el mismo eje ω que los datos: marcas abajo + rayas tenues en picos/valles.
-  if (meshX.length >= 3) {
+  if (hasMesh) {
     parts.push(
-      `<line x1="${left + 150}" y1="${height - 14}" x2="${left + 158}" y2="${height - 14}" stroke="rgba(122,162,255,0.95)" stroke-width="2"/>` +
-      `<text x="${left + 162}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("anchors")}</text>`
+      `<path d="M${left + 140},${height - 10} L${left + 148},${height - 18} L${left + 156},${height - 10} Z" fill="rgba(122,162,255,0.45)" stroke="rgba(122,162,255,0.95)" stroke-width="0.8"/>` +
+      `<text x="${left + 162}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("triangles")}</text>`
     );
-    const rugY0 = top + ph;
-    const rugY1 = rugY0 + 7;
+  }
+
+  // Triángulos Aₖ sobre el mismo eje ω que R: altura relativa de ε₂, debajo de datos/modelo.
+  if (hasMesh) {
+    const sorted = meshY.filter((v) => Number.isFinite(v) && v >= 0).slice().sort((a, b) => a - b);
+    const at = (p) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * p)))] || 0;
+    const p50 = at(0.5);
+    const p90 = at(0.9);
+    const p99 = at(0.99);
+    const mMax = Math.max(p90 * 1.35, p50 * 4, p99 * 0.55, 1e-12);
+    const baseY = top + ph;
+    const meshYOf = (v) => {
+      const t = Math.min(Math.max(v, 0), mMax) / mMax;
+      return baseY - t * ph * 0.92;
+    };
+    const y0 = baseY;
+    let tris = "";
     let rug = "";
-    let guides = "";
-    const guideStep = Math.max(1, Math.floor(meshX.length / 120));
+    // Hasta ~100 triángulos visibles: en reststrahlen se ven subir y bajar en vivo.
+    const triStep = Math.max(1, Math.floor(meshX.length / 100));
+    for (let i = 1; i < meshX.length - 1; i += triStep) {
+      const h = meshY[i];
+      if (!(h > mMax * 0.015)) continue;
+      const x0 = xOf(meshX[i - 1]);
+      const x1 = xOf(meshX[i]);
+      const x2 = xOf(meshX[i + 1]);
+      const y1 = meshYOf(h);
+      if (![x0, x1, x2, y1].every(Number.isFinite)) continue;
+      if (x1 < left - 2 || x1 > left + pw + 2) continue;
+      tris += `<path d="M${x0.toFixed(1)},${y0.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y0.toFixed(1)} Z" fill="rgba(122,162,255,0.18)" stroke="rgba(122,162,255,0.55)" stroke-width="0.7"/>`;
+    }
+    // Contorno de ε₂ (envolvente de la malla) alineado en ω con R.
+    let envelope = "";
+    let area = `M${xOf(meshX[0]).toFixed(1)},${y0.toFixed(1)}`;
     for (let i = 0; i < meshX.length; i++) {
       const px = xOf(meshX[i]);
-      if (!Number.isFinite(px) || px < left - 1 || px > left + pw + 1) continue;
-      rug += `M${px.toFixed(1)},${rugY0.toFixed(1)} L${px.toFixed(1)},${rugY1.toFixed(1)} `;
-      if (i % guideStep === 0) {
-        guides += `M${px.toFixed(1)},${top.toFixed(1)} L${px.toFixed(1)},${rugY0.toFixed(1)} `;
+      const py = meshYOf(meshY[i]);
+      if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+      envelope += `${envelope ? "L" : "M"}${px.toFixed(1)},${py.toFixed(1)}`;
+      area += ` L${px.toFixed(1)},${py.toFixed(1)}`;
+      if (i % Math.max(1, Math.floor(meshX.length / 160)) === 0) {
+        rug += `M${px.toFixed(1)},${(baseY + 1).toFixed(1)} L${px.toFixed(1)},${(baseY + 6).toFixed(1)} `;
       }
     }
-    if (guides) {
-      parts.push(`<path d="${guides}" fill="none" stroke="rgba(122,162,255,0.12)" stroke-width="0.8"/>`);
-    }
-    if (rug) {
-      parts.push(`<path d="${rug}" fill="none" stroke="rgba(122,162,255,0.85)" stroke-width="1.2"/>`);
-    }
+    area += ` L${xOf(meshX[meshX.length - 1]).toFixed(1)},${y0.toFixed(1)} Z`;
+    if (tris) parts.push(tris);
+    if (area) parts.push(`<path d="${area}" fill="rgba(122,162,255,0.08)"/>`);
+    if (envelope) parts.push(`<path d="${envelope}" fill="none" stroke="rgba(122,162,255,0.9)" stroke-width="1.35"/>`);
+    if (rug) parts.push(`<path d="${rug}" fill="none" stroke="rgba(122,162,255,0.7)" stroke-width="1"/>`);
   }
+
   const dataPath = pathOf(x, data);
   if (dataPath) parts.push(`<path fill="none" stroke="#3ee0c5" stroke-width="1.8" d="${dataPath}"/>`);
   if (model.length === x.length) {
@@ -757,60 +788,8 @@ function drawJobSpark(host, curve, measureKey, unitKey) {
   }
   parts.push(`<text x="${left + pw / 2}" y="${height - 8}" fill="var(--muted)" font-size="11" text-anchor="middle">${xName}${log ? " · log" : ""}</text>`);
 
-  let meshSvg = "";
-  if (meshX.length >= 3 && meshY.length === meshX.length) {
-    const sorted = meshY.filter((v) => Number.isFinite(v) && v >= 0).slice().sort((a, b) => a - b);
-    const at = (p) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * p)))] || 0;
-    const p50 = at(0.5);
-    const p90 = at(0.9);
-    const p99 = at(0.99);
-    // Escala por el cuerpo de la malla; un Aₖ gigante no aplasta el resto.
-    const mMin = 0;
-    const mMax = Math.max(p90 * 1.35, p50 * 4, p99 * 0.55, 1e-12);
-    const mh = 112;
-    const mw = width;
-    const ml = 52;
-    const mr = 14;
-    const mt = 18;
-    const mb = 10;
-    const mpw = mw - ml - mr;
-    const mph = mh - mt - mb;
-    const mx0 = meshX[0];
-    const mx1 = meshX[meshX.length - 1];
-    const logM = mx0 > 0 && mx1 / mx0 > 20;
-    const mxOf = (v) => {
-      if (logM) return ml + ((Math.log(v) - Math.log(mx0)) / (Math.log(mx1) - Math.log(mx0))) * mpw;
-      return ml + ((v - mx0) / Math.max(mx1 - mx0, 1e-30)) * mpw;
-    };
-    const myOf = (v) => mt + (1 - (Math.min(Math.max(v, 0), mMax) - mMin) / Math.max(mMax - mMin, 1e-30)) * mph;
-    const y0 = myOf(0);
-    let tris = "";
-    const triStep = Math.max(1, Math.floor(meshX.length / 80));
-    for (let i = 1; i < meshX.length - 1; i += triStep) {
-      const h = meshY[i];
-      if (!(h > mMax * 0.02)) continue;
-      const x0 = mxOf(meshX[i - 1]);
-      const x1 = mxOf(meshX[i]);
-      const x2 = mxOf(meshX[i + 1]);
-      const y1 = myOf(h);
-      if (![x0, x1, x2, y1].every(Number.isFinite)) continue;
-      tris += `<path d="M${x0.toFixed(1)},${y0.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y0.toFixed(1)} Z" fill="rgba(122,162,255,0.16)" stroke="rgba(122,162,255,0.55)" stroke-width="0.7"/>`;
-    }
-    let line = "";
-    let area = `M${mxOf(meshX[0]).toFixed(1)},${y0.toFixed(1)}`;
-    for (let i = 0; i < meshX.length; i++) {
-      const px = mxOf(meshX[i]);
-      const py = myOf(meshY[i]);
-      if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
-      line += `${line ? "L" : "M"}${px.toFixed(1)},${py.toFixed(1)}`;
-      area += ` L${px.toFixed(1)},${py.toFixed(1)}`;
-    }
-    area += ` L${mxOf(meshX[meshX.length - 1]).toFixed(1)},${y0.toFixed(1)} Z`;
-    meshSvg = `<svg class="server-job-mesh" viewBox="0 0 ${mw} ${mh}" role="img" aria-label="${jobText("triangles")}"><rect width="${mw}" height="${mh}" rx="10" fill="var(--chart-bg)"/><text x="${ml}" y="13" fill="var(--muted)" font-size="11">${jobText("triangles")}</text>${tris}<path d="${area}" fill="rgba(122,162,255,0.12)"/><path d="${line}" fill="none" stroke="rgba(122,162,255,0.95)" stroke-width="1.4"/></svg>`;
-  }
-
   host.innerHTML =
-    `<svg class="server-job-spark" viewBox="0 0 ${width} ${height}" role="img" aria-label="${jobText("dataFit")}">${parts.join("")}</svg>${meshSvg}`;
+    `<svg class="server-job-spark" viewBox="0 0 ${width} ${height}" role="img" aria-label="${jobText("dataFit")}">${parts.join("")}</svg>`;
 }
 
 async function embedJobResult(card, reportId, measureKey, unitKey) {
@@ -1167,7 +1146,7 @@ function initLabSubmission() {
         return;
       }
       const measure = form.querySelector("select[name='measure']")?.value || "eps2";
-      const iter = Math.max(1, Math.min(800, Number(form.querySelector("input[name='iter']")?.value) || 20));
+      const iter = Math.max(1, Math.min(2000, Number(form.querySelector("input[name='iter']")?.value) || 20));
       const denseWork = denseWorkEstimate(points, iter, measure);
       if (measure !== "eps2" && measure !== "lum" && denseWork > DENSE_WORK_BUDGET) {
         if (live) {

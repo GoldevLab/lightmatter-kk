@@ -108,7 +108,7 @@ fn default_negativity() -> f64 {
     100.0
 }
 fn default_iter() -> usize {
-    800
+    2000
 }
 
 impl Default for FitOptions {
@@ -1046,7 +1046,7 @@ fn levenberg<M: SysMat>(
     let mut done = 0i32;
     let mut iters_used = 0usize;
     let mut stalled = false;
-    // Si χ² no baja en muchos pasos (p. ej. un punto sigue “lejos” al 2 %), no quemar los 800.
+    // Si χ² no baja en muchos pasos (p. ej. un punto sigue “lejos” al 2 %), no quemar el tope.
     let mut flat_streak = 0usize;
     const FLAT_STOP: usize = 25;
     for _ in 0..iter_max {
@@ -1228,14 +1228,14 @@ fn drude_eps1_part(om: f64, d: Option<&Drude>) -> f64 {
 }
 
 const MAX_FIT_POINTS: usize = 8_000;
-const MAX_FIT_ITERATIONS: usize = 800;
+const MAX_FIT_ITERATIONS: usize = 2_000;
 /// Tope de anclas interiores en medidas densas (R, T, n, k, α).
 /// Con R la tesis usa ~N−2 puntos medios; el coste del LM acoplado por KK
 /// es ~O(N·M²·pasos), así que 2000 anclas con ~5000 puntos tarda horas.
 /// 800 + prioridad a extremos afilados resuelve reststrahlen sin irse de tiempo.
 const MAX_DENSE_ANCHORS: usize = 800;
 /// Presupuesto: cabe `MAX_DENSE_ANCHORS` a `MAX_FIT_POINTS`×`MAX_FIT_ITERATIONS`.
-const DENSE_WORK_BUDGET: u64 = 4_200_000_000_000;
+const DENSE_WORK_BUDGET: u64 = 10_500_000_000_000;
 
 fn dense_work(points: usize, parameters: usize, iterations: usize) -> u64 {
     (points as u64)
@@ -2760,10 +2760,10 @@ mod tests {
     }
 
     #[test]
-    fn fit_limits_iterations_to_eight_hundred() {
+    fn fit_limits_iterations_to_two_thousand() {
         let report = fit_text(
             "1 0.1\n2 0.2\n3 0.1\n",
-            &TextFit { iter_max: 1000, measure: "eps2".into(), ..TextFit::default() },
+            &TextFit { iter_max: 5_000, measure: "eps2".into(), ..TextFit::default() },
         ).unwrap();
         assert_eq!(report.options.iter_max, MAX_FIT_ITERATIONS);
     }

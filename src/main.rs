@@ -198,7 +198,7 @@ fn seo_kit() -> SeoKit {
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=33\"></script>";
+    let head = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" /><link rel=\"icon\" href=\"/images/lightmatter-logo.jpg\" type=\"image/jpeg\" /><link rel=\"apple-touch-icon\" href=\"/images/lightmatter-logo.jpg\" /><script type=\"module\" src=\"/js/offline.js?v=35\"></script>";
     const ICON: &[u8] = include_bytes!("icon.svg");
     let runtime_root = app_root();
     let public = app_dir("public");
@@ -238,7 +238,7 @@ async fn main() -> std::io::Result<()> {
                 .cookie("lightmatter_theme")
                 .storage_key("lightmatter-theme"),
         )
-        .with_stylesheet("/images/lightmatter.css?v=33")
+        .with_stylesheet("/images/lightmatter.css?v=35")
         .with_sitemap_exclude(["/admin"])
         .static_asset("/icon.svg", ICON, "image/svg+xml")
         .static_asset("/.well-known/security.txt", security_txt, "text/plain; charset=utf-8")
@@ -251,7 +251,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-49".into(),
+            cache_version: "lm-50".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
@@ -260,7 +260,7 @@ async fn main() -> std::io::Result<()> {
                 "/".into(),
                 "/lab".into(),
                 "/learn".into(),
-                "/images/lightmatter.css?v=33".into(),
+                "/images/lightmatter.css?v=35".into(),
                 "/js/lang.js?v=5".into(),
                 "/_resuma/ui.css?v=4679afe0d6db98bc".into(),
                 "/_resuma/loader.js?v=2.0.1".into(),
@@ -270,7 +270,7 @@ async fn main() -> std::io::Result<()> {
                 "/images/learn-triangles.jpg".into(),
                 "/images/learn-fit.jpg".into(),
                 "/images/learn-constants.jpg".into(),
-                "/js/offline.js?v=33".into(),
+                "/js/offline.js?v=35".into(),
                 "/js/fit-worker.js?v=1".into(),
                 "/robots.txt".into(),
                 "/llms.txt".into(),

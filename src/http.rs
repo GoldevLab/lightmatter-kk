@@ -70,7 +70,7 @@ pub fn fit_worker(
         let progress = Arc::new(AtomicUsize::new(0));
         let curve_slot: Arc<Mutex<Option<FitProgressCurve>>> = Arc::new(Mutex::new(None));
         let stop_watch = Arc::new(AtomicBool::new(false));
-        let iter_max = job.options.iter_max.clamp(1, 800);
+        let iter_max = job.options.iter_max.clamp(1, 2000);
         let _ = store::set_job_progress(&id, 0, iter_max, Some("preparando malla"));
         {
             let id_watch = id.clone();
@@ -231,7 +231,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         file_name
     };
     let text = if file_text.trim().is_empty() { spectrum } else { file_text };
-    let iter_max = iter.trim().parse::<usize>().unwrap_or(20).clamp(1, 800);
+    let iter_max = iter.trim().parse::<usize>().unwrap_or(20).clamp(1, 2000);
     let options = TextFit {
         iter_max,
         log_mesh,
