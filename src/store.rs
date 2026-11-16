@@ -206,6 +206,8 @@ pub fn create_job(
             model: Vec::new(),
             mesh_x: Vec::new(),
             mesh_y: Vec::new(),
+            chisq: None,
+            resid_rms: None,
         }),
         points: Some(points),
         created_at: timestamp,

@@ -57,14 +57,19 @@ pub struct FitRequest {
     pub progress_curve: Option<std::sync::Arc<std::sync::Mutex<Option<FitProgressCurve>>>>,
 }
 
-/// Vista reducida del ajuste en curso (datos, modelo y alturas Aₖ).
+/// Vista reducida del ajuste en curso (datos, modelo y ε₂ de la malla).
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct FitProgressCurve {
     pub x: Vec<f64>,
     pub data: Vec<f64>,
     pub model: Vec<f64>,
+    /// ε₂ reconstruida en la misma malla reducida (suma de triángulos).
     pub mesh_x: Vec<f64>,
     pub mesh_y: Vec<f64>,
+    #[serde(default)]
+    pub chisq: Option<f64>,
+    #[serde(default)]
+    pub resid_rms: Option<f64>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -943,10 +948,11 @@ fn publish_progress_curve(
     a: &[f64],
     omega: &[f64],
     anchors: &[f64],
+    chisq: Option<f64>,
 ) {
     let Some(slot) = curve else { return };
     let n = omega.len().min(model.y.len());
-    if n < 2 || anchors.len() < 3 {
+    if n < 2 {
         return;
     }
     let cap = 160usize;
@@ -954,10 +960,15 @@ fn publish_progress_curve(
     let mut x = Vec::with_capacity(cap + 2);
     let mut data = Vec::with_capacity(cap + 2);
     let mut model_y = Vec::with_capacity(cap + 2);
+    let mut resid2 = 0.0;
+    let mut count = 0usize;
     let mut last = 0usize;
     for i in (0..n).step_by(stride) {
         let (e1, e2) = model.eps(i, a);
         let q = quantity(model.measure, e1, e2, model.nu.get(i).copied().unwrap_or(0.0), model.d_cm);
+        let dy = model.y[i] - q;
+        resid2 += dy * dy;
+        count += 1;
         x.push(omega[i]);
         data.push(model.y[i]);
         model_y.push(q);
@@ -967,22 +978,38 @@ fn publish_progress_curve(
         let i = n - 1;
         let (e1, e2) = model.eps(i, a);
         let q = quantity(model.measure, e1, e2, model.nu.get(i).copied().unwrap_or(0.0), model.d_cm);
+        let dy = model.y[i] - q;
+        resid2 += dy * dy;
+        count += 1;
         x.push(omega[i]);
         data.push(model.y[i]);
         model_y.push(q);
     }
-    let inner = anchors.len().saturating_sub(2).max(1);
-    let mesh_stride = (inner / 48).max(1);
-    let mut mesh_x = Vec::new();
-    let mut mesh_y = Vec::new();
-    let mut j = 1usize;
-    while j + 1 < anchors.len() {
+    // La malla se dibuja en las anclas: Aₖ es la altura del triángulo (ε₂ en ωₖ).
+    let ma = model.ma.min(a.len()).min(anchors.len());
+    let mesh_cap = 220usize;
+    let mesh_stride = (ma / mesh_cap).max(1);
+    let mut mesh_x = Vec::with_capacity((ma / mesh_stride) + 2);
+    let mut mesh_y = Vec::with_capacity((ma / mesh_stride) + 2);
+    for j in (0..ma).step_by(mesh_stride) {
         mesh_x.push(anchors[j]);
         mesh_y.push(a[j].max(0.0));
-        j += mesh_stride;
     }
+    if ma > 0 && mesh_x.last().copied() != Some(anchors[ma - 1]) {
+        mesh_x.push(anchors[ma - 1]);
+        mesh_y.push(a[ma - 1].max(0.0));
+    }
+    let resid_rms = if count > 0 { Some((resid2 / count as f64).sqrt()) } else { None };
     if let Ok(mut guard) = slot.lock() {
-        *guard = Some(FitProgressCurve { x, data, model: model_y, mesh_x, mesh_y });
+        *guard = Some(FitProgressCurve {
+            x,
+            data,
+            model: model_y,
+            mesh_x,
+            mesh_y,
+            chisq,
+            resid_rms,
+        });
     }
 }
 
@@ -1000,11 +1027,13 @@ fn levenberg<M: SysMat>(
     cancel: Option<&std::sync::atomic::AtomicBool>,
     progress_step: Option<&std::sync::atomic::AtomicUsize>,
     progress_curve: &Option<std::sync::Arc<std::sync::Mutex<Option<FitProgressCurve>>>>,
+    eps_inf_bounds: Option<(f64, f64)>,
 ) -> Result<LmResult, String> {
     let mfit = alpha.size();
     let lamda_high: f64 = 10.0;
     let lamda_low: f64 = 0.1;
     let tol: f64 = 0.01;
+    let eps_idx = anchors.len();
     let mut beta = vec![0.0; mfit];
     let mut da = vec![0.0; mfit];
     let first = model.mrqcof(a, alpha, &mut beta);
@@ -1026,7 +1055,7 @@ fn levenberg<M: SysMat>(
             step.store(iters_used, std::sync::atomic::Ordering::Relaxed);
         }
         if iters_used == 1 || iters_used % 3 == 0 {
-            publish_progress_curve(progress_curve, model, a, omega, anchors);
+            publish_progress_curve(progress_curve, model, a, omega, anchors, Some(ochisq));
         }
         if done >= 1 {
             alamda = 0.0;
@@ -1050,6 +1079,11 @@ fn levenberg<M: SysMat>(
                 atry[l] = a[l] + step[*jj];
             }
         }
+        if let Some((lo, hi)) = eps_inf_bounds {
+            if active_pos.get(eps_idx).and_then(|p| *p).is_some() && eps_idx < atry.len() {
+                atry[eps_idx] = atry[eps_idx].clamp(lo, hi);
+            }
+        }
         let chisq = model.mrqcof(&atry, covar, &mut da);
         if !chisq.is_finite() {
             stalled = true;
@@ -1062,7 +1096,7 @@ fn levenberg<M: SysMat>(
             std::mem::swap(alpha, covar);
             std::mem::swap(&mut beta, &mut da);
             a.copy_from_slice(&atry);
-            publish_progress_curve(progress_curve, model, a, omega, anchors);
+            publish_progress_curve(progress_curve, model, a, omega, anchors, Some(ochisq));
             // Una bajada menor que el 1 % cierra el ajuste solo si ya no queda un punto lejos.
             // Si no, una raya estrecha (el reststrahlen) se abandona cuando la banda ancha ya cuadra.
             if !model.still_far(a) && improvement < floor.max(tol * chisq.abs()) {
@@ -1200,7 +1234,7 @@ fn max_anchors_for_budget(points: usize, iterations: usize) -> usize {
 }
 
 /// Elige hasta `limit` índices: extremos, luego extremos locales por prominencia
-/// (y vecinos de los más afilados), y rellena el resto de forma uniforme.
+/// relativa (y varios anillos de vecinos en los más afilados), y rellena el resto.
 fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
     if values.len() <= limit {
         return (0..values.len()).collect();
@@ -1211,6 +1245,9 @@ fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
     selected[0] = true;
     selected[n - 1] = true;
     let mut remaining = limit.saturating_sub(2);
+    // Reserva ~70 % del cupo a picos/valles y su vecindario; el resto es malla de fondo.
+    let feature_budget = ((limit as f64) * 0.70).round() as usize;
+    let mut feature_left = feature_budget.min(remaining);
 
     let mut extrema: Vec<(usize, f64)> = (1..n - 1)
         .filter(|&i| {
@@ -1219,34 +1256,40 @@ fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
         })
         .map(|i| {
             let prom = (2.0 * values[i] - values[i - 1] - values[i + 1]).abs();
-            (i, prom)
+            let scale = (values[i - 1].abs() + values[i].abs() + values[i + 1].abs()) / 3.0 + 1e-12;
+            // Prominencia relativa: un valle estrecho en R pesa más que un lomo ancho.
+            (i, prom / scale)
         })
         .collect();
     extrema.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-    for &(i, _) in &extrema {
-        if remaining == 0 {
-            break;
+    let take = |selected: &mut [bool], remaining: &mut usize, feature_left: &mut usize, i: usize| {
+        if *remaining == 0 || *feature_left == 0 || i == 0 || i + 1 >= n || selected[i] {
+            return;
         }
-        if !selected[i] {
-            selected[i] = true;
-            remaining -= 1;
+        selected[i] = true;
+        *remaining -= 1;
+        *feature_left -= 1;
+    };
+
+    for &(i, _) in &extrema {
+        take(&mut selected, &mut remaining, &mut feature_left, i);
+        if feature_left == 0 || remaining == 0 {
+            break;
         }
     }
 
-    // Densifica los reststrahlen: vecinos de los extremos más prominentes.
-    let sharp = (extrema.len() / 4).max(8).min(extrema.len()).min(remaining);
-    for &(i, _) in extrema.iter().take(sharp) {
-        for neighbor in [i.saturating_sub(1), i + 1] {
-            if remaining == 0 {
+    // Densifica reststrahlen: anillos ±1…±4 alrededor de los extremos más afilados.
+    let sharp = (extrema.len() / 3).max(12).min(extrema.len());
+    for ring in 1usize..=4 {
+        for &(i, _) in extrema.iter().take(sharp) {
+            if feature_left == 0 || remaining == 0 {
                 break;
             }
-            if neighbor > 0 && neighbor + 1 < n && !selected[neighbor] {
-                selected[neighbor] = true;
-                remaining -= 1;
-            }
+            take(&mut selected, &mut remaining, &mut feature_left, i.saturating_sub(ring));
+            take(&mut selected, &mut remaining, &mut feature_left, i + ring);
         }
-        if remaining == 0 {
+        if feature_left == 0 || remaining == 0 {
             break;
         }
     }
@@ -1257,13 +1300,14 @@ fn mesh_sample_indices(values: &[f64], limit: usize) -> Vec<usize> {
         .filter_map(|(i, chosen)| chosen.then_some(i))
         .collect();
     for slot in 0..limit {
-        if indices.len() >= limit {
+        if indices.len() >= limit || remaining == 0 {
             break;
         }
         let candidate = slot * (n - 1) / limit.saturating_sub(1).max(1);
         if !selected[candidate] {
             selected[candidate] = true;
             indices.push(candidate);
+            remaining -= 1;
         }
     }
     if indices.len() < limit {
@@ -1547,7 +1591,15 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let cancel = input.cancel.as_deref();
     let progress_step = input.progress_step.as_deref();
     let progress_curve = &input.progress_curve;
-    publish_progress_curve(progress_curve, &model, &a, &w, &anchors);
+    let eps_inf_bounds = if fit_base && measure == Measure::R {
+        Some((1.0, 50.0))
+    } else {
+        None
+    };
+    if let Some((lo, hi)) = eps_inf_bounds {
+        a[ma] = a[ma].clamp(lo, hi);
+    }
+    publish_progress_curve(progress_curve, &model, &a, &w, &anchors, None);
     let (lm, cov) = if banded {
         let mut alpha = Band::new(mfit);
         let mut covar = Band::new(mfit);
@@ -1564,6 +1616,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             cancel,
             progress_step,
             progress_curve,
+            eps_inf_bounds,
         )?;
         let cov = if errors_given {
             model.curvature(&a, &mut alpha);
@@ -1588,6 +1641,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             cancel,
             progress_step,
             progress_curve,
+            eps_inf_bounds,
         )?;
         let cov = if errors_given {
             model.curvature(&a, &mut alpha);
@@ -1599,9 +1653,9 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     };
     let LmResult { iters_used, converged, stalled } = lm;
     let base = a[ma];
-    if fit_base && measure == Measure::R && (base < 1.0 || base > 50.0) {
+    if fit_base && measure == Measure::R {
         warnings.push(format!(
-            "ε∞ arrancó en {eps_inf_start:.3} (auto desde R) y el ajuste lo dejó en {base:.4}, fuera de [1, 50]. Con solo R ese valor puede no ser físico: si conoces n donde la muestra es transparente, escribe ε∞ = n² y vuelve a analizar."
+            "ε∞ se ajustó dentro de [1, 50] (partida {eps_inf_start:.3} → {base:.3}). Si conoces n donde la muestra es transparente, escribe ε∞ = n² para fijarlo."
         ));
     }
 

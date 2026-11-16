@@ -34,10 +34,10 @@ function chartToolText(key) {
 }
 
 const JOB_TEXT = {
-  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez.", conditions: "Condiciones", measure: "Medida", unit: "Unidad de ω", points: "Puntos", steps: "Pasos", smooth: "Suavidad", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Datos y modelo", triangles: "Malla triangular de ε₂", open: "Ver detalle", close: "Ocultar", live: "En vivo", auto: "auto", on: "sí", off: "no" },
-  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "View result", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again.", conditions: "Conditions", measure: "Measure", unit: "Unit of ω", points: "Points", steps: "Steps", smooth: "Smoothness", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Data and model", triangles: "Triangular ε₂ mesh", open: "Show detail", close: "Hide", live: "Live", auto: "auto", on: "yes", off: "no" },
-  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "查看结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。", conditions: "条件", measure: "测量量", unit: "ω 单位", points: "点数", steps: "步数", smooth: "平滑", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "数据与模型", triangles: "ε₂ 三角网格", open: "展开", close: "收起", live: "实时", auto: "auto", on: "是", off: "否" },
-  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo.", conditions: "Condições", measure: "Medida", unit: "Unidade de ω", points: "Pontos", steps: "Passos", smooth: "Suavidade", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Dados e modelo", triangles: "Malha triangular de ε₂", open: "Ver detalhe", close: "Ocultar", live: "Ao vivo", auto: "auto", on: "sim", off: "não" },
+  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez.", conditions: "Condiciones", measure: "Medida", unit: "Unidad de ω", points: "Puntos", steps: "Pasos", smooth: "Suavidad", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Datos y modelo", triangles: "ε₂ de la malla triangular", open: "Ver detalle", close: "Ocultar", live: "En vivo", auto: "auto", on: "sí", off: "no", data: "datos", model: "modelo", chisq: "χ²", resid: "rms residuo", result: "Resultado", loadingResult: "Cargando resultado…" },
+  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "Open full", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again.", conditions: "Conditions", measure: "Measure", unit: "Unit of ω", points: "Points", steps: "Steps", smooth: "Smoothness", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Data and model", triangles: "ε₂ from triangular mesh", open: "Show detail", close: "Hide", live: "Live", auto: "auto", on: "yes", off: "no", data: "data", model: "model", chisq: "χ²", resid: "rms residual", result: "Result", loadingResult: "Loading result…" },
+  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "打开完整结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。", conditions: "条件", measure: "测量量", unit: "ω 单位", points: "点数", steps: "步数", smooth: "平滑", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "数据与模型", triangles: "三角网格的 ε₂", open: "展开", close: "收起", live: "实时", auto: "auto", on: "是", off: "否", data: "数据", model: "模型", chisq: "χ²", resid: "残差 rms", result: "结果", loadingResult: "正在加载结果…" },
+  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Abrir completo", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo.", conditions: "Condições", measure: "Medida", unit: "Unidade de ω", points: "Pontos", steps: "Passos", smooth: "Suavidade", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Dados e modelo", triangles: "ε₂ da malha triangular", open: "Ver detalhe", close: "Ocultar", live: "Ao vivo", auto: "auto", on: "sim", off: "não", data: "dados", model: "modelo", chisq: "χ²", resid: "rms resíduo", result: "Resultado", loadingResult: "Carregando resultado…" },
 };
 
 function jobText(key) {
@@ -646,6 +646,13 @@ function optionLabel(options, key, fallback) {
   return String(value);
 }
 
+function fmtSci(v) {
+  if (!Number.isFinite(v)) return "—";
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 1e-3 || a >= 1e4)) return v.toExponential(3);
+  return v.toPrecision(4);
+}
+
 function drawJobSpark(host, curve, measureKey, unitKey) {
   if (!host) return;
   const x = curve?.x || [];
@@ -684,10 +691,10 @@ function drawJobSpark(host, curve, measureKey, unitKey) {
   if (data.every((v) => v >= 0) && model.every((v) => !Number.isFinite(v) || v >= 0)) ymin = Math.max(0, ymin);
   const log = xmin > 0 && xmax / xmin > 20;
   const width = 640;
-  const height = 220;
+  const height = 228;
   const left = 52;
   const right = 14;
-  const top = 18;
+  const top = 28;
   const bottom = 34;
   const pw = width - left - right;
   const ph = height - top - bottom;
@@ -706,9 +713,15 @@ function drawJobSpark(host, curve, measureKey, unitKey) {
     }
     return d;
   };
+  const metrics = [];
+  if (Number.isFinite(curve?.chisq)) metrics.push(`${jobText("chisq")} ${fmtSci(curve.chisq)}`);
+  if (Number.isFinite(curve?.resid_rms)) metrics.push(`${jobText("resid")} ${fmtSci(curve.resid_rms)}`);
   const parts = [
     `<rect width="${width}" height="${height}" rx="12" fill="var(--chart-bg)"/>`,
-    `<text x="${left}" y="14" fill="var(--muted)" font-size="11">${jobText("dataFit")} · ${yName}</text>`,
+    `<text x="${left}" y="16" fill="var(--muted)" font-size="11">${jobText("dataFit")} · ${yName}</text>`,
+    `<text x="${width - right}" y="16" fill="var(--muted)" font-size="11" text-anchor="end">${metrics.join(" · ")}</text>`,
+    `<circle cx="${left}" cy="${height - 14}" r="3" fill="#3ee0c5"/><text x="${left + 8}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("data")}</text>`,
+    `<circle cx="${left + 70}" cy="${height - 14}" r="3" fill="#f2c14e"/><text x="${left + 78}" y="${height - 10}" fill="var(--muted)" font-size="10">${jobText("model")}</text>`,
   ];
   const dataPath = pathOf(x, data);
   if (dataPath) parts.push(`<path fill="none" stroke="#3ee0c5" stroke-width="1.8" d="${dataPath}"/>`);
@@ -720,35 +733,106 @@ function drawJobSpark(host, curve, measureKey, unitKey) {
 
   let meshSvg = "";
   if (meshX.length >= 3 && meshY.length === meshX.length) {
-    let mMin = 0;
-    let mMax = Math.max(...meshY, 1e-12);
-    const mh = 72;
+    const sorted = meshY.filter((v) => Number.isFinite(v) && v >= 0).slice().sort((a, b) => a - b);
+    const at = (p) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * p)))] || 0;
+    const p50 = at(0.5);
+    const p90 = at(0.9);
+    const p99 = at(0.99);
+    // Escala por el cuerpo de la malla; un Aₖ gigante no aplasta el resto.
+    const mMin = 0;
+    const mMax = Math.max(p90 * 1.35, p50 * 4, p99 * 0.55, 1e-12);
+    const mh = 112;
     const mw = width;
     const ml = 52;
     const mr = 14;
-    const mt = 16;
-    const mb = 8;
+    const mt = 18;
+    const mb = 10;
     const mpw = mw - ml - mr;
     const mph = mh - mt - mb;
     const mx0 = meshX[0];
     const mx1 = meshX[meshX.length - 1];
-    const mxOf = (v) => ml + ((v - mx0) / Math.max(mx1 - mx0, 1e-30)) * mpw;
-    const myOf = (v) => mt + (1 - (v - mMin) / Math.max(mMax - mMin, 1e-30)) * mph;
-    const tris = [];
-    for (let i = 0; i < meshX.length; i++) {
-      const x0 = i > 0 ? meshX[i - 1] : meshX[i] - (meshX[i + 1] - meshX[i]);
-      const x2 = i + 1 < meshX.length ? meshX[i + 1] : meshX[i] + (meshX[i] - meshX[i - 1]);
-      const y1 = meshY[i];
-      const alpha = 0.18 + 0.45 * (y1 / mMax);
-      tris.push(
-        `<path d="M${mxOf(x0).toFixed(1)},${myOf(0).toFixed(1)} L${mxOf(meshX[i]).toFixed(1)},${myOf(y1).toFixed(1)} L${mxOf(x2).toFixed(1)},${myOf(0).toFixed(1)} Z" fill="rgba(122,162,255,${alpha.toFixed(2)})" stroke="rgba(122,162,255,0.55)" stroke-width="0.8"/>`,
-      );
+    const logM = mx0 > 0 && mx1 / mx0 > 20;
+    const mxOf = (v) => {
+      if (logM) return ml + ((Math.log(v) - Math.log(mx0)) / (Math.log(mx1) - Math.log(mx0))) * mpw;
+      return ml + ((v - mx0) / Math.max(mx1 - mx0, 1e-30)) * mpw;
+    };
+    const myOf = (v) => mt + (1 - (Math.min(Math.max(v, 0), mMax) - mMin) / Math.max(mMax - mMin, 1e-30)) * mph;
+    const y0 = myOf(0);
+    let tris = "";
+    const triStep = Math.max(1, Math.floor(meshX.length / 80));
+    for (let i = 1; i < meshX.length - 1; i += triStep) {
+      const h = meshY[i];
+      if (!(h > mMax * 0.02)) continue;
+      const x0 = mxOf(meshX[i - 1]);
+      const x1 = mxOf(meshX[i]);
+      const x2 = mxOf(meshX[i + 1]);
+      const y1 = myOf(h);
+      if (![x0, x1, x2, y1].every(Number.isFinite)) continue;
+      tris += `<path d="M${x0.toFixed(1)},${y0.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y0.toFixed(1)} Z" fill="rgba(122,162,255,0.16)" stroke="rgba(122,162,255,0.55)" stroke-width="0.7"/>`;
     }
-    meshSvg = `<svg class="server-job-mesh" viewBox="0 0 ${mw} ${mh}" role="img" aria-label="${jobText("triangles")}"><rect width="${mw}" height="${mh}" rx="10" fill="var(--chart-bg)"/><text x="${ml}" y="12" fill="var(--muted)" font-size="11">${jobText("triangles")}</text>${tris.join("")}</svg>`;
+    let line = "";
+    let area = `M${mxOf(meshX[0]).toFixed(1)},${y0.toFixed(1)}`;
+    for (let i = 0; i < meshX.length; i++) {
+      const px = mxOf(meshX[i]);
+      const py = myOf(meshY[i]);
+      if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+      line += `${line ? "L" : "M"}${px.toFixed(1)},${py.toFixed(1)}`;
+      area += ` L${px.toFixed(1)},${py.toFixed(1)}`;
+    }
+    area += ` L${mxOf(meshX[meshX.length - 1]).toFixed(1)},${y0.toFixed(1)} Z`;
+    meshSvg = `<svg class="server-job-mesh" viewBox="0 0 ${mw} ${mh}" role="img" aria-label="${jobText("triangles")}"><rect width="${mw}" height="${mh}" rx="10" fill="var(--chart-bg)"/><text x="${ml}" y="13" fill="var(--muted)" font-size="11">${jobText("triangles")}</text>${tris}<path d="${area}" fill="rgba(122,162,255,0.12)"/><path d="${line}" fill="none" stroke="rgba(122,162,255,0.95)" stroke-width="1.4"/></svg>`;
   }
 
   host.innerHTML =
     `<svg class="server-job-spark" viewBox="0 0 ${width} ${height}" role="img" aria-label="${jobText("dataFit")}">${parts.join("")}</svg>${meshSvg}`;
+}
+
+async function embedJobResult(card, reportId, measureKey, unitKey) {
+  if (!card?.embed || card.embed.dataset.loaded === reportId) return;
+  card.embed.hidden = false;
+  card.embed.dataset.loaded = reportId;
+  card.embed.innerHTML = `<p class="server-job-embed-note">${jobText("loadingResult")}</p>`;
+  try {
+    const response = await fetch(`/lab/download/${encodeURIComponent(reportId)}/json`, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error("report unavailable");
+    const report = await response.json();
+    const chisq = report.chisq;
+    const dof = report.chisq_dof;
+    const eps = report.eps_inf;
+    const points = report.points_used ?? report.data_x?.length;
+    const summary = document.createElement("div");
+    summary.className = "server-job-embed-summary";
+    summary.innerHTML = [
+      `<strong>${jobText("result")}</strong>`,
+      Number.isFinite(chisq) ? `${jobText("chisq")} ${fmtSci(chisq)}` : "",
+      Number.isFinite(dof) ? `χ²/dof ${fmtSci(dof)}` : "",
+      Number.isFinite(eps) ? `ε∞ ${fmtSci(eps)}` : "",
+      points ? `${jobText("points")} ${points}` : "",
+    ].filter(Boolean).join(" · ");
+    const charts = document.createElement("div");
+    charts.className = "server-job-charts";
+    const x = report.data_x || [];
+    const data = report.data_y || [];
+    const model = report.model_q?.length === x.length ? report.model_q : (report.model_eps2 || []);
+    const meshX = report.omega || [];
+    const meshY = report.eps2 || [];
+    drawJobSpark(charts, {
+      x,
+      data,
+      model,
+      mesh_x: meshX,
+      mesh_y: meshY,
+      chisq,
+      resid_rms: Number.isFinite(chisq) && x.length ? Math.sqrt(chisq / Math.max(1, x.length)) : null,
+    }, measureKey, unitKey);
+    card.embed.replaceChildren(summary, charts);
+    if (!card.body.hidden) card.article.classList.add("is-open");
+  } catch {
+    card.embed.innerHTML = `<p class="server-job-embed-note">${jobText("statusError")}</p>`;
+  }
 }
 
 function forgetServerJob(id) {
@@ -899,8 +983,11 @@ function initServerJobs() {
     charts.className = "server-job-charts";
     const localCurve = job.preview ? { x: job.preview.x, data: job.preview.y, model: [], mesh_x: [], mesh_y: [] } : null;
     drawJobSpark(charts, localCurve, job.measure, job.unit);
+    const embed = document.createElement("div");
+    embed.className = "server-job-embed";
+    embed.hidden = true;
 
-    body.append(progress, condTitle, dl, charts);
+    body.append(progress, condTitle, dl, charts, embed);
     article.append(head, actions, body);
     list.append(article);
 
@@ -912,7 +999,7 @@ function initServerJobs() {
       toggle.textContent = open ? "▾" : "▸";
     });
 
-    const card = { article, state, link, cancel, bar, dl, charts, measureChip, toggle, body, head };
+    const card = { article, state, link, cancel, bar, dl, charts, embed, measureChip, toggle, body, head };
     cards.set(job.id, card);
   }
   slot.append(heading, list);
@@ -939,7 +1026,9 @@ function initServerJobs() {
         card.measureChip.textContent = MEASURE_LABEL[opts.measure] || opts.measure || card.measureChip.textContent;
         fillJobConditions(card.dl, opts, status.points ?? job.points, job);
         const curve = status.curve || (job.preview ? { x: job.preview.x, data: job.preview.y, model: [], mesh_x: [], mesh_y: [] } : null);
-        drawJobSpark(card.charts, curve, opts.measure || job.measure, opts.unit || job.unit);
+        if (status.state !== "completed") {
+          drawJobSpark(card.charts, curve, opts.measure || job.measure, opts.unit || job.unit);
+        }
 
         if (status.state === "queued" || status.state === "running") {
           pending = true;
@@ -954,6 +1043,7 @@ function initServerJobs() {
             card.bar.style.width = status.state === "queued" ? "4%" : "8%";
           }
           if (status.progress_note) label += " · " + status.progress_note;
+          if (Number.isFinite(curve?.chisq)) label += ` · ${jobText("chisq")} ${fmtSci(curve.chisq)}`;
           if (status.state === "running") label = `${jobText("live")} · ${label}`;
           card.state.textContent = label;
           card.cancel.hidden = false;
@@ -968,10 +1058,11 @@ function initServerJobs() {
           card.cancel.hidden = true;
           card.link.dataset.href = `/lab?r=${encodeURIComponent(status.report_id)}`;
           card.link.disabled = false;
-          if (job.id === currentId) {
-            window.location.assign(card.link.dataset.href);
-            return;
-          }
+          card.article.classList.add("is-open");
+          card.body.hidden = false;
+          card.head.setAttribute("aria-expanded", "true");
+          card.toggle.textContent = "▾";
+          void embedJobResult(card, status.report_id, opts.measure || job.measure, opts.unit || job.unit);
         } else if (status.state === "cancelled") {
           card.article.classList.remove("is-running");
           card.bar.style.width = "0%";
