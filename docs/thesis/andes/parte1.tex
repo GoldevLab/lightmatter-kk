@@ -51,6 +51,7 @@ Formular e implementar un procedimiento para modelar la funci\'on diel\'ectrica 
 \item Exponer el an\'alisis variacional con base triangular y la minimizaci\'on por Levenberg--Marquardt.
 \item Especificar c\'omo cada magnitud medible ($R$, $T$, $\alpha$, $n$, $k$, $\varepsilon_1$, $\varepsilon_2$) entra en $\chi^{2}_{\mathrm{datos}}$ y en el objetivo regularizado $\Phi$.
 \item Evaluar la consistencia de los resultados mediante causalidad, pasividad, reproducci\'on de los datos y relaciones algebraicas entre constantes, sin presentar esas pruebas como una demostraci\'on universal de la respuesta del material.
+\item Comparar el an\'alisis con RefFIT~\cite{guide,constrained} sobre los mismos criterios (misma medida, mismas hip\'otesis de $\varepsilon_\infty$ y colas) y delimitar cu\'ando conviene la malla triangular frente a un modelo de osciladores.
 \end{enumerate}
 
 \section{Alcance}
@@ -58,12 +59,22 @@ Formular e implementar un procedimiento para modelar la funci\'on diel\'ectrica 
 Se trabaja en respuesta lineal, medios no magn\'eticos ($\mu=1$), incidencia normal desde el vac\'io y, salvo indicaci\'on contraria, muestras semi-infinitas o l\'aminas en aire con reflexiones m\'ultiples incoherentes.
 No se tratan aqu\'i elipsometr\'ias anisotr\'opicas ni multicapas arbitrarias sobre sustrato.
 La luminiscencia se discute solo como emisi\'on: su intensidad no es $\varepsilon_2$ y no define un par Kramers--Kronig.
+La comparaci\'on con RefFIT se limita a reflectividad y a la recuperaci\'on del par $(\varepsilon_1,\varepsilon_2)$ bajo el formalismo de Kuzmenko; no pretende una auditor\'ia de todas las librer\'ias de modelos de RefFIT.
 
-\section{Organizaci\'on de la tesis}
+\section{Organizaci\'on de la tesis y de los seminarios}
 
-La \textbf{Parte~I} desarrolla el marco electromagn\'etico y culmina en el Seminario~I.
-La \textbf{Parte~II} detalla el m\'etodo variacional, el ajuste y la f\'isica de cada medida; culmina en el Seminario~II.
-La \textbf{Parte~III} presenta criterios de verdad experimental y resultados de validaci\'on.
+Este trabajo de grado se presenta ante el Departamento de F\'isica Aplicada de la Universidad de los Andes (ULA, M\'erida) en tres avances p\'ublicos, cada uno alineado con una parte de la memoria:
+
+\begin{description}[leftmargin=1.2cm,style=nextline]
+\item[Seminario~I (Parte~I).]
+Marco electromagn\'etico, constantes \'opticas y Kramers--Kronig. Objetivo: que el jurado comparta el lenguaje de $\hat\varepsilon$ antes de hablar de ajuste.
+\item[Seminario~II (Parte~II).]
+M\'etodo variacional, Levenberg--Marquardt, papel de cada medida y de $\varepsilon_\infty$. Objetivo: mostrar el paso del archivo de datos al par causal.
+\item[Seminario~III (Parte~III, defensa final).]
+Protocolo de validaci\'on, recuperaci\'on sint\'etica, comparaci\'on con RefFIT, conclusiones y limitaciones. Objetivo: defender qu\'e se demostr\'o y qu\'e queda fuera del alcance.
+\end{description}
+
+Los anexos re\'unen notaci\'on, lista de pruebas y la plantilla de reporte reproducible.
 
 
 \chapter{Marco electromagn\'etico}

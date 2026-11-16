@@ -1,0 +1,65 @@
+%======================================================================
+\chapter{Notaci\'on}
+\label{ap:notacion}
+
+\begin{longtable}{@{}lp{10.2cm}@{}}
+\toprule
+S\'imbolo & Significado \\
+\midrule
+\endfirsthead
+\toprule
+S\'imbolo & Significado \\
+\midrule
+\endhead
+$\hat\varepsilon=\varepsilon_1+i\varepsilon_2$ & Funci\'on diel\'ectrica compleja \\
+$\hat N=n+ik$ & \'Indice de refracci\'on complejo \\
+$R$ & Reflectividad a incidencia normal (semi-infinito) \\
+$\alpha$ & Coeficiente de absorci\'on \\
+$T$ & Transmitancia de una l\'amina \\
+$\varepsilon_\infty$ & Fondo de alta frecuencia (lo no medido) \\
+$\Lambda_k$, $A_k$ & Tri\'angulo unitario y su amplitud \\
+$K_k$ & Transformada Kramers--Kronig de $\Lambda_k$ \\
+$\Phi$ & Objetivo regularizado ($\chi^{2}_{\mathrm{datos}}+P_s+P_-$) \\
+$\chi^{2}_{\mathrm{datos}}$ & Suma de residuos cuadr\'aticos de la magnitud medida \\
+RefFIT & Programa de Kuzmenko para ajuste de espectros \'opticos \\
+\bottomrule
+\end{longtable}
+
+\chapter{Lista de pruebas A--G}
+\label{ap:pruebas}
+
+\begin{enumerate}[leftmargin=*]
+\item[A.] Cierre algebraico $\varepsilon_1=n^{2}-k^{2}$, $\varepsilon_2=2nk$.
+\item[B.] Proyecci\'on de la medida: $\chi^{2}_{\mathrm{datos}}$ y residuos.
+\item[C.] Kramers--Kronig num\'erica independiente.
+\item[D.] Sensibilidad a $\varepsilon_\infty$.
+\item[E.] Barrido de regularizaci\'on (suavidad).
+\item[F.] Recuperaci\'on sint\'etica (tabla~\ref{tab:pruebaF}).
+\item[G.] Comparaci\'on cruzada con RefFIT (tabla~\ref{tab:reffit-plantilla}).
+\end{enumerate}
+
+\chapter{Plantilla de reporte reproducible}
+\label{ap:reporte}
+
+Todo resultado que se presente en un seminario o en un art\'iculo derivado debe incluir, como m\'inimo:
+
+\begin{enumerate}[leftmargin=*]
+\item archivo de datos (o hash), unidad de $\omega$ y magnitud medida;
+\item $\varepsilon_\infty$ (valor fijo o regla auto) y espesor si aplica;
+\item suavidad, negatividad, n\'umero de anclas e iteraciones;
+\item $\chi^{2}_{\mathrm{datos}}$, estado de convergencia y aviso de estancamiento si lo hubo;
+\item curvas $y$ frente a $Q$, $\varepsilon_1$, $\varepsilon_2$;
+\item si hubo Prueba~G: controles id\'enticos en RefFIT y tabla~\ref{tab:reffit-plantilla} completa.
+\end{enumerate}
+
+\chapter{Itinerario de seminarios (ULA)}
+\label{ap:seminarios}
+
+\begin{description}[style=nextline,leftmargin=1.2cm]
+\item[Seminario~I.]
+Cap\'itulos~\ref{ch:problema}--\ref{ch:kk}. Mensaje: causalidad y $\hat\varepsilon$.
+\item[Seminario~II.]
+Cap\'itulos~\ref{ch:variacional}--\ref{ch:app}. Mensaje: tri\'angulos, $\Phi$, cada medida.
+\item[Seminario~III (final).]
+Cap\'itulos~\ref{ch:verdad}--\ref{ch:conclusiones} y Secci\'on~\ref{sem:3}. Mensaje: validaci\'on, RefFIT, l\'imites.
+\end{description}

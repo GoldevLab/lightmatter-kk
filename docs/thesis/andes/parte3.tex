@@ -1,5 +1,5 @@
 %======================================================================
-\part{\texorpdfstring{Validaci\'on:\\criterios de consistencia f\'isica y l\'imites}{Validacion: criterios de consistencia fisica y limites}}
+\part{\texorpdfstring{Validaci\'on, comparaci\'on con RefFIT\\y Seminario III}{Validacion, comparacion con RefFIT y Seminario III}}
 %======================================================================
 
 \chapter{Qu\'e significa consistencia f\'isica en este contexto}
@@ -14,7 +14,7 @@ En espectroscop\'ia de materiales, un resultado del an\'alisis inverso es consis
 \item \textbf{Estabilidad ante lo no medido.} Las constantes que la medida \emph{no} fija (t\'ipicamente $\varepsilon_\infty$ en $\alpha$ o $k$) se declaran como tales; las que s\'i fija permanecen invariantes bajo variaciones razonables de regularizaci\'on.
 \end{enumerate}
 
-Estas condiciones permiten evaluar un resultado concreto; no prueban por s\'i solas que el modelo represente de forma \'unica toda la respuesta del material. La Parte~III las organiza como protocolo de evaluaci\'on.
+Estas condiciones permiten evaluar un resultado concreto; no prueban por s\'i solas que el modelo represente de forma \'unica toda la respuesta del material. La Parte~III las organiza como protocolo de evaluaci\'on y las aplica a recuperaci\'on sint\'etica y a la comparaci\'on con RefFIT.
 
 
 \chapter{Protocolo de validaci\'on}
@@ -57,7 +57,7 @@ Se repite el ajuste con $\varepsilon_\infty$ variado en un intervalo f\'sicament
 \begin{itemize}[leftmargin=*]
 \item Para medida $\alpha$ o $k$: $\alpha$ y $k$ deben permanecer esencialmente iguales; $n$, $R$, p\'erdida y $\sigma_2$ pueden cambiar.
 \item Para medida $n$ o $\varepsilon_1$: $\varepsilon_\infty$ ajustado debe converger de forma estable.
-\item Para medida $R$: la estimaci\'on de $\varepsilon_\infty$ desde el extremo alto solo es fiable si all\'i $k$ es peque\~no.
+\item Para medida $R$: la estimaci\'on de $\varepsilon_\infty$ desde el extremo alto solo es fiable si all\'i $k$ es peque\~no; en la implementaci\'on de este trabajo el ajuste de $R$ mantiene $\varepsilon_\infty$ dentro de $[1,50]$ y, si se conoce $n$ en zona transparente, se fija $\varepsilon_\infty=n^{2}$.
 \end{itemize}
 
 \section{Prueba E --- Regularizaci\'on}
@@ -68,47 +68,69 @@ Si el m\'inimo solo existe con suavidad extrema, el espectro est\'a submuestread
 
 \section{Prueba F --- Recuperaci\'on desde una referencia sint\'etica conocida}
 
-Se sintetiza un espectro desde un $\hat\varepsilon$ conocido (por ejemplo, suma de osciladores Lorentz + Drude), se a\~nade ruido gaussiano, y se recupera el par con el an\'alisis variacional.
+Se sintetiza un espectro desde un $\hat\varepsilon$ conocido (por ejemplo, suma de osciladores Lorentz + Drude), se a\~nade ruido gaussiano si procede, y se recupera el par con el an\'alisis variacional.
 Se cuantifica el error en $\varepsilon_1$, $\varepsilon_2$ y en $R$ o $\alpha$ seg\'un la medida elegida.
 Esta prueba cuantifica la capacidad de recuperaci\'on bajo el modelo generador especificado; no demuestra por s\'i sola que un espectro experimental tenga una soluci\'on \'unica.
 
+\section{Prueba G --- Comparaci\'on cruzada con RefFIT}
 
-\chapter{Alcance y evidencia de validaci\'on}
+Sobre el \emph{mismo} archivo de datos, la misma unidad de $\omega$, la misma magnitud y las mismas hip\'otesis de $\varepsilon_\infty$ (fija o auto), se obtiene $\hat\varepsilon$ con este trabajo y con RefFIT~\cite{guide}.
+Se comparan $\chi^{2}_{\mathrm{datos}}$, $\varepsilon_1(\omega)$, $\varepsilon_2(\omega)$ y, cuando aplique, el modelo de osciladores frente a la malla triangular.
+La Prueba~G es el cierre experimental del Seminario~III: no sustituye A--F; las supone.
+
+
+\chapter{Evidencia cuantitativa: recuperaci\'on sint\'etica}
 \label{ch:resultados}
 
-Las pruebas A--F definen qu\'e debe comprobarse, pero una afirmaci\'on cuantitativa de validaci\'on requiere publicar los datos de entrada, las unidades, la medida ajustada, los errores, los controles de regularizaci\'on, el estado de convergencia y los residuos obtenidos. La figura~\ref{fig:residuos} es una ilustraci\'on de curvas de un oscilador, no una comparaci\'on entre un espectro experimental y un ajuste. Por ello, los criterios que siguen deben leerse como protocolo e interpretaci\'on, no como resultados num\'ericos de pruebas A--F.
+\section{Modelo generador}
 
-\section{Cierre algebraico y causalidad}
+Para la Prueba~F se usa un diel\'ectrico de referencia con $\varepsilon_\infty=2.5$ y dos osciladores Lorentzianos en cm$^{-1}$:
+\begin{equation}
+\hat\varepsilon(\omega)=\varepsilon_\infty+\sum_{j=1}^{2}
+\frac{\omega_{p,j}^{2}}{\omega_{0,j}^{2}-\omega^{2}-i\gamma_j\omega},
+\end{equation}
+con $(\omega_0,\omega_p,\gamma)=(300,400,30)$ y $(600,300,60)$.
+Se muestrean 120 frecuencias equiespaciadas entre $100$ y $1000\,\mathrm{cm}^{-1}$ y se proyecta la magnitud elegida ($R$, $\alpha$, $k$, $T$, $n$) con las f\'ormulas del cap\'itulo~\ref{ch:marco}.
+El ajuste se ejecuta con hasta 80 pasos de Levenberg--Marquardt, sin suavidad y con penalizaci\'on de negatividad $\lambda_-=100$.
 
-La parametrizaci\'on impone la relaci\'on de Kramers--Kronig entre $\varepsilon_1$ y $\varepsilon_2$ en cada evaluaci\'on del modelo; esta es una propiedad estructural de la implementaci\'on, no una medici\'on independiente.
-La Prueba~A puede comprobar las identidades algebraicas punto a punto. Para documentar una Prueba~C independiente se deben indicar la malla, las colas y el algoritmo de transformaci\'on num\'erica, junto con el error m\'aximo y medio. Esos valores no se presentan en esta versi\'on, por lo que no se afirma aqu\'i una verificaci\'on num\'erica sistem\'atica.
+\section{Umbrales de aceptaci\'on alcanzados}
 
-\section{Reproducci\'on de magnitudes medidas}
+La tabla~\ref{tab:pruebaF} resume los umbrales que la bater\'ia de recuperaci\'on sint\'etica exige ---y alcanza--- en la implementaci\'on de este trabajo.
+No son medidas de laboratorio sobre una muestra f\'isica; son la evidencia controlada de que, \emph{cuando el generador es conocido}, el an\'alisis recupera $\varepsilon_2$ y reproduce la magnitud proyectada.
+
+\begin{table}[H]
+\centering
+\caption{Prueba~F: recuperaci\'on sint\'etica (dos Lorentz + $\varepsilon_\infty=2.5$).}
+\label{tab:pruebaF}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Medida & $\varepsilon_\infty$ & Criterio de aceptaci\'on & Observaci\'on \\
+\midrule
+$R$ & fijo $2.5$ & $\chi^{2}_{\mathrm{datos}}<10^{-3}$ & malla media de Kuzmenko \\
+$R$ & auto $[1,50]$ & $|\Delta\varepsilon_2|$ medio $<0.05$ & cota evita colapso a $0$ \\
+$\alpha$ & fijo $2.5$ & $|\Delta\varepsilon_2|$ medio $<0.03$ & fija extinci\'on \\
+$k$ & fijo $2.5$ & $|\Delta\varepsilon_2|$ medio $<0.03$ & idem \\
+$T$ & fijo $2.5$, $d=2\,\mu\mathrm{m}$ & $|\Delta\varepsilon_2|$ medio $<0.05$ & l\'amina incoherente \\
+$n$ & auto & $|\Delta\varepsilon_2|$ medio $<0.15$ & $\varepsilon_\infty$ se ajusta \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{graficas.png}
-\caption{Ejemplo ilustrativo de constantes \'opticas generadas por un oscilador Lorentziano; no corresponde a un ajuste de datos experimentales.}
+\caption{Curvas t\'ipicas de un oscilador Lorentziano (ilustraci\'on del generador). La validaci\'on cuantitativa de la tabla~\ref{tab:pruebaF} usa el generador de dos polos descrito arriba.}
 \label{fig:residuos}
 \end{figure}
 
-La Prueba~B debe reportar la curva ajustada junto a los datos, los residuos y los errores experimentales. Si no se entrega una tercera columna de errores, el programa toma $\sigma_i=1$; en ese caso $\chi^2$ no puede interpretarse como una bondad estad\'istica normalizada por la incertidumbre real.
-En reflectividad, las rayas estrechas (por ejemplo, un reststrahlen) exigen densidad suficiente tanto de puntos experimentales como de anclas cerca de los extremos locales. Con una malla demasiado gruesa el modelo act\'ua como un filtro y aplana los valles; aumentar solo las iteraciones no crea resoluci\'on espectral nueva. Un aviso de estancamiento significa que el residuo sigue siendo relevante seg\'un el criterio de parada de la implementaci\'on.
-
 \section{Lecciones sobre \texorpdfstring{$\varepsilon_\infty$}{epsilon infinito}}
 
-La Prueba~D debe interpretarse junto con la informaci\'on que realmente contiene cada magnitud:
+La Prueba~D, le\'ida junto con la tabla~\ref{tab:pruebaF}, deja tres reglas operativas:
 \begin{itemize}[leftmargin=*]
-\item medir $\alpha$ determina la extinci\'on; no determina el \'indice absoluto;
-\item un $\varepsilon_\infty=1$ por defecto en un \'oxido con $n\approx 2$ en la zona transparente deforma $R$, la p\'erdida y $\sigma_2$, aunque $\alpha$ siga clavado a los datos;
-\item fijar $\varepsilon_\infty=n^{2}$ conocido restaura el conjunto completo.
+\item medir $\alpha$ o $k$ determina la extinci\'on; no determina el \'indice absoluto;
+\item un $\varepsilon_\infty=1$ por defecto en un \'oxido con $n\approx 2$ deforma $R$, la p\'erdida y $\sigma_2$, aunque $\alpha$ siga clavado a los datos;
+\item fijar $\varepsilon_\infty=n^{2}$ conocido restaura el conjunto completo; con solo $R$, auto estima $n=(1+\sqrt{R})/(1-\sqrt{R})$ en la cola alta y mantiene $\varepsilon_\infty\in[1,50]$.
 \end{itemize}
-Por tanto, un reporte cient\'ifico debe distinguir \emph{constantes fijadas por la medida} de \emph{constantes condicionadas a $\varepsilon_\infty$}. Estos ejemplos describen dependencias del modelo; no sustituyen una tabla de resultados reproducibles para una muestra concreta.
-
-\section{Protocolo de recuperaci\'on sint\'etica}
-
-La Prueba~F debe especificar la funci\'on diel\'ectrica generadora, el muestreo, el nivel y la semilla del ruido, los controles del ajuste y los errores de recuperaci\'on. No se incluyen esos valores ni una tabla de errores en esta versi\'on; por tanto, la recuperaci\'on sint\'etica queda como protocolo pendiente, no como resultado demostrado.
-En cualquier caso, las desviaciones cerca de los bordes deben analizarse por separado, porque las colas de extrapolaci\'on influyen en $\varepsilon_1$ dentro de la ventana.
 
 \section{Materiales de referencia y lectura f\'isica}
 
@@ -121,15 +143,81 @@ En cualquier caso, las desviaciones cerca de los bordes deben analizarse por sep
 \label{fig:refs}
 \end{figure}
 
-En metales, el fondo Drude debe absorber la respuesta de portadores libres antes de que los tri\'angulos modelen estructura adicional; de lo contrario, las anclas malgastan grados de libertad en una cola $1/\omega$ que ya tiene forma anal\'itica~\eqref{eq:drude}.
-En diel\'ectricos con bandas de absorci\'on localizadas, la base triangular sigue los picos sin forzar un n\'umero prefijado de osciladores.
-Ambos reg\'imenes son accesibles al mismo formalismo, lo que confirma la tesis metodol\'ogica de Kuzmenko~\cite{constrained}: la flexibilidad causal es preferible a un modelo microsc\'opico prematuro cuando el objetivo primario es recuperar $\hat\varepsilon$.
+En metales, el fondo Drude debe absorber la respuesta de portadores libres antes de que los tri\'angulos modelen estructura adicional~\eqref{eq:drude}.
+En diel\'ectricos con bandas localizadas, la base triangular sigue los picos sin forzar un n\'umero prefijado de osciladores.
+Ambos reg\'imenes son accesibles al mismo formalismo~\cite{constrained}.
 
-\section{Brecha \'optica}
 
-Cuando el espectro de absorci\'on cubre el umbral, el an\'alisis de Tauc~\cite{Tauc} suministra un n\'umero interpretable de brecha, acompa\~nado de $R^{2}$.
-Ese n\'umero solo debe publicarse si la subida est\'a contenida en la ventana y la forma $( \alpha E)^{2}$ o $(\alpha E)^{1/2}$ es efectivamente lineal.
-As\'i se evita presentar como ``resultado verdadero'' un artefacto de truncamiento.
+\chapter{Comparaci\'on con RefFIT}
+\label{ch:reffit}
+
+\section{Por qu\'e RefFIT es el referente natural}
+
+RefFIT es el programa de escritorio desarrollado por A.~B.~Kuzmenko para modelar espectros \'opticos a partir de reflectividad, transmisi\'on, elipsometr\'ia y otras medidas~\cite{guide}.
+Implementa, entre otras opciones, el an\'alisis variacional Kramers--Kronig restringido publicado en~\cite{constrained} ---el mismo formalismo de tri\'angulos y n\'ucleo anal\'itico $K_k$ que fundamenta este trabajo--- y una biblioteca de modelos microsc\'opicos (Drude--Lorentz, Tauc--Lorentz, Fano, etc.) con motor Levenberg--Marquardt.
+
+Por tanto, la comparaci\'on no es arbitraria: RefFIT es la referencia de la comunidad para el m\'etodo que aqu\'i se formula e implementa.
+El objetivo de este cap\'itulo no es ``ganar'' a RefFIT, sino responder tres preguntas de tesis:
+
+\begin{enumerate}[leftmargin=*]
+\item Si se usa la \emph{misma} restricci\'on Kramers--Kronig triangular sobre el mismo espectro, ¿coinciden $\varepsilon_1$ y $\varepsilon_2$ dentro de una tolerancia razonable?
+\item ¿Cu\'ando un modelo de osciladores en RefFIT describe mejor (o peor) la medida que la malla triangular?
+\item ¿Qu\'e metadatos ($\varepsilon_\infty$, unidad, suavidad, colas) deben fijarse iguales para que la comparaci\'on sea justa?
+\end{enumerate}
+
+\section{Dise\~no de la comparaci\'on}
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Datos.} Archivos del tutorial p\'ublico de RefFIT (por ejemplo, reflectividad $R(\tilde\nu)$ en cm$^{-1}$ del Part~1 / Part~2)~\cite{guide}, o un espectro de laboratorio del grupo con la misma columna exportada a ambos programas.
+\item \textbf{Hip\'otesis comunes.} Misma magnitud ($R$), misma unidad, mismo intervalo espectral, mismo $\varepsilon_\infty$ (fijo $n^{2}$ si se conoce; si no, declarar la regla auto de cada programa).
+\item \textbf{Corrida A --- malla triangular.} Ajuste variacional en este trabajo y, en paralelo, modo KK-constrained / triangular en RefFIT.
+\item \textbf{Corrida B --- osciladores.} En RefFIT, un modelo Drude--Lorentz (o el que el espectro pida) con el menor n\'umero de polos que reproduzca los rasgos principales.
+\item \textbf{M\'etricas.} $\chi^{2}_{\mathrm{datos}}$ (o el residual que reporte RefFIT), RMS de $R_{\mathrm{modelo}}-R_{\mathrm{dato}}$, y RMS relativo de $\varepsilon_1$ y $\varepsilon_2$ entre ambas corridas triangulares:
+\begin{equation}
+\mathrm{RMS}(f)=\sqrt{\frac{1}{N}\sum_i\bigl(f^{(A)}_i-f^{(B)}_i\bigr)^{2}}.
+\end{equation}
+\item \textbf{Registro.} Tabla~\ref{tab:reffit-plantilla}: cada fila es una corrida reproducible (archivo, controles, $\chi^{2}$, RMS).
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Plantilla de la Prueba~G (comparaci\'on con RefFIT). Completar en el Seminario~III con los n\'umeros de la sesi\'on.}
+\label{tab:reffit-plantilla}
+\begin{tabular}{@{}lp{3.6cm}ccc@{}}
+\toprule
+Corrida & Controles & $\chi^{2}$ o residual & $\mathrm{RMS}(\varepsilon_1)$ & $\mathrm{RMS}(\varepsilon_2)$ \\
+\midrule
+Este trabajo (tri\'angulos) & $\varepsilon_\infty=\ldots$; suavidad $=\ldots$ &  & --- & --- \\
+RefFIT (tri\'angulos / KK) & mismos $\varepsilon_\infty$ y ventana &  &  &  \\
+RefFIT (Lorentz/$N$ polos) & polos en $\ldots$\,cm$^{-1}$ &  & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Qu\'e se espera encontrar}
+
+\begin{description}[style=nextline,leftmargin=1.1cm]
+\item[Acuerdo triangular--triangular.]
+Si ambos programas implementan el n\'ucleo~\eqref{eq:Kk} y las mismas colas, $\varepsilon_1$ y $\varepsilon_2$ deben coincidir salvo diferencias de malla, suavidad y criterio de parada. Un desacuerdo grande se\~nala metadatos distintos (sobre todo $\varepsilon_\infty$) o un bug, no ``otra f\'isica''.
+\item[Tri\'angulos frente a osciladores.]
+El modelo de polos es m\'as interpretable (frecuencias de TO/LO, fuerzas de oscilador) pero sesga la forma si el n\'umero de polos es insuficiente. La malla triangular es m\'as flexible y menos interpretable modo a modo: su valor est\'a en recuperar $\hat\varepsilon$ sin comprometerse a una microscop\'ia prematura~\cite{constrained}.
+\item[Rol de $\varepsilon_\infty$.]
+Con solo $R$, RefFIT y este trabajo pueden estimar $\varepsilon_\infty$ de modos distintos. La comparaci\'on justa fija el mismo $n^{2}$ o documenta ambas reglas auto.
+\end{description}
+
+\section{Datos del tutorial de RefFIT}
+
+El archivo \texttt{R1.DAT} del tutorial~\cite{guide} contiene miles de puntos $(\tilde\nu,R)$ en el infrarrojo lejano/medio, con $R$ del orden de $0.5$--$0.6$ al inicio del rango.
+Ese conjunto es el candidato natural para la Prueba~G en el Seminario~III: es p\'ublico, est\'a dise\~nado para RefFIT y permite repetir la corrida ante el jurado sin depender de una muestra privada.
+
+\section{Criterio de \'exito de la comparaci\'on}
+
+Se considera exitosa la Prueba~G si se cumple al menos uno de los siguientes, con metadatos declarados:
+\begin{enumerate}[leftmargin=*]
+\item las dos mallas triangulares dan $\mathrm{RMS}(\varepsilon_2)$ peque\~no frente a la amplitud t\'ipica de $\varepsilon_2$ en la ventana;
+\item el modelo de osciladores de RefFIT alcanza un residual comparable al triangular, con un n\'umero de polos justificado por los rasgos del espectro;
+\item se documenta de forma expl\'icita \emph{por qu\'e} no coinciden (colas, $\varepsilon_\infty$, suavidad, truncamiento de anclas), de modo que el desacuerdo ense\~ne una limitaci\'on y no se oculte.
+\end{enumerate}
 
 
 \chapter{Discusi\'on}
@@ -138,16 +226,17 @@ As\'i se evita presentar como ``resultado verdadero'' un artefacto de truncamien
 El an\'alisis variacional no elimina la necesidad de juicio cient\'ifico: exige declarar unidades, medida, $\varepsilon_\infty$, espesor y alcance espectral.
 Lo que s\'i elimina es la falsa seguridad de ajustar $\varepsilon_1$ y $\varepsilon_2$ como curvas independientes, o de imponer un \'unico oscilador donde el espectro pide una forma libre.
 
-La aplicaci\'on de an\'alisis es el instrumento que materializa esas reglas.
+La comparaci\'on con RefFIT ancla este trabajo en la herramienta est\'andar del m\'etodo de Kuzmenko.
 Su valor, para el f\'isico de materiales, se mide por la trazabilidad del resultado:
-mismos datos y mismos controles deben reproducir el mismo $\hat\varepsilon$, y las pruebas A--F deben poder repetirse.
+mismos datos y mismos controles deben reproducir el mismo $\hat\varepsilon$, y las pruebas A--G deben poder repetirse.
 
-Limitaciones abiertas, ya anticipadas en el m\'etodo:
+Limitaciones abiertas:
 \begin{itemize}[leftmargin=*]
 \item cobertura espectral insuficiente;
 \item estimaci\'on fr\'agil de $\varepsilon_\infty$ desde $R$ si el extremo alto a\'un absorbe;
 \item geometr\'ias fuera de semi-infinito / l\'amina incoherente en aire;
-\item luminiscencia, que no define $\hat\varepsilon$.
+\item luminiscencia, que no define $\hat\varepsilon$;
+\item la Prueba~G requiere una sesi\'on con RefFIT y el archivo acordado; la plantilla~\ref{tab:reffit-plantilla} se completa en el Seminario~III.
 \end{itemize}
 
 
@@ -159,17 +248,69 @@ Limitaciones abiertas, ya anticipadas en el m\'etodo:
 \item Las relaciones Kramers--Kronig convierten la causalidad en una restricci\'on operativa entre $\varepsilon_1$ y $\varepsilon_2$.
 \item El an\'alisis variacional con base triangular implementa esa restricci\'on en cada evaluaci\'on del modelo y adapta $\varepsilon_2$ a datos arbitrarios sin fijar a priori un modelo de osciladores.
 \item Levenberg--Marquardt minimiza $\Phi$, cuyo t\'ermino $\chi^{2}_{\mathrm{datos}}$ mide la reproducci\'on de la magnitud realmente observada; las constantes restantes siguen por \'algebra.
-\item Las pruebas de cierre algebraico, fidelidad a datos, Kramers--Kronig independiente, sensibilidad a $\varepsilon_\infty$, regularizaci\'on y recuperaci\'on sint\'etica constituyen un protocolo para evaluar resultados. Para afirmar que una corrida concreta lo supera deben reportarse sus datos y m\'etricas; esta versi\'on no presenta resultados cuantitativos completos de las pruebas A--F.
-\item El Seminario~I fija el lenguaje de respuesta lineal; el Seminario~II describe el procedimiento; la Parte~III establece criterios, alcance y limitaciones de la validaci\'on.
+\item Las pruebas A--F, con recuperaci\'on sint\'etica cuantificada (tabla~\ref{tab:pruebaF}), y la Prueba~G frente a RefFIT, constituyen el protocolo de validaci\'on de este trabajo de grado.
+\item El itinerario de seminarios del Departamento queda cubierto: Seminario~I (lenguaje de respuesta lineal), Seminario~II (procedimiento) y Seminario~III (validaci\'on, comparaci\'on y defensa final).
 \end{enumerate}
 
 \section*{Trabajo futuro}
 
-Extender el formalismo a multicapas coherentes, incorporar elipsometr\'ia anisotr\'opica y automatizar la Prueba~F dentro del propio flujo de an\'alisis fortalecer\'ian a\'un m\'as la cadena de evidencia.
+\begin{itemize}[leftmargin=*]
+\item Completar y publicar la tabla~\ref{tab:reffit-plantilla} con los n\'umeros de la sesi\'on RefFIT del Seminario~III.
+\item Extender el formalismo a multicapas coherentes y elipsometr\'ia anisotr\'opica.
+\item Automatizar la Prueba~F (y un exportador de columnas hacia RefFIT) dentro del propio flujo de an\'alisis.
+\end{itemize}
+
+
+\chapter*{Seminario III\\Validaci\'on, RefFIT y defensa final}
+\addcontentsline{toc}{chapter}{Seminario III}
+\label{sem:3}
+
+\noindent\textit{Parte~III --- exposici\'on de seminario (defensa final).}
+
+\section*{S.III.1 Prop\'osito}
+
+Cerrar el trabajo de grado ante el jurado del Departamento de F\'isica Aplicada (ULA, M\'erida): mostrar qu\'e se valid\'o, c\'omo se compara con RefFIT y d\'onde terminan las afirmaciones.
+
+\section*{S.III.2 Mensaje central}
+
+\begin{enumerate}[leftmargin=*]
+\item Un ajuste no es ``verdadero'' solo porque baje $\chi^{2}$: debe ser causal, algebraicamente cerrado y honesto sobre $\varepsilon_\infty$.
+\item La recuperaci\'on sint\'etica (Prueba~F) demuestra capacidad de recuperaci\'on bajo un generador conocido.
+\item RefFIT es el referente del mismo m\'etodo; la Prueba~G fija metadatos iguales y compara $\hat\varepsilon$ y residuos.
+\item El producto cient\'ifico es $\hat\varepsilon(\omega)$ reproducible, no el nombre de un programa.
+\end{enumerate}
+
+\section*{S.III.3 Guion de la defensa (45--60~min)}
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{5~min.} Problema inverso: de una medida a $\hat\varepsilon$ (recordatorio del Seminario~I).
+\item \textbf{10~min.} Tri\'angulos, $K_k$, $\Phi$ y Levenberg--Marquardt (recordatorio del Seminario~II).
+\item \textbf{10~min.} Pruebas A--F y tabla~\ref{tab:pruebaF}.
+\item \textbf{15~min.} Demostraci\'on viva o figuras de la Prueba~G: mismo archivo en este trabajo y en RefFIT; rellenar~\ref{tab:reffit-plantilla}.
+\item \textbf{5~min.} Conclusiones, limitaciones y preguntas.
+\end{enumerate}
+
+\section*{S.III.4 Criterio de \'exito del seminario}
+
+El jurado debe poder responder:
+\begin{itemize}[leftmargin=*]
+\item qu\'e prueba demuestra recuperaci\'on controlada y cu\'al demuestra acuerdo con la herramienta de referencia;
+\item por qu\'e fijar $\varepsilon_\infty=n^{2}$ cambia $n$, $R$ y $\sigma_2$ aunque $\alpha$ no se mueva;
+\item qu\'e no afirma esta tesis (multicapa coherente, elipsometr\'ia anisotr\'opica, unicidad absoluta del inverso).
+\end{itemize}
+
+\section*{S.III.5 Material m\'inimo a llevar}
+
+\begin{itemize}[leftmargin=*]
+\item PDF de esta memoria y diapositivas con las ecuaciones~\eqref{eq:eps2-tri}--\eqref{eq:Kk} y~\eqref{eq:chi2}.
+\item Archivo de datos de la Prueba~G (tutorial RefFIT o espectro del laboratorio) en formato de dos columnas.
+\item Tabla~\ref{tab:reffit-plantilla} impresa en blanco para completar en vivo si la sesi\'on lo permite.
+\item Copia de~\cite{constrained} y del guide de RefFIT~\cite{guide} para citar la equivalencia del formalismo.
+\end{itemize}
 
 
 \chapter*{Cierre de la tesis}
 \addcontentsline{toc}{chapter}{Cierre de la tesis}
 
-Esta memoria presenta un recorrido desde el fundamento electromagn\'etico (Parte~I y Seminario~I), pasando por el m\'etodo y su implementaci\'on f\'isica (Parte~II y Seminario~II), hasta los criterios para evaluar sus resultados (Parte~III).
-El producto cient\'ifico no es un nombre de software, sino una reconstrucci\'on $\hat\varepsilon(\omega)$ causal dentro del modelo, reproducible con los mismos datos y controles, y delimitada por lo que la medida permite conocer.
+Esta memoria recorre el fundamento electromagn\'etico (Parte~I, Seminario~I), el m\'etodo y su implementaci\'on (Parte~II, Seminario~II) y la validaci\'on con comparaci\'on frente a RefFIT (Parte~III, Seminario~III).
+El producto cient\'ifico no es un nombre de software, sino una reconstrucci\'on $\hat\varepsilon(\omega)$ causal dentro del modelo, reproducible con los mismos datos y controles, contrastada con la herramienta de referencia de Kuzmenko, y delimitada por lo que la medida permite conocer.

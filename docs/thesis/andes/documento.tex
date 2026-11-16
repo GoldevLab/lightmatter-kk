@@ -7,6 +7,7 @@
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{booktabs}
+\usepackage{longtable}
 \usepackage{setspace}
 \usepackage{geometry}
 \usepackage{microtype}
@@ -26,59 +27,80 @@
 %======================================================================
 \begin{titlepage}
 \begin{center}
-\vspace*{0.4cm}
-{\large UNIVERSIDAD DE LOS ANDES}\\[0.35cm]
-{\large FACULTAD DE CIENCIAS}\\[0.25cm]
-{\large DEPARTAMENTO DE F\'ISICA APLICADA}\\[1.6cm]
+\vspace*{0.2cm}
+{\large UNIVERSIDAD DE LOS ANDES}\\[0.25cm]
+{\large FACULTAD DE CIENCIAS}\\[0.2cm]
+{\large DEPARTAMENTO DE F\'ISICA APLICADA}\\[0.15cm]
+{\large M\'erida, Venezuela}\\[1.2cm]
 
-{\LARGE\bfseries An\'alisis variacional Kramers--Kronig restringido\\[0.25cm]
-de espectros \'opticos:\\[0.35cm]
-modelado de la funci\'on diel\'ectrica\\[0.15cm]
-y validaci\'on de constantes \'opticas}\\[1.4cm]
+{\LARGE\bfseries An\'alisis variacional Kramers--Kronig restringido\\[0.2cm]
+de espectros \'opticos:\\[0.3cm]
+modelado de la funci\'on diel\'ectrica,\\[0.12cm]
+validaci\'on y comparaci\'on con RefFIT}\\[1.1cm]
 
-\rule{70mm}{0.4pt}\\[1.0cm]
+\rule{70mm}{0.4pt}\\[0.9cm]
 
 \begin{tabular}{ll}
-Autor: & Golfredo P\'erez Fern\'andez \\[0.35cm]
-Tutor: & Juan Mart\'in \\[0.35cm]
-Cotutor: & --- \\
+Autor: & Golfredo P\'erez Fern\'andez \\[0.3cm]
+Tutor: & Juan Mart\'in \\
 \end{tabular}
 
-\vspace{2.2cm}
-\textit{Trabajo de grado}\\[0.4cm]
-M\'erida, Venezuela\\[0.2cm]
+\vspace{1.6cm}
+\textit{Trabajo especial de grado}\\[0.25cm]
+presentado ante la Universidad de los Andes\\[0.15cm]
+como requisito parcial para optar al t\'itulo de\\[0.25cm]
+{\large Licenciado en F\'isica}\\[1.0cm]
+M\'erida, Venezuela\\[0.15cm]
 \today
 \end{center}
 \end{titlepage}
 
 \frontmatter
+
+\chapter*{Dedicatoria}
+\addcontentsline{toc}{chapter}{Dedicatoria}
+A mi familia y a quienes hicieron posible este trabajo en el Departamento de F\'isica Aplicada de la Universidad de los Andes.
+
+\chapter*{Agradecimientos}
+\addcontentsline{toc}{chapter}{Agradecimientos}
+Agradezco a mi tutor, Juan Mart\'in, por la orientaci\'on cient\'ifica y por insistir en que un resultado solo es \'util si se declara qu\'e fija la medida y qu\'e queda como hip\'otesis.
+Al Departamento de F\'isica Aplicada de la Universidad de los Andes (ULA, M\'erida) por el espacio acad\'emico en el que se desarrollaron los seminarios de avance.
+A la literatura de Dressel y Gr\"uner, Fox, Jackson y Kuzmenko, sin la cual este texto no tendr\'ia base.
+Cualquier error restante es responsabilidad del autor.
+
 \tableofcontents
 \clearpage
 \listoffigures
+\clearpage
+\listoftables
 
 \chapter*{Resumen}
 \addcontentsline{toc}{chapter}{Resumen}
 La respuesta lineal de un s\'olido a un campo electromagn\'etico se describe mediante la funci\'on diel\'ectrica compleja
 $\hat\varepsilon(\omega)=\varepsilon_1(\omega)+i\varepsilon_2(\omega)$.
 De ella se derivan el \'indice de refracci\'on, la extinci\'on, la reflectividad, la absorci\'on y la conductividad \'optica.
-En un experimento, por lo general se mide una de esas magnitudes en una ventana finita de frecuencias, no el par $(\varepsilon_1,\varepsilon_2)$ en todo el eje.
-Este trabajo formula e implementa un an\'alisis variacional restringido por Kramers--Kronig: representa $\varepsilon_2$ mediante una base triangular, calcula $\varepsilon_1$ con la transformada anal\'itica de esa base y ajusta sus amplitudes con Levenberg--Marquardt para reproducir la magnitud medida.
-Adem\'as, establece criterios para evaluar consistencia algebraica, causalidad, fidelidad a los datos y sensibilidad a las cantidades que el experimento no determina.
-La tesis se organiza en tres partes: fundamentos y Seminario~I; m\'etodo e implementaci\'on f\'isica y Seminario~II; y criterios de validaci\'on, alcance y limitaciones.
+En un experimento suele medirse una sola de esas magnitudes en una ventana finita de frecuencias, no el par $(\varepsilon_1,\varepsilon_2)$ en todo el eje.
+Este trabajo formula e implementa un an\'alisis variacional restringido por Kramers--Kronig: representa $\varepsilon_2$ con una base triangular, calcula $\varepsilon_1$ con la transformada anal\'itica de esa base y ajusta las amplitudes con Levenberg--Marquardt para reproducir la magnitud medida.
+Define un protocolo de validaci\'on (cierre algebraico, fidelidad a datos, Kramers--Kronig independiente, sensibilidad a $\varepsilon_\infty$, regularizaci\'on y recuperaci\'on sint\'etica) y lo completa con una comparaci\'on frente a RefFIT, el programa de referencia de Kuzmenko que implementa el mismo formalismo y modelos de osciladores.
+La memoria se organiza en tres partes alineadas con el itinerario de seminarios del Departamento: Seminario~I (fundamentos), Seminario~II (m\'etodo e implementaci\'on) y Seminario~III (validaci\'on, comparaci\'on con RefFIT y defensa final).
 
 \vspace{0.8cm}
-\noindent\textbf{Palabras clave:} funci\'on diel\'ectrica, Kramers--Kronig, an\'alisis variacional, espectroscop\'ia \'optica, Levenberg--Marquardt.
+\noindent\textbf{Palabras clave:} funci\'on diel\'ectrica, Kramers--Kronig, an\'alisis variacional, espectroscop\'ia \'optica, Levenberg--Marquardt, RefFIT, Universidad de los Andes.
 
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
 The linear optical response of a solid is described by its complex dielectric function.
-This thesis formulates and implements a Kramers--Kronig constrained variational analysis: it represents the imaginary part with triangular basis functions, obtains the real part from their analytic transforms, and fits the measured optical quantity with Levenberg--Marquardt.
-It also defines tests for algebraic consistency, causality, data fidelity, and sensitivity to quantities that the measurement does not determine. Its conclusions are limited to the evidence and assumptions stated for each test.
+This undergraduate thesis formulates and implements a Kramers--Kronig constrained variational analysis: it represents the imaginary part with triangular basis functions, obtains the real part from their analytic transforms, and fits the measured optical quantity with Levenberg--Marquardt.
+It defines validation tests for algebraic consistency, causality, data fidelity and sensitivity to quantities that the measurement does not determine, and compares the approach with RefFIT, Kuzmenko's reference software for the same method and for oscillator models.
+The manuscript is organized around three departmental seminars: foundations; method and implementation; validation, RefFIT comparison and final defense.
 
 \mainmatter
 \input{parte1}
 \input{parte2}
 \input{parte3}
+
+\appendix
+\input{anexos}
 
 \bibliographystyle{unsrt}
 \bibliography{bibliografia}
