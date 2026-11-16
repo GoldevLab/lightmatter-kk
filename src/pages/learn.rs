@@ -67,7 +67,7 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"ε₁. La parte real. ε∞ se ajusta junto con ε₂, salvo que lo escribas."</li>
                     <li>"n, índice de refracción. Igual: ε∞ se ajusta. El valor de partida es n² del último punto, entre 1 y 50."</li>
                     <li>"k, coeficiente de extinción. ε∞ no sale de k. Vacío usa 1, y entonces n se queda cerca de 1 donde la muestra es transparente."</li>
-                    <li>"R, reflectividad a incidencia normal de un medio semi-infinito, entre 0 y 1. Si el máximo está entre 1.5 y 100.5, se toma como % y se divide entre 100. Si dejas ε∞ vacío (auto), se estima del R del extremo alto suponiendo k pequeño: n = (1+√R)/(1−√R) y ε∞ = n², entre 1 y 50, y después se ajusta junto con los Aₖ. Esa estimación inicial falla si el extremo alto todavía absorbe; el valor final puede alejarse mucho del n² físico si solo tienes R."</li>
+                    <li>"R, reflectividad a incidencia normal de un medio semi-infinito, entre 0 y 1. Si el máximo está entre 1.5 y 100.5, se toma como % y se divide entre 100. Si dejas ε∞ vacío (auto), se estima del R del extremo alto (k≈0): n = (1+√R)/(1−√R) y ε∞ = n², y luego se ajusta acotado en [1, 50]. Prioridad: si conoces n en zona transparente, escribe ε∞ = n² y fíjalo — ver ε∞ y n²."</li>
                     <li>"α, coeficiente de absorción en cm⁻¹. Necesita ω en cm⁻¹, eV o nm. ε∞ vacío usa 1."</li>
                     <li>"T, transmitancia de una lámina en aire. Necesita unidad de ω y el espesor en µm. Sin espesor el análisis no arranca."</li>
                     <li>"Luminiscencia. Es emisión, no absorción: la intensidad medida no es ε₂ y no determina una pareja ε₁/ε₂. Se analizan picos y propiedades de la emisión, sin fingir una constante dieléctrica."</li>
@@ -99,19 +99,33 @@ pub fn page(_req: FlowRequest) -> View {
                 )}
                 <p>"A la izquierda de la primera ancla medida y a la derecha de la última hay un ancla extra con coeficiente cero. Entre el extremo medido y esa ancla, ε₂ baja en línea recta hasta cero. Los datos no fijan esa cola y la elección puede cambiar ε₁ dentro del rango. La tesis contempla añadir un oscilador fuera de la ventana si hace falta; esta app no ofrece ese control. La casilla de dibujar fuera del rango muestra la extrapolación: no son datos nuevos."</p>
                 <p>"Esta es la restricción variacional de Kuzmenko (2005). El triángulo es flexible: no supone que el material sea un oscilador de Lorentz, ni un Tauc–Lorentz, ni un Fano. Esos modelos siguen siendo útiles para interpretar, pero aquí no se imponen."</p>
-                <h3 id="eps-inf">"ε∞ — qué es y qué hace auto"</h3>
+                <h3 id="eps-inf">"ε∞ — qué es, auto y cómo fijar n²"</h3>
                 <p>"ε∞ es el valor de ε₁ por encima de tu ventana de medida: junta toda la absorción a frecuencias más altas que no mediste. En la fórmula de Kramers–Kronig aparece como el fondo constante al que se suma la integral de ε₂. No es un segundo ajuste de la curva medida; es la hipótesis sobre lo que hay fuera del rango."</p>
-                <p>"En un cristal dieléctrico típico, ε∞ suele estar entre ~1 y ~10 (a menudo n² en la zona transparente). Un resultado cerca de 0 o de cientos casi siempre es un artefacto del ajuste, no una constante del material."</p>
+                <p>"En un cristal dieléctrico típico, ε∞ suele estar entre ~1 y ~10. Donde la muestra es transparente (k ≈ 0), ε₁ ≈ n², así que ε∞ ≈ n² en esa zona. Un resultado cerca de 0 o de cientos casi siempre es un artefacto del ajuste, no una constante del material."</p>
+
+                <h4 id="n2">"Cómo obtener n² para escribirlo en el laboratorio"</h4>
+                <p>"La prioridad, sobre todo con R, es acotar o fijar ε∞. Si conoces el índice en una zona transparente, escribe ε∞ = n² y deja ese valor fijo. Así el ajuste no puede “comprar” χ² bajando ε∞ hacia 0."</p>
+                <ol>
+                    <li>"Elige una frecuencia donde tu muestra sea transparente o casi: lejos de bandas de absorción, con k bajo. En el visible, a menudo es el rojo o el NIR; en el IR, una meseta entre reststrahlen y la siguiente banda."</li>
+                    <li>"Consigue n en esa frecuencia. Fuentes típicas: elipsoometría; un valor tabulado del material (manuales, papers); interferometría / franjas en una lámina de espesor conocido; o, si solo tienes R y k ≈ 0 ahí, invierte R con la misma fórmula de abajo."</li>
+                    <li>"Calcula n². Ejemplos: n = 2 → ε∞ = 4; n = 1.5 → ε∞ = 2.25; n = 3.4 (Si, IR) → ε∞ ≈ 11.6. En ZnO visible, n ≈ 2 y ε∞ ≈ 4."</li>
+                    <li>"Escríbelo en el campo ε∞ del laboratorio (sin dejar auto). Ese número queda fijo: no se mueve en el Levenberg–Marquardt."</li>
+                </ol>
+                <p>"Si no tienes n de otra técnica, pero sí una cola de R plana y baja absorción al extremo de alta frecuencia, puedes estimar n tú mismo con k ≈ 0:"</p>
+                <p class="formula">"n = (1 + √R) / (1 − √R) ,   ε∞ = n²"</p>
+                <p>"Ejemplo: R = 0.15 → √R ≈ 0.387 → n ≈ 2.26 → ε∞ ≈ 5.1. Esa es exactamente la regla que usa auto con R (promediando la cola alta, no un solo punto). Solo es fiable si ahí k es pequeño; si el extremo alto todavía absorbe, n sale mal y conviene fijar un n² de la literatura."</p>
+
+                <h4>"Qué hace auto"</h4>
                 <p>"En el laboratorio, el campo ε∞ vacío se muestra como auto. Eso no significa “el programa conoce ε∞”: significa que elige una regla según lo que mediste."</p>
                 <ul>
-                    <li>"Si lo escribes, ese número queda fijo. No se mueve en el Levenberg–Marquardt."</li>
+                    <li>"Si lo escribes, ese número queda fijo. No se mueve en el Levenberg–Marquardt. Es la opción preferida cuando conoces n²."</li>
                     <li>"Con ε₁ o n, auto inicia un valor razonable y ajusta ε∞ junto con las alturas Aₖ."</li>
-                    <li>"Con R, auto hace dos cosas: (1) toma la media de R en la cola de alta frecuencia (no un solo punto), invierte con k ≈ 0: n = (1+√R)/(1−√R) y ε∞ = n² (acotado entre 1 y 50); (2) después ajusta ese ε∞ junto con los Aₖ. El aviso del resultado suele decir “se inicia en … y se ajusta”. Si el valor final sale de [1, 50], sale otro aviso: ese número puede no ser físico."</li>
+                    <li>"Con R, auto: (1) promedia R en la cola de alta frecuencia (hasta ~2 % de los puntos o 24), invierte con k ≈ 0 → n = (1+√R)/(1−√R) → ε∞ = n², ya acotado entre 1 y 50; (2) ajusta ese ε∞ junto con los Aₖ, pero el LM lo mantiene dentro de [1, 50] para que no derive a 0.002 ni a cientos. El aviso del resultado suele decir “se ajustó dentro de [1, 50] (partida … → …)”. Aunque esté acotado, el valor final puede no ser el n² físico del cristal: si lo conoces, fíjalo."</li>
                     <li>"Con k, α o T, la medida no fija ε∞. Auto usa 1 y no lo ajusta. Donde la muestra es transparente, n sale cerca de 1, aunque el material real tenga n ≈ 2."</li>
                     <li>"Con ε₂, ε∞ solo entra si lo escribes o si activas Drude; no se deduce solo de ε₂."</li>
                 </ul>
-                <p>"Con solo R, ε∞ y la cola de ε₂ fuera de la ventana se compensan: el ajuste puede bajar ε∞ hacia 0 (o empujarlo alto) para mejorar χ² sin que eso sea físico. Si el extremo alto de tu espectro todavía absorbe, la estimación inicial también falla. Por eso, si conoces n donde la muestra es transparente, escribe ε∞ = n² y vuelve a analizar. En el ZnO visible, n ≈ 2 y ε∞ ≈ 4; con 1 o con un auto que derivó a 0.002, ε₁, n, R, la pérdida y σ₂ no son los del cristal, aunque el χ² de R baje."</p>
-                <p>"α y k fijan la extinción (α = 4πν̃k), no el índice. Lee siempre el aviso de ε∞ en el resultado: dice si quedó escrito, estimado y ajustado, o en 1 por defecto."</p>
+                <p>"Con solo R, ε∞ y la cola de ε₂ fuera de la ventana se compensan: sin cota, el ajuste podía bajar ε∞ hacia 0 para mejorar χ² sin que eso sea físico. La cota [1, 50] evita ese colapso, pero no sustituye un n² medido o tabulado. Si el extremo alto de tu espectro todavía absorbe, la estimación inicial de auto también falla."</p>
+                <p>"α y k fijan la extinción (α = 4πν̃k), no el índice. Lee siempre el aviso de ε∞ en el resultado: dice si quedó escrito, estimado y ajustado dentro de [1, 50], o en 1 por defecto. Con 1 o con un auto engañado, ε₁, n, R modelada, la pérdida y σ₂ no son los del cristal, aunque el χ² de la magnitud medida baje."</p>
                 <h3>"Fondo Drude"</h3>
                 <p>"Si lo marcas, antes de los triángulos se resta un fondo de electrones libres:"</p>
                 <p class="formula">"ε₂,Drude = ωₚ² γ ω / (ω⁴ + γ² ω²)"</p>
@@ -202,7 +216,7 @@ pub fn page(_req: FlowRequest) -> View {
                 <ol>
                     <li>"Mira el χ² y la diferencia, que es (ajuste − datos) × 100. Si el ajuste pasa por los datos, la magnitud que mediste quedó reproducida. Eso no alcanza para fijar lo que la medida no contiene."</li>
                     <li>"Si la curva del ajuste es casi una recta y los datos tienen picos, revisa la unidad antes de tocar la suavidad. Un cm⁻¹ leído como nm invierte el eje y el modelo se queda en el R de un ε∞ mal tomado."</li>
-                    <li>"Lee el aviso de ε∞ (sección ε∞ y auto). Si dice 1 por defecto y mediste α, k o T, fíate de α y de k: ε₁, n, R, la pérdida y σ₂ esperan a que escribas ε∞. Si mediste R y el ε∞ final salió cerca de 0 o enorme, el χ² puede verse bien y aun así ε₁/n no ser físicos: fija n² si lo conoces."</li>
+                    <li>"Lee el aviso de ε∞ (sección ε∞, auto y n²). Si dice 1 por defecto y mediste α, k o T, fíate de α y de k: ε₁, n, R, la pérdida y σ₂ esperan a que escribas ε∞ = n². Si mediste R, auto acota ε∞ en [1, 50], pero eso no garantiza el n² físico: fija n² si lo conoces (cómo obtenerlo está en esa sección)."</li>
                     <li>"En una medida óptica, el panel de datos es tu columna y los demás muestran el par (ε₁, ε₂) y lo que se deduce de él. En luminiscencia se muestran propiedades de emisión, sin ese par."</li>
                     <li>"Pasa el mouse por una gráfica para el punto más cercano. Cada gráfica se baja en SVG o PNG."</li>
                     <li>"Descargar: .dat y CSV traen ω, ε₁, ε₂, n, k, R, la pérdida y, con unidad, σ₁, σ₂ y α. Con espesor añaden T y A. Datos y ajuste compara tu columna con el modelo. Picos es la tabla. JSON es el informe para procesarlo. Al final, «Descargar todos los resultados» guarda un HTML con el resumen resaltado, los picos y el espectro en tablas."</li>
@@ -260,7 +274,8 @@ fn guide_links(lang: lightmatter::i18n::Lang) -> View {
             <a href="#medidas">{tx(lang, "Qué puedes medir", "What you can measure", "可以测量什么", "O que você pode medir")}</a>
             <p>{tx(lang, "El análisis", "The analysis", "分析", "A análise")}</p>
             <a href="#metodo">{tx(lang, "El método", "The method", "方法", "O método")}</a>
-            <a href="#eps-inf">{tx(lang, "ε∞ y auto", "ε∞ and auto", "ε∞ 与 auto", "ε∞ e auto")}</a>
+            <a href="#eps-inf">{tx(lang, "ε∞, auto y n²", "ε∞, auto, and n²", "ε∞、auto 与 n²", "ε∞, auto e n²")}</a>
+            <a href="#n2">{tx(lang, "Cómo obtener n²", "How to get n²", "如何得到 n²", "Como obter n²")}</a>
             <a href="#triangulos">{tx(lang, "Triángulos de ε₂", "ε₂ triangles", "ε₂ 的三角", "Triângulos de ε₂")}</a>
             <a href="#ajuste">{tx(lang, "El ajuste", "The fit", "拟合", "O ajuste")}</a>
             <a href="#constantes">{tx(lang, "Cada constante", "Each constant", "每个常数", "Cada constante")}</a>
