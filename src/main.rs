@@ -177,7 +177,7 @@ fn seo_kit() -> SeoKit {
         )
         .with_llms_section(
             "Páginas",
-            "Portada /. Laboratorio /lab (ahí se pega el espectro). Estante /shelf, cada ficha en /shelf/id. Guía /learn, con anclas #dato #medidas #metodo #ajuste #constantes #lectura #luminiscencia #limites. \
+            "Portada /. Laboratorio /lab (ahí se pega el espectro). Estante /shelf, cada ficha en /shelf/id. Guía /learn, con anclas #dato #medidas #metodo #eps-inf #ajuste #constantes #lectura #luminiscencia #limites. \
              Un resultado concreto vive en /lab?r= y no se indexa. /lab/run y /lab/download son el cálculo y la descarga, no páginas.",
         )
         .with_llms_section(

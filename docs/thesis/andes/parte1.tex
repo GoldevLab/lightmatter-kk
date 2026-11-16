@@ -115,8 +115,7 @@ La primera igualdad es la parte real de $(n+ik)^2$ y la segunda su parte imagina
 n^2=\frac{|\hat\varepsilon|+\varepsilon_1}{2},\qquad
 k^2=\frac{|\hat\varepsilon|-\varepsilon_1}{2}.
 \end{equation}
-Tomando las ra\'ices cuadradas y eligiendo la rama de $k$ seg\'un el signo de $\varepsilon_2$ se obtiene
-La expresi\'on resultante es
+Tomando las ra\'ices cuadradas y eligiendo la rama de $k$ seg\'un el signo de $\varepsilon_2$, se obtiene
 \begin{equation}
 \label{eq:nk-from-eps}
 n=\sqrt{\frac{|\varepsilon|+\varepsilon_1}{2}},\qquad
@@ -276,14 +275,19 @@ Si se extiende la frecuencia a $z=\omega+i\eta$, con $\eta>0$, el integrando con
 
 Sea $F(\omega)=\hat\varepsilon(\omega)-1$. Si $F$ tiende a cero a alta frecuencia y no tiene un polo en el origen, el teorema integral de Cauchy aplicado a un contorno en el semiplano superior da, sobre el eje real,
 \begin{equation}
+\label{eq:cauchy-F}
 F(\omega)=\frac{1}{i\pi}\,\mathcal{P}\!\int_{-\infty}^{\infty}\frac{F(\omega')}{\omega'-\omega}\,d\omega'.
 \end{equation}
-La respuesta temporal es real, por lo que $F_1(-\omega)=F_1(\omega)$ y $F_2(-\omega)=-F_2(\omega)$, donde $F=F_1+iF_2$. Separar las partes real e imaginaria en la integral anterior produce
+La respuesta temporal es real, por lo que $F(-\omega)=F^*(\omega)$: la parte real $F_1$ es par y la imaginaria $F_2$ es impar. Multiplicar~\eqref{eq:cauchy-F} por $i$ y separar partes real e imaginaria produce las formas bilaterales
 \begin{align}
 F_1(\omega)&=\frac{1}{\pi}\,\mathcal{P}\!\int_{-\infty}^{\infty}\frac{F_2(\omega')}{\omega'-\omega}\,d\omega',\\
 F_2(\omega)&=-\frac{1}{\pi}\,\mathcal{P}\!\int_{-\infty}^{\infty}\frac{F_1(\omega')}{\omega'-\omega}\,d\omega'.
 \end{align}
-Al usar la paridad, se agrupan las contribuciones de $+\omega'$ y $-\omega'$; los denominadores se combinan como $1/(\omega'-\omega)+1/(\omega'+\omega)=2\omega'/[(\omega')^2-\omega^2]$. As\'i se obtienen las relaciones de frecuencia positiva
+Al usar la paridad, se agrupan las contribuciones de $+\omega'$ y $-\omega'$. Para $F_1$, los denominadores se combinan como
+\begin{equation}
+\frac{1}{\omega'-\omega}+\frac{1}{\omega'+\omega}=\frac{2\omega'}{(\omega')^{2}-\omega^{2}},
+\end{equation}
+y el factor $2$ convierte la integral bilateral en una sobre $[0,\infty)$. As\'i se obtienen las relaciones de frecuencia positiva
 \begin{align}
 \label{eq:kk1}
 \varepsilon_1(\omega)-1
@@ -296,6 +300,7 @@ Al usar la paridad, se agrupan las contribuciones de $+\omega'$ y $-\omega'$; lo
 +\frac{4\pi\sigma_{\mathrm{dc}}}{\omega}.
 \end{align}
 El t\'ermino $4\pi\sigma_{\mathrm{dc}}/\omega$ se separa cuando hay conductividad continua: representa la contribuci\'on de baja frecuencia de un conductor, con $\sigma_{\mathrm{dc}}=\sigma_1(0)$. El s\'imbolo $\mathcal{P}$ indica valor principal de Cauchy; es necesario porque el denominador se anula en $x=\omega$.
+En la pr\'actica del an\'alisis variacional se usa~\eqref{eq:kk1} (o su forma con $\varepsilon_\infty$ en una ventana finita) para construir $\varepsilon_1$ desde el modelo de $\varepsilon_2$; la ecuaci\'on~\eqref{eq:kk2} sirve como comprobaci\'on y como recordatorio de que un conductor exige tratar el polo en $\omega=0$.
 
 \begin{figure}[H]
 \centering

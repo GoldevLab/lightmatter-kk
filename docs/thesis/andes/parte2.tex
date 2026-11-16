@@ -45,26 +45,29 @@ As\'i, en cada iteraci\'on del ajuste el par $(\varepsilon_1,\varepsilon_2)$ es 
 
 \section{N\'ucleo anal\'itico del tri\'angulo}
 
-Para obtener $K_k$, se sustituye un tri\'angulo en la relaci\'on de Kramers--Kronig de $\varepsilon_2$. Definamos los espaciamientos $\Delta_- = \omega_k-\omega_{k-1}$ y $\Delta_+ = \omega_{k+1}-\omega_k$. Al separar las dos pendientes del tri\'angulo, la integral queda
+Para obtener $K_k$, se sustituye el tri\'angulo unitario $\Lambda_k$ en~\eqref{eq:kk1} (con fondo nulo). Definamos los espaciamientos $\Delta_- = \omega_k-\omega_{k-1}$ y $\Delta_+ = \omega_{k+1}-\omega_k$. Al separar las dos pendientes del tri\'angulo, la integral queda
 \begin{equation}
-K_k(\omega)=\frac{2}{\pi}\mathcal{P}\left[
-\frac{1}{\Delta_-}\int_{\omega_{k-1}}^{\omega_k}\frac{x(x-\omega_{k-1})}{x^2-\omega^2}\,dx
-+\frac{1}{\Delta_+}\int_{\omega_k}^{\omega_{k+1}}\frac{x(\omega_{k+1}-x)}{x^2-\omega^2}\,dx
+\label{eq:Kk-integral}
+K_k(\omega)=\frac{2}{\pi}\,\mathcal{P}\left[
+\frac{1}{\Delta_-}\int_{\omega_{k-1}}^{\omega_k}\frac{x\,(x-\omega_{k-1})}{x^{2}-\omega^{2}}\,dx
++\frac{1}{\Delta_+}\int_{\omega_k}^{\omega_{k+1}}\frac{x\,(\omega_{k+1}-x)}{x^{2}-\omega^{2}}\,dx
 \right].
 \end{equation}
-La integral de cada tramo produce logaritmos. Para escribir el resultado de forma compacta, se define
+Cada tramo admite primitiva en t\'erminos de logaritmos. Para escribir el resultado de forma compacta se define
 \begin{equation}
+\label{eq:G}
 G(x,y)=(x+y)\ln|x+y|-(x-y)\ln|x-y|,
 \end{equation}
-donde el t\'ermino $0\ln 0$ se toma por su l\'imite, igual a cero. La suma de los dos tramos es
+donde el t\'ermino $0\ln 0$ se toma por su l\'imite, igual a cero. Tras integrar~\eqref{eq:Kk-integral}, el factor $2$ queda absorbido en la combinaci\'on de $G$ y el n\'ucleo se reduce a~\cite{constrained}
 \begin{equation}
+\label{eq:Kk}
 K_k(\omega)=\frac{1}{\pi}\left[
 \frac{G(\omega,\omega_{k-1})}{\Delta_-}
 -\frac{\Delta_-+\Delta_+}{\Delta_-\Delta_+}G(\omega,\omega_k)
 +\frac{G(\omega,\omega_{k+1})}{\Delta_+}
 \right].
 \end{equation}
-Aunque cada logaritmo contiene una frecuencia dimensional, cualquier escala de referencia com\'un se cancela en esta combinaci\'on. Por tanto, en cada iteraci\'on no hace falta volver a integrar num\'ericamente: basta calcular $K_k$ y sumar las contribuciones $A_kK_k$.
+Aunque cada logaritmo contiene una frecuencia dimensional, cualquier escala de referencia com\'un se cancela en esta combinaci\'on. Por tanto, en cada iteraci\'on no hace falta volver a integrar num\'ericamente: basta evaluar~\eqref{eq:Kk} y sumar las contribuciones $A_kK_k$.
 
 \section{Malla de anclas y colas}
 
@@ -73,7 +76,7 @@ Fuera de la primera y la \'ultima ancla interior se a\~naden extremos con coefic
 Esa cola no est\'a fijada por los datos y puede desplazar $\varepsilon_1$ dentro de la ventana; por eso $\varepsilon_\infty$ y la extrapolaci\'on deben declararse con claridad al reportar resultados.
 
 Cuando la magnitud medida no es $\varepsilon_2$ sino $R$, $T$, $n$, $k$ o $\alpha$, el n\'umero de anclas se limita porque $\varepsilon_1$ en cada punto acopla globalmente las alturas. No se requiere una ancla por dato: todas las mediciones, sean o no anclas, entran en $\chi^{2}$.
-Con $R$ se parte de los puntos medios entre frecuencias medidas ($N_{\mathrm{exp}}-2$), como en la malla de Kuzmenko, y se recorta si hace falta al presupuesto de c\'omputo. En la implementaci\'on descrita aqu\'i el tope es 2000 anclas interiores a 8000 puntos y 800 iteraciones; la selecci\'on conserva primero los extremos locales por prominencia y densifica vecinos en los m\'as afilados. Esta es una decisi\'on num\'erica de la implementaci\'on, no un requisito general del m\'etodo.
+Con $R$ se parte de los puntos medios entre frecuencias medidas ($N_{\mathrm{exp}}-2$), como en la malla de Kuzmenko, y se recorta si hace falta al presupuesto de c\'omputo. El coste del paso denso de Levenberg--Marquardt crece aproximadamente como $N_{\mathrm{exp}}M^{2}$ por iteraci\'on, donde $M$ es el n\'umero de anclas libres: por ello la implementaci\'on descrita aqu\'i limita $M$ a 800 anclas interiores (hasta 8000 puntos y 800 iteraciones). La selecci\'on conserva primero los extremos locales por prominencia y densifica vecinos en los m\'as afilados, de modo que un reststrahlen estrecho no se pierda al reducir $M$ respecto de $N_{\mathrm{exp}}-2$. Esta es una decisi\'on num\'erica de la implementaci\'on, no un requisito general del m\'etodo.
 
 \section{Funcional a minimizar}
 
@@ -106,12 +109,13 @@ Q_i(\mathbf{p}+\delta\mathbf{p})\simeq Q_i(\mathbf{p})+\sum_l\frac{\partial Q_i}
 \end{equation}
 Al sustituir esta aproximaci\'on lineal en la suma de cuadrados y minimizar respecto de $\delta\mathbf{p}$ se obtienen las ecuaciones normales. Las contribuciones de los datos al gradiente y a la curvatura de Gauss--Newton son
 \begin{align}
+\label{eq:beta-alpha}
 \beta^{\mathrm{datos}}_k
 &=-\frac12\frac{\partial\chi^{2}_{\mathrm{datos}}}{\partial p_k}
 =\sum_i\frac{y_i-Q_i}{\sigma_i^{2}}\frac{\partial Q_i}{\partial p_k},\\
 \alpha^{\mathrm{datos}}_{kl}
 &=\sum_i\frac{1}{\sigma_i^{2}}
-\frac{\partial Q_i}{\partial p_k}\frac{\partial Q_i}{\partial p_l},
+\frac{\partial Q_i}{\partial p_k}\frac{\partial Q_i}{\partial p_l}.
 \end{align}
 Las penalizaciones aportan sus propias derivadas $\beta^{\mathrm{reg}}$ y curvatura $\alpha^{\mathrm{reg}}$; se combinan como $\beta=\beta^{\mathrm{datos}}+\beta^{\mathrm{reg}}$ y $\alpha\simeq\alpha^{\mathrm{datos}}+\alpha^{\mathrm{reg}}$. En cada iteraci\'on se amortigua la diagonal y se resuelve
 \begin{equation}
@@ -178,7 +182,7 @@ Medida & $Q$ & Notas f\'isicas \\
 \midrule
 $\varepsilon_2$ & $\varepsilon_2$ & magnitud nativa del modelo \\
 $\varepsilon_1$ & $\varepsilon_1$ & suele ajustar $\varepsilon_\infty$ \\
-$n$ & $n(\varepsilon)$ & idem; semilla tipica $n^{2}$ del extremo \\
+$n$ & $n(\varepsilon)$ & idem; semilla t\'ipica $n^{2}$ del extremo \\
 $k$ & $k(\varepsilon)$ & no fija $\varepsilon_\infty$ \\
 $R$ & eq.~\eqref{eq:R} & semi-infinito; $R\in[0,1]$ \\
 $\alpha$ & eq.~\eqref{eq:alpha} & exige unidad de $\omega$ \\
@@ -263,7 +267,7 @@ Mostrar, sin ambig\"uedad operativa, c\'omo se pasa de un archivo de datos a una
 
 \begin{enumerate}[leftmargin=*]
 \item Dibujar tres tri\'angulos solapados y su suma $\varepsilon_2$.
-\item Indicar que cada tri\'angulo aporta un $g_k$ a $\varepsilon_1$.
+\item Indicar que cada tri\'angulo aporta un n\'ucleo $K_k$ a $\varepsilon_1$.
 \item Elegir medida $R$: escribir $Q=R(n,k)$ y subrayar el acoplamiento global.
 \item Escribir $\Phi=\chi^{2}_{\mathrm{datos}}+P_s+P_-$ y el paso amortiguado de Levenberg--Marquardt.
 \item Discutir un caso $\alpha$ con $\varepsilon_\infty=1$ frente a $\varepsilon_\infty=n^{2}$ conocido: $\alpha$ y $k$ estables; $n$ y $R$ sensibles.

@@ -301,16 +301,28 @@ fn reflectivity_seed(w: &[f64], y: &[f64]) -> Vec<f64> {
 }
 
 /// ε∞ que sugiere el extremo alto de la medida, cuando nadie lo escribió.
+///
+/// Con R: media del extremo de alta frecuencia (datos ya ordenados por ω),
+/// invirtiendo R = ((n−1)/(n+1))² con k ≈ 0, luego ε∞ = n² en [1, 50].
 pub fn guess_eps_inf(m: Measure, y: &[f64]) -> Option<f64> {
-    let last = *y.last()?;
+    if y.is_empty() {
+        return None;
+    }
     match m {
         Measure::R => {
-            let s = last.clamp(0.0, 0.95).sqrt();
+            // Un solo punto final es ruidoso; promedia la cola alta (hasta ~2 % o 24 puntos).
+            let n_tail = (y.len() / 50).clamp(1, 24);
+            let start = y.len() - n_tail;
+            let mean = y[start..].iter().sum::<f64>() / n_tail as f64;
+            let s = mean.clamp(0.0, 0.95).sqrt();
             let n = (1.0 + s) / (1.0 - s);
             Some((n * n).clamp(1.0, 50.0))
         }
-        Measure::N => Some((last * last).clamp(1.0, 50.0)),
-        Measure::Eps1 => Some(last),
+        Measure::N => {
+            let last = *y.last()?;
+            Some((last * last).clamp(1.0, 50.0))
+        }
+        Measure::Eps1 => Some(*y.last()?),
         _ => None,
     }
 }
@@ -692,6 +704,19 @@ pub fn high_end_maximum(y: &[f64]) -> Option<(usize, f64)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn r_auto_eps_inf_from_high_end_reflectivity() {
+        // R ≈ 0.139358 en el extremo alto → √R ≈ 0.3733 → n ≈ 2.191 → n² ≈ 4.802
+        let y = vec![0.5, 0.4, 0.2, 0.139600, 0.139466, 0.139358];
+        let e = guess_eps_inf(Measure::R, &y).unwrap();
+        assert!((e - 4.802).abs() < 0.02, "ε∞ auto = {e}");
+        // R → 0 ⇒ n → 1 ⇒ ε∞ → 1
+        assert!((guess_eps_inf(Measure::R, &[0.0]).unwrap() - 1.0).abs() < 1e-12);
+        // R alto se acota: √0.95 → n finito, ε∞ ≤ 50
+        let hi = guess_eps_inf(Measure::R, &[0.99]).unwrap();
+        assert!((1.0..=50.0).contains(&hi), "acotado {hi}");
+    }
 
     #[test]
     fn gaussian_peak_width_and_area() {

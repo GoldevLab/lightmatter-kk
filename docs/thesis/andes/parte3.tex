@@ -93,7 +93,7 @@ La Prueba~A puede comprobar las identidades algebraicas punto a punto. Para docu
 \end{figure}
 
 La Prueba~B debe reportar la curva ajustada junto a los datos, los residuos y los errores experimentales. Si no se entrega una tercera columna de errores, el programa toma $\sigma_i=1$; en ese caso $\chi^2$ no puede interpretarse como una bondad estad\'istica normalizada por la incertidumbre real.
-En reflectividad, las rayas estrechas exigen densidad suficiente tanto de puntos experimentales como de anclas. Aumentar las iteraciones no crea resoluci\'on espectral nueva, y un aviso de estancamiento significa que el residuo sigue siendo relevante seg\'un el criterio de parada de la implementaci\'on.
+En reflectividad, las rayas estrechas (por ejemplo, un reststrahlen) exigen densidad suficiente tanto de puntos experimentales como de anclas cerca de los extremos locales. Con una malla demasiado gruesa el modelo act\'ua como un filtro y aplana los valles; aumentar solo las iteraciones no crea resoluci\'on espectral nueva. Un aviso de estancamiento significa que el residuo sigue siendo relevante seg\'un el criterio de parada de la implementaci\'on.
 
 \section{Lecciones sobre \texorpdfstring{$\varepsilon_\infty$}{epsilon infinito}}
 

@@ -1322,7 +1322,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             Measure::R => {
                 let v = guess.unwrap_or(1.0);
                 warnings.push(format!(
-                    "ε∞ vacío: se inicia en {v:.3} a partir de R en el extremo alto y se ajusta junto con ε₂. Con solo R, la solución sigue dependiendo de lo que haya fuera del rango; si conoces ε∞, escríbelo para fijarlo."
+                    "ε∞ vacío: se inicia en {v:.3} a partir de R en el extremo alto (k≈0: n=(1+√R)/(1−√R), ε∞=n²) y se ajusta junto con ε₂. Con solo R, la solución sigue dependiendo de lo que haya fuera del rango; si conoces ε∞, escríbelo para fijarlo."
                 ));
                 (v, true, "estimado de R en el extremo alto y ajustado junto con ε₂".to_string())
             }
@@ -1335,6 +1335,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             _ => (1.0, false, "1 por defecto".to_string()),
         },
     };
+    let eps_inf_start = base;
     let auto_log = log_mesh && !input.log_mesh;
     // R usa los puntos medios de los intervalos medidos, como en la malla de la tesis.
     let full_r_mesh = measure == Measure::R;
@@ -1522,6 +1523,11 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     };
     let LmResult { iters_used, converged, stalled } = lm;
     let base = a[ma];
+    if fit_base && measure == Measure::R && (base < 1.0 || base > 50.0) {
+        warnings.push(format!(
+            "ε∞ arrancó en {eps_inf_start:.3} (auto desde R) y el ajuste lo dejó en {base:.4}, fuera de [1, 50]. Con solo R ese valor puede no ser físico: si conoces n donde la muestra es transparente, escribe ε∞ = n² y vuelve a analizar."
+        ));
+    }
 
     let unit = phys.unit;
     let n_inner = ma - 2;
