@@ -469,16 +469,92 @@ select option { background: var(--option-bg); color: var(--text); }
 #lm-live.is-idle:empty { display: none; }
 #lm-live, #ajuste { scroll-margin-top: 4.2rem; }
 .warnings { margin: 0.4rem 0 0; color: var(--warn-ink); }
-.server-jobs { display: grid; gap: 0.5rem; margin: 0 0 0.8rem; }
+.server-jobs { display: grid; gap: 0.55rem; margin: 0 0 0.9rem; }
 .server-jobs[hidden] { display: none; }
 .server-jobs h2 { margin: 0; font-size: 1.05rem; }
-.server-job-list { display: grid; gap: 0.4rem; }
-.server-job { display: grid; grid-template-columns: minmax(5rem, auto) minmax(0, 1fr) auto; align-items: center; gap: 0.4rem 0.75rem; padding: 0.55rem 0.7rem; border-inline-start: 3px solid var(--accent); border-radius: 8px; background: var(--glass-fill); }
-.server-job p { margin: 0; }
+.server-job-list { display: grid; gap: 0.55rem; }
+.server-job {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem 0.7rem;
+  padding: 0.65rem 0.75rem;
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 12px;
+  background: var(--glass-fill);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.server-job.is-current { box-shadow: 0 0 0 1px rgba(62, 224, 197, 0.28); }
+.server-job.is-running { border-inline-start-color: #f2c14e; }
+.server-job-head {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  font: inherit;
+}
 .server-job-id { color: var(--muted); font: 0.78rem var(--mono); }
-.server-job-state { min-width: 0; overflow-wrap: anywhere; }
-.server-job-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: end; justify-self: end; }
-.server-job .btn { justify-self: end; }
+.server-job-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(62, 224, 197, 0.28);
+  background: rgba(62, 224, 197, 0.08);
+  color: var(--accent);
+  font: 0.78rem var(--mono);
+}
+.server-job-state { min-width: 0; overflow-wrap: anywhere; font-size: 0.92rem; }
+.server-job-toggle { color: var(--muted); font-size: 0.85rem; }
+.server-job-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: end; align-self: start; }
+.server-job-body { grid-column: 1 / -1; display: grid; gap: 0.55rem; padding-top: 0.15rem; }
+.server-job-body[hidden] { display: none; }
+.server-job-progress {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.server-job-progress-bar {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3ee0c5, #f2c14e);
+  transition: width 0.45s ease;
+}
+.server-job.is-running .server-job-progress-bar {
+  background-size: 140% 100%;
+  animation: jobPulse 1.8s ease-in-out infinite;
+}
+@keyframes jobPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.18); }
+}
+.server-job-section { margin: 0; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.02em; text-transform: uppercase; }
+.server-job-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem 0.55rem;
+  margin: 0;
+}
+.server-job-facts dt { margin: 0; color: var(--muted); font-size: 0.72rem; }
+.server-job-facts dd { margin: 0; font: 0.86rem var(--mono); color: var(--text); }
+.server-job-charts { display: grid; gap: 0.45rem; }
+.server-job-spark, .server-job-mesh {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
 .results { display: grid; gap: 0.8rem; }
 .results > .chart-primary { order: 1; }
 .results > .chart-pair { order: 2; }
@@ -983,8 +1059,10 @@ dialog.proof-sheet::backdrop { background: var(--modal-scrim); }
   .learn-mesh-steps { grid-template-columns: 1fr; gap: 0.6rem; padding: 0.7rem; }
   .learn-mesh-step { padding: 0.4rem 0.35rem 0.8rem; border-right: 0; border-bottom: 1px solid var(--line); }
   .learn-mesh-step:last-child { border-bottom: 0; }
-  .server-job { grid-template-columns: minmax(0, 1fr) auto; }
-  .server-job-id { grid-column: 1 / -1; }
+  .server-job { grid-template-columns: minmax(0, 1fr); }
+  .server-job-actions { justify-content: start; }
+  .server-job-head { grid-template-columns: auto auto minmax(0, 1fr) auto; }
+  .server-job-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 680px) {

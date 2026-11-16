@@ -34,10 +34,10 @@ function chartToolText(key) {
 }
 
 const JOB_TEXT = {
-  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez." },
-  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "View result", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again." },
-  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "查看结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。" },
-  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo." },
+  es: { title: "Análisis del servidor", queued: "En cola", running: "Análisis en curso", completed: "Análisis terminado", failed: "No se pudo completar", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", step: "paso {step}/{max}", statusError: "No se pudo consultar el estado; seguiré intentando.", network: "No llegó la respuesta. El trabajo quedó guardado; consulta su estado antes de enviarlo otra vez.", conditions: "Condiciones", measure: "Medida", unit: "Unidad de ω", points: "Puntos", steps: "Pasos", smooth: "Suavidad", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Datos y modelo", triangles: "Malla triangular de ε₂", open: "Ver detalle", close: "Ocultar", live: "En vivo", auto: "auto", on: "sí", off: "no" },
+  en: { title: "Server analyses", queued: "Queued", running: "Analysis in progress", completed: "Analysis complete", failed: "Could not complete", cancelled: "Cancelled", waiting: "Checking status…", view: "View result", cancel: "Cancel", cancelling: "Cancelling…", step: "step {step}/{max}", statusError: "Could not check status; will keep trying.", network: "The response did not arrive. The job was saved; check its status before submitting again.", conditions: "Conditions", measure: "Measure", unit: "Unit of ω", points: "Points", steps: "Steps", smooth: "Smoothness", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Data and model", triangles: "Triangular ε₂ mesh", open: "Show detail", close: "Hide", live: "Live", auto: "auto", on: "yes", off: "no" },
+  zh: { title: "服务器分析", queued: "排队中", running: "正在分析", completed: "分析完成", failed: "未能完成", cancelled: "已取消", waiting: "正在查询状态…", view: "查看结果", cancel: "取消", cancelling: "正在取消…", step: "第 {step}/{max} 步", statusError: "无法查询状态，将继续重试。", network: "未收到响应。任务已保存；再次提交前请先查看状态。", conditions: "条件", measure: "测量量", unit: "ω 单位", points: "点数", steps: "步数", smooth: "平滑", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "数据与模型", triangles: "ε₂ 三角网格", open: "展开", close: "收起", live: "实时", auto: "auto", on: "是", off: "否" },
+  pt: { title: "Análises no servidor", queued: "Na fila", running: "Análise em andamento", completed: "Análise concluída", failed: "Não foi possível concluir", cancelled: "Cancelado", waiting: "Consultando estado…", view: "Ver resultado", cancel: "Cancelar", cancelling: "Cancelando…", step: "passo {step}/{max}", statusError: "Não foi possível consultar o estado; vou continuar tentando.", network: "A resposta não chegou. O trabalho foi salvo; confira o estado antes de enviar de novo.", conditions: "Condições", measure: "Medida", unit: "Unidade de ω", points: "Pontos", steps: "Passos", smooth: "Suavidade", neg: "ε₂ < 0", eps: "ε∞", drude: "Drude", dataFit: "Dados e modelo", triangles: "Malha triangular de ε₂", open: "Ver detalhe", close: "Ocultar", live: "Ao vivo", auto: "auto", on: "sim", off: "não" },
 };
 
 function jobText(key) {
@@ -605,13 +605,150 @@ function readRecentJobs() {
   }
 }
 
-function rememberServerJob(id) {
+function rememberServerJob(id, meta) {
   if (!/^job_[a-f0-9_]{8,60}$/i.test(id)) return;
   const jobs = readRecentJobs().filter((job) => job.id !== id);
-  jobs.push({ id, createdAt: Date.now() });
+  const prev = readRecentJobs().find((job) => job.id === id) || {};
+  jobs.push({
+    ...prev,
+    id,
+    createdAt: Date.now(),
+    ...(meta && typeof meta === "object" ? meta : {}),
+  });
   try {
     localStorage.setItem(RECENT_SERVER_JOBS_KEY, JSON.stringify(jobs.slice(-MAX_RECENT_SERVER_JOBS)));
   } catch {}
+}
+
+function jobMetaFromForm(form, text) {
+  const { xs, ys } = parseColumns(text || "");
+  const order = xs.map((_, i) => i).sort((a, b) => xs[a] - xs[b] || a - b);
+  const sx = order.map((i) => xs[i]);
+  const sy = order.map((i) => ys[i]);
+  const [px, py] = thinSeries(sx, sy, 120);
+  return {
+    measure: String(form.querySelector("select[name='measure']")?.value || "eps2"),
+    unit: String(form.querySelector("select[name='unit']")?.value || "otra"),
+    iter: Number(form.querySelector("input[name='iter']")?.value) || 800,
+    smooth: Number(form.querySelector("input[name='smooth']")?.value ?? 0.08),
+    neg: Number(form.querySelector("input[name='neg']")?.value ?? 100),
+    eps_inf: String(form.querySelector("input[name='eps_inf']")?.value || ""),
+    drude: form.querySelector("input[name='drude']")?.checked === true,
+    points: xs.length,
+    preview: { x: px, y: py },
+  };
+}
+
+function optionLabel(options, key, fallback) {
+  if (!options) return fallback || "—";
+  const value = options[key];
+  if (value == null || value === "") return fallback || jobText("auto");
+  return String(value);
+}
+
+function drawJobSpark(host, curve, measureKey, unitKey) {
+  if (!host) return;
+  const x = curve?.x || [];
+  const data = curve?.data || [];
+  const model = curve?.model || [];
+  const meshX = curve?.mesh_x || [];
+  const meshY = curve?.mesh_y || [];
+  if (x.length < 2 || data.length < 2) {
+    host.innerHTML = "";
+    return;
+  }
+  const yName = MEASURE_LABEL[measureKey] || measureKey || "y";
+  const xName = UNIT_LABEL[unitKey] || unitKey || "ω";
+  let xmin = x[0];
+  let xmax = x[x.length - 1];
+  let ymin = data[0];
+  let ymax = data[0];
+  for (const v of data) {
+    if (v < ymin) ymin = v;
+    if (v > ymax) ymax = v;
+  }
+  for (const v of model) {
+    if (!Number.isFinite(v)) continue;
+    if (v < ymin) ymin = v;
+    if (v > ymax) ymax = v;
+  }
+  if (!(xmax > xmin)) xmax = xmin + 1;
+  if (!(ymax > ymin)) {
+    const half = Math.max(Math.abs(ymax) * 0.1, 0.5);
+    ymin -= half;
+    ymax += half;
+  }
+  const pad = (ymax - ymin) * 0.08;
+  ymin -= pad;
+  ymax += pad;
+  if (data.every((v) => v >= 0) && model.every((v) => !Number.isFinite(v) || v >= 0)) ymin = Math.max(0, ymin);
+  const log = xmin > 0 && xmax / xmin > 20;
+  const width = 640;
+  const height = 220;
+  const left = 52;
+  const right = 14;
+  const top = 18;
+  const bottom = 34;
+  const pw = width - left - right;
+  const ph = height - top - bottom;
+  const xOf = (v) => {
+    if (log) return left + ((Math.log(v) - Math.log(xmin)) / (Math.log(xmax) - Math.log(xmin))) * pw;
+    return left + ((v - xmin) / (xmax - xmin)) * pw;
+  };
+  const yOf = (v) => top + (1 - (v - ymin) / (ymax - ymin)) * ph;
+  const pathOf = (xs, ys) => {
+    let d = "";
+    for (let i = 0; i < xs.length; i++) {
+      const px = xOf(xs[i]);
+      const py = yOf(ys[i]);
+      if (!Number.isFinite(px) || !Number.isFinite(py)) continue;
+      d += `${d ? "L" : "M"}${px.toFixed(1)},${py.toFixed(1)}`;
+    }
+    return d;
+  };
+  const parts = [
+    `<rect width="${width}" height="${height}" rx="12" fill="var(--chart-bg)"/>`,
+    `<text x="${left}" y="14" fill="var(--muted)" font-size="11">${jobText("dataFit")} · ${yName}</text>`,
+  ];
+  const dataPath = pathOf(x, data);
+  if (dataPath) parts.push(`<path fill="none" stroke="#3ee0c5" stroke-width="1.8" d="${dataPath}"/>`);
+  if (model.length === x.length) {
+    const modelPath = pathOf(x, model);
+    if (modelPath) parts.push(`<path fill="none" stroke="#f2c14e" stroke-width="1.7" stroke-dasharray="4 3" d="${modelPath}"/>`);
+  }
+  parts.push(`<text x="${left + pw / 2}" y="${height - 8}" fill="var(--muted)" font-size="11" text-anchor="middle">${xName}${log ? " · log" : ""}</text>`);
+
+  let meshSvg = "";
+  if (meshX.length >= 3 && meshY.length === meshX.length) {
+    let mMin = 0;
+    let mMax = Math.max(...meshY, 1e-12);
+    const mh = 72;
+    const mw = width;
+    const ml = 52;
+    const mr = 14;
+    const mt = 16;
+    const mb = 8;
+    const mpw = mw - ml - mr;
+    const mph = mh - mt - mb;
+    const mx0 = meshX[0];
+    const mx1 = meshX[meshX.length - 1];
+    const mxOf = (v) => ml + ((v - mx0) / Math.max(mx1 - mx0, 1e-30)) * mpw;
+    const myOf = (v) => mt + (1 - (v - mMin) / Math.max(mMax - mMin, 1e-30)) * mph;
+    const tris = [];
+    for (let i = 0; i < meshX.length; i++) {
+      const x0 = i > 0 ? meshX[i - 1] : meshX[i] - (meshX[i + 1] - meshX[i]);
+      const x2 = i + 1 < meshX.length ? meshX[i + 1] : meshX[i] + (meshX[i] - meshX[i - 1]);
+      const y1 = meshY[i];
+      const alpha = 0.18 + 0.45 * (y1 / mMax);
+      tris.push(
+        `<path d="M${mxOf(x0).toFixed(1)},${myOf(0).toFixed(1)} L${mxOf(meshX[i]).toFixed(1)},${myOf(y1).toFixed(1)} L${mxOf(x2).toFixed(1)},${myOf(0).toFixed(1)} Z" fill="rgba(122,162,255,${alpha.toFixed(2)})" stroke="rgba(122,162,255,0.55)" stroke-width="0.8"/>`,
+      );
+    }
+    meshSvg = `<svg class="server-job-mesh" viewBox="0 0 ${mw} ${mh}" role="img" aria-label="${jobText("triangles")}"><rect width="${mw}" height="${mh}" rx="10" fill="var(--chart-bg)"/><text x="${ml}" y="12" fill="var(--muted)" font-size="11">${jobText("triangles")}</text>${tris.join("")}</svg>`;
+  }
+
+  host.innerHTML =
+    `<svg class="server-job-spark" viewBox="0 0 ${width} ${height}" role="img" aria-label="${jobText("dataFit")}">${parts.join("")}</svg>${meshSvg}`;
 }
 
 function forgetServerJob(id) {
@@ -629,6 +766,30 @@ function newServerJobId() {
     bytes.forEach((_, index) => { bytes[index] = Math.floor(Math.random() * 256); });
   }
   return `job_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function fillJobConditions(dl, options, points, localMeta) {
+  const opts = options || {};
+  const measure = opts.measure || localMeta?.measure || "eps2";
+  const unit = opts.unit || localMeta?.unit || "otra";
+  const rows = [
+    [jobText("measure"), MEASURE_LABEL[measure] || measure],
+    [jobText("unit"), UNIT_LABEL[unit] || unit],
+    [jobText("points"), String(points ?? localMeta?.points ?? "—")],
+    [jobText("steps"), String(opts.iter_max ?? localMeta?.iter ?? "—")],
+    [jobText("smooth"), String(opts.smoothness ?? localMeta?.smooth ?? "—")],
+    [jobText("neg"), String(opts.negativity ?? localMeta?.neg ?? "—")],
+    [jobText("eps"), optionLabel(opts, "eps_inf", localMeta?.eps_inf || jobText("auto"))],
+    [jobText("drude"), (opts.drude_on ?? localMeta?.drude) ? jobText("on") : jobText("off")],
+  ];
+  dl.replaceChildren();
+  for (const [k, v] of rows) {
+    const dt = document.createElement("dt");
+    dt.textContent = k;
+    const dd = document.createElement("dd");
+    dd.textContent = v;
+    dl.append(dt, dd);
+  }
 }
 
 function initServerJobs() {
@@ -651,12 +812,31 @@ function initServerJobs() {
   for (const job of jobs.slice().reverse()) {
     const article = document.createElement("article");
     article.className = "server-job";
-    const label = document.createElement("p");
+    if (job.id === currentId) article.classList.add("is-open", "is-current");
+
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "server-job-head";
+    head.setAttribute("aria-expanded", job.id === currentId ? "true" : "false");
+
+    const label = document.createElement("span");
     label.className = "server-job-id";
     label.textContent = job.id.slice(-8);
-    const state = document.createElement("p");
+
+    const measureChip = document.createElement("span");
+    measureChip.className = "server-job-chip";
+    measureChip.textContent = MEASURE_LABEL[job.measure] || job.measure || "…";
+
+    const state = document.createElement("span");
     state.className = "server-job-state";
     state.textContent = jobText("waiting");
+
+    const toggle = document.createElement("span");
+    toggle.className = "server-job-toggle";
+    toggle.textContent = job.id === currentId ? "▾" : "▸";
+
+    head.append(label, measureChip, state, toggle);
+
     const actions = document.createElement("div");
     actions.className = "server-job-actions";
     const cancel = document.createElement("button");
@@ -664,7 +844,8 @@ function initServerJobs() {
     cancel.className = "btn btn-ghost btn-small";
     cancel.textContent = jobText("cancel");
     cancel.hidden = true;
-    cancel.addEventListener("click", async () => {
+    cancel.addEventListener("click", async (event) => {
+      event.stopPropagation();
       cancel.disabled = true;
       cancel.textContent = jobText("cancelling");
       try {
@@ -679,6 +860,8 @@ function initServerJobs() {
         cancel.hidden = true;
         card.link.disabled = true;
         delete card.link.dataset.href;
+        article.classList.remove("is-running");
+        card.bar.style.width = "0%";
       } catch {
         cancel.disabled = false;
         cancel.textContent = jobText("cancel");
@@ -690,13 +873,46 @@ function initServerJobs() {
     link.className = "btn btn-ghost btn-small";
     link.textContent = jobText("view");
     link.disabled = true;
-    link.addEventListener("click", () => {
+    link.addEventListener("click", (event) => {
+      event.stopPropagation();
       if (link.dataset.href) window.location.assign(link.dataset.href);
     });
     actions.append(cancel, link);
-    article.append(label, state, actions);
+
+    const body = document.createElement("div");
+    body.className = "server-job-body";
+    body.hidden = job.id !== currentId;
+
+    const progress = document.createElement("div");
+    progress.className = "server-job-progress";
+    progress.innerHTML = '<span class="server-job-progress-bar"></span>';
+    const bar = progress.querySelector(".server-job-progress-bar");
+
+    const condTitle = document.createElement("p");
+    condTitle.className = "server-job-section";
+    condTitle.textContent = jobText("conditions");
+    const dl = document.createElement("dl");
+    dl.className = "server-job-facts";
+    fillJobConditions(dl, null, job.points, job);
+
+    const charts = document.createElement("div");
+    charts.className = "server-job-charts";
+    const localCurve = job.preview ? { x: job.preview.x, data: job.preview.y, model: [], mesh_x: [], mesh_y: [] } : null;
+    drawJobSpark(charts, localCurve, job.measure, job.unit);
+
+    body.append(progress, condTitle, dl, charts);
+    article.append(head, actions, body);
     list.append(article);
-    const card = { state, link, cancel };
+
+    head.addEventListener("click", () => {
+      const open = !article.classList.contains("is-open");
+      article.classList.toggle("is-open", open);
+      body.hidden = !open;
+      head.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.textContent = open ? "▾" : "▸";
+    });
+
+    const card = { article, state, link, cancel, bar, dl, charts, measureChip, toggle, body, head };
     cards.set(job.id, card);
   }
   slot.append(heading, list);
@@ -719,17 +935,26 @@ function initServerJobs() {
         }
         if (!response.ok) throw new Error("job status unavailable");
         const status = await response.json();
+        const opts = status.options || {};
+        card.measureChip.textContent = MEASURE_LABEL[opts.measure] || opts.measure || card.measureChip.textContent;
+        fillJobConditions(card.dl, opts, status.points ?? job.points, job);
+        const curve = status.curve || (job.preview ? { x: job.preview.x, data: job.preview.y, model: [], mesh_x: [], mesh_y: [] } : null);
+        drawJobSpark(card.charts, curve, opts.measure || job.measure, opts.unit || job.unit);
+
         if (status.state === "queued" || status.state === "running") {
           pending = true;
+          card.article.classList.add("is-running");
           let label = jobText(status.state);
-          if (status.state === "running" && status.progress_max) {
-            const step = Number(status.progress_step) || 0;
-            const max = Number(status.progress_max) || 0;
-            if (max > 0) {
-              label += " · " + jobText("step").replace("{step}", String(step)).replace("{max}", String(max));
-            }
-            if (status.progress_note) label += " · " + status.progress_note;
+          const step = Number(status.progress_step) || 0;
+          const max = Number(status.progress_max) || 0;
+          if (status.state === "running" && max > 0) {
+            label += " · " + jobText("step").replace("{step}", String(step)).replace("{max}", String(max));
+            card.bar.style.width = `${Math.max(2, Math.min(100, (100 * step) / max)).toFixed(1)}%`;
+          } else {
+            card.bar.style.width = status.state === "queued" ? "4%" : "8%";
           }
+          if (status.progress_note) label += " · " + status.progress_note;
+          if (status.state === "running") label = `${jobText("live")} · ${label}`;
           card.state.textContent = label;
           card.cancel.hidden = false;
           card.cancel.disabled = false;
@@ -737,6 +962,8 @@ function initServerJobs() {
           card.link.disabled = true;
           delete card.link.dataset.href;
         } else if (status.state === "completed" && status.report_id) {
+          card.article.classList.remove("is-running");
+          card.bar.style.width = "100%";
           card.state.textContent = jobText("completed");
           card.cancel.hidden = true;
           card.link.dataset.href = `/lab?r=${encodeURIComponent(status.report_id)}`;
@@ -746,11 +973,15 @@ function initServerJobs() {
             return;
           }
         } else if (status.state === "cancelled") {
+          card.article.classList.remove("is-running");
+          card.bar.style.width = "0%";
           card.state.textContent = status.error || jobText("cancelled");
           card.cancel.hidden = true;
           card.link.disabled = true;
           delete card.link.dataset.href;
         } else {
+          card.article.classList.remove("is-running");
+          card.bar.style.width = "0%";
           card.state.textContent = status.error || jobText("failed");
           card.cancel.hidden = true;
           card.link.disabled = true;
@@ -762,7 +993,7 @@ function initServerJobs() {
         card.cancel.hidden = true;
       }
     }
-    if (pending) jobPollingTimer = window.setTimeout(refresh, 2500);
+    if (pending) jobPollingTimer = window.setTimeout(refresh, 2000);
   };
   void refresh();
 }
@@ -849,7 +1080,8 @@ function initLabSubmission() {
       const data = new FormData(form);
       if (submitter?.name) data.append(submitter.name, submitter.value);
       const jobId = newServerJobId();
-      rememberServerJob(jobId);
+      const spectrumText = String(data.get("spectrum") || "");
+      rememberServerJob(jobId, jobMetaFromForm(form, spectrumText));
       data.append("job_id", jobId);
       try {
         const response = await fetch(submitter?.formAction || form.action, {

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use lightmatter::fit::{FitReport, TextFit};
+use lightmatter::fit::{FitProgressCurve, FitReport, TextFit};
 
 const KEEP: usize = 40;
 const KEEP_JOBS: usize = 40;
@@ -107,6 +107,10 @@ struct DiskJob {
     progress_max: Option<usize>,
     #[serde(default)]
     progress_note: Option<String>,
+    #[serde(default)]
+    progress_curve: Option<FitProgressCurve>,
+    #[serde(default)]
+    points: Option<usize>,
     created_at: u64,
     updated_at: u64,
 }
@@ -120,6 +124,9 @@ pub struct JobStatus {
     pub progress_step: Option<usize>,
     pub progress_max: Option<usize>,
     pub progress_note: Option<String>,
+    pub options: TextFit,
+    pub points: Option<usize>,
+    pub curve: Option<FitProgressCurve>,
     pub created_at: u64,
     pub updated_at: u64,
 }
@@ -182,6 +189,7 @@ pub fn create_job(
     fs::write(job_input_path(&folder, &id), text)
         .map_err(|_| "no se pudo guardar el espectro para el trabajo".to_string())?;
     let timestamp = now();
+    let (preview, points) = spectrum_preview(text, 160);
     let job = DiskJob {
         id: id.clone(),
         source: source.to_string(),
@@ -192,6 +200,14 @@ pub fn create_job(
         progress_step: None,
         progress_max: None,
         progress_note: None,
+        progress_curve: preview.map(|(x, data)| FitProgressCurve {
+            x,
+            data,
+            model: Vec::new(),
+            mesh_x: Vec::new(),
+            mesh_y: Vec::new(),
+        }),
+        points: Some(points),
         created_at: timestamp,
         updated_at: timestamp,
     };
@@ -225,9 +241,52 @@ pub fn job_status(id: &str) -> Option<JobStatus> {
         progress_step: job.progress_step,
         progress_max: job.progress_max,
         progress_note: job.progress_note,
+        options: job.options,
+        points: job.points,
+        curve: job.progress_curve,
         created_at: job.created_at,
         updated_at: job.updated_at,
     })
+}
+
+fn spectrum_preview(text: &str, cap: usize) -> (Option<(Vec<f64>, Vec<f64>)>, usize) {
+    let mut xs = Vec::new();
+    let mut ys = Vec::new();
+    for line in text.lines() {
+        let t = line.trim();
+        if t.is_empty() || "#*!%".contains(t.chars().next().unwrap_or(' ')) {
+            continue;
+        }
+        let mut parts = t.split(|c: char| c.is_whitespace() || c == ',' || c == ';').filter(|p| !p.is_empty());
+        let Some(a) = parts.next().and_then(|s| s.replace(',', ".").parse::<f64>().ok()) else { continue };
+        let Some(b) = parts.next().and_then(|s| s.replace(',', ".").parse::<f64>().ok()) else { continue };
+        if a.is_finite() && a > 0.0 && b.is_finite() {
+            xs.push(a);
+            ys.push(b);
+        }
+    }
+    let points = xs.len();
+    if points < 2 {
+        return (None, points);
+    }
+    let mut order: Vec<usize> = (0..points).collect();
+    order.sort_by(|&i, &j| xs[i].partial_cmp(&xs[j]).unwrap_or(std::cmp::Ordering::Equal));
+    let sx: Vec<f64> = order.iter().map(|&i| xs[i]).collect();
+    let sy: Vec<f64> = order.iter().map(|&i| ys[i]).collect();
+    let stride = (points / cap.max(2)).max(1);
+    let mut ox = Vec::new();
+    let mut oy = Vec::new();
+    let mut last = 0usize;
+    for i in (0..points).step_by(stride) {
+        ox.push(sx[i]);
+        oy.push(sy[i]);
+        last = i;
+    }
+    if last + 1 < points {
+        ox.push(sx[points - 1]);
+        oy.push(sy[points - 1]);
+    }
+    (Some((ox, oy)), points)
 }
 
 fn update_job(id: &str, state: JobState, report_id: Option<String>, error: Option<String>) -> Result<(), String> {
@@ -284,6 +343,16 @@ pub fn set_job_progress(
     max: usize,
     note: Option<&str>,
 ) -> Result<(), String> {
+    set_job_progress_curve(id, step, max, note, None)
+}
+
+pub fn set_job_progress_curve(
+    id: &str,
+    step: usize,
+    max: usize,
+    note: Option<&str>,
+    curve: Option<FitProgressCurve>,
+) -> Result<(), String> {
     let mut job = read_job(id).ok_or_else(|| "no se encontró el trabajo".to_string())?;
     if !matches!(job.state, JobState::Queued | JobState::Running) {
         return Ok(());
@@ -292,6 +361,9 @@ pub fn set_job_progress(
     job.progress_max = Some(max);
     if let Some(note) = note {
         job.progress_note = Some(note.to_string());
+    }
+    if let Some(curve) = curve {
+        job.progress_curve = Some(curve);
     }
     job.updated_at = now();
     write_job(&job)

@@ -1,7 +1,7 @@
 //! Endpoint del laboratorio y worker Resuma para ajustes persistentes.
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use axum::body::Body;
@@ -11,7 +11,7 @@ use axum::response::IntoResponse;
 use resuma::core::ResumaError;
 use tokio::sync::Semaphore;
 
-use lightmatter::fit::{export, fit_text_with_hooks, TextFit};
+use lightmatter::fit::{export, fit_text_with_progress, FitProgressCurve, TextFit};
 
 use crate::store;
 
@@ -68,6 +68,7 @@ pub fn fit_worker(
         let source = job.source.clone();
         let cancel = Arc::new(AtomicBool::new(false));
         let progress = Arc::new(AtomicUsize::new(0));
+        let curve_slot: Arc<Mutex<Option<FitProgressCurve>>> = Arc::new(Mutex::new(None));
         let stop_watch = Arc::new(AtomicBool::new(false));
         let iter_max = job.options.iter_max.clamp(1, 800);
         let _ = store::set_job_progress(&id, 0, iter_max, Some("preparando malla"));
@@ -75,6 +76,7 @@ pub fn fit_worker(
             let id_watch = id.clone();
             let cancel_watch = Arc::clone(&cancel);
             let progress_watch = Arc::clone(&progress);
+            let curve_watch = Arc::clone(&curve_slot);
             let stop_watch = Arc::clone(&stop_watch);
             std::thread::spawn(move || {
                 while !stop_watch.load(Ordering::Relaxed) {
@@ -88,7 +90,8 @@ pub fn fit_worker(
                     } else {
                         Some("Levenberg–Marquardt")
                     };
-                    let _ = store::set_job_progress(&id_watch, step, iter_max, note);
+                    let curve = curve_watch.lock().ok().and_then(|g| g.clone());
+                    let _ = store::set_job_progress_curve(&id_watch, step, iter_max, note, curve);
                     std::thread::sleep(Duration::from_secs(2));
                 }
             });
@@ -97,9 +100,16 @@ pub fn fit_worker(
         let text = job.text.clone();
         let cancel_fit = Arc::clone(&cancel);
         let progress_fit = Arc::clone(&progress);
+        let curve_fit = Arc::clone(&curve_slot);
         let fit = match context
             .run_blocking(move || {
-                fit_text_with_hooks(&text, &options, Some(cancel_fit), Some(progress_fit))
+                fit_text_with_progress(
+                    &text,
+                    &options,
+                    Some(cancel_fit),
+                    Some(progress_fit),
+                    Some(curve_fit),
+                )
             })
             .await
         {
