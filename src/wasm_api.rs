@@ -67,5 +67,8 @@ fn text_fit_from_json(raw: &str) -> TextFit {
         unit: text("unit"),
         thickness: text("thickness"),
         temperature: text("temperature"),
+        mesh: text("mesh"),
+        solver: text("solver"),
+        edges: text("edges"),
     }
 }

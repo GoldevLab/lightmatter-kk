@@ -274,13 +274,15 @@ fn reflectivity_seed(w: &[f64], y: &[f64]) -> Vec<f64> {
     let n = w.len();
     let l: Vec<f64> = y.iter().map(|r| 0.5 * r.max(1e-9).ln()).collect();
     let (lo, hi) = (w[0], w[n - 1]);
-    let mut out = Vec::with_capacity(n);
-    for i in 0..n {
+    let point = |i: usize| -> f64 {
         let om = w[i];
         let mut s = 0.0;
         let f = |x: f64, lx: f64| if (x - om).abs() < 1e-12 * om.max(1.0) { 0.0 } else { (lx - l[i]) / (x * x - om * om) };
+        let mut prev = f(w[0], l[0]);
         for j in 0..n - 1 {
-            s += 0.5 * (f(w[j], l[j]) + f(w[j + 1], l[j + 1])) * (w[j + 1] - w[j]);
+            let next = f(w[j + 1], l[j + 1]);
+            s += 0.5 * (prev + next) * (w[j + 1] - w[j]);
+            prev = next;
         }
         if om > lo {
             s += (l[0] - l[i]) / (2.0 * om) * ((om - lo) / (om + lo)).ln();
@@ -295,7 +297,27 @@ fn reflectivity_seed(w: &[f64], y: &[f64]) -> Vec<f64> {
         let den = (1.0 + re) * (1.0 + re) + im * im;
         let nr = ((1.0 - re) * (1.0 + re) - im * im) / den;
         let ni = (-im * (1.0 + re) - (1.0 - re) * im) / den;
-        out.push((2.0 * nr * ni).max(0.0));
+        (2.0 * nr * ni).max(0.0)
+    };
+    // La integral cuesta N² operaciones: con espectros largos se reparte entre hilos.
+    let mut out = vec![0.0; n];
+    let workers = crate::dense::worker_count((n * n) as f64).min(n.max(1));
+    if workers <= 1 {
+        for (i, slot) in out.iter_mut().enumerate() {
+            *slot = point(i);
+        }
+    } else {
+        let chunk = n.div_ceil(workers);
+        std::thread::scope(|scope| {
+            for (t, part) in out.chunks_mut(chunk).enumerate() {
+                let point = &point;
+                scope.spawn(move || {
+                    for (k, slot) in part.iter_mut().enumerate() {
+                        *slot = point(t * chunk + k);
+                    }
+                });
+            }
+        });
     }
     out
 }

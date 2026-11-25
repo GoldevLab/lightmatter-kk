@@ -1,7 +1,7 @@
 ﻿use resuma::prelude::*;
 
 use lightmatter::chart::result_markup;
-use lightmatter::fit::FitReport;
+use lightmatter::fit::{Extrapolation, FitReport, MeshMode, Solver};
 use lightmatter::i18n::{self, tx, Lang};
 use lightmatter::measure::{Measure, Unit};
 
@@ -22,6 +22,9 @@ struct FormState {
     unit: Unit,
     thickness: String,
     temperature: String,
+    mesh: MeshMode,
+    solver: Solver,
+    edges: Extrapolation,
     /// El cuadro ya no está en la unidad del archivo.
     axis_note: String,
 }
@@ -43,6 +46,9 @@ impl Default for FormState {
             unit: Unit::Other,
             thickness: String::new(),
             temperature: "300".into(),
+            mesh: MeshMode::Auto,
+            solver: Solver::Auto,
+            edges: Extrapolation::Tails,
             axis_note: String::new(),
         }
     }
@@ -112,6 +118,9 @@ fn form_state(report: &FitReport, lang: Lang) -> FormState {
         unit,
         thickness: if o.thickness_um > 0.0 { num(o.thickness_um) } else { String::new() },
         temperature: num(o.temperature_k),
+        mesh: o.mesh,
+        solver: o.solver,
+        edges: o.edges,
         axis_note,
     }
 }
@@ -190,6 +199,30 @@ pub fn page(req: FlowRequest) -> View {
     let units: Vec<(&str, &str)> = Unit::ALL.iter().map(|u| (u.key(), i18n::unit_name(lang, u.key()))).collect();
     let measure_select = View::raw(select("measure", &measures, form.measure.key()));
     let unit_select = View::raw(select("unit", &units, form.unit.key()));
+    let meshes = [
+        ("auto", tx(lang, "Automática", "Automatic", "自动", "Automática")),
+        ("full", tx(lang, "Un ancla entre cada par de datos", "One anchor between each pair of points", "每两个数据点之间一个锚点", "Uma âncora entre cada par de dados")),
+        ("half", tx(lang, "Un ancla cada dos datos (N/2)", "One anchor every two points (N/2)", "每两个数据点一个锚点 (N/2)", "Uma âncora a cada dois dados (N/2)")),
+        ("adaptive", tx(lang, "Adaptativa", "Adaptive", "自适应", "Adaptativa")),
+    ];
+    let solvers = [
+        ("auto", tx(lang, "Automático", "Automatic", "自动", "Automático")),
+        ("gauss_jordan", "Gauss–Jordan"),
+        ("cholesky", "Cholesky"),
+    ];
+    let edge_modes = [
+        ("tails", tx(lang, "Colas suaves", "Smooth tails", "平滑尾部", "Caudas suaves")),
+        ("zero", tx(lang, "Cero en los bordes", "Zero at the edges", "边界处为零", "Zero nas bordas")),
+    ];
+    let mesh_select = View::raw(select("mesh", &meshes, form.mesh.key()));
+    let solver_select = View::raw(select("solver", &solvers, form.solver.key()));
+    let edges_select = View::raw(select("edges", &edge_modes, form.edges.key()));
+    let mesh_label = tx(lang, "Malla de anclas", "Anchor mesh", "锚点网格", "Malha de âncoras");
+    let mesh_help = tx(lang, "Solo en medidas acopladas por Kramers–Kronig (R, ε₁, n, k, α, T). Automática pone un ancla entre cada par de datos y, si el espectro es demasiado largo para eso, afina la malla solo donde hace falta. N/2 es el óptimo que cita Kuzmenko: ajusta hasta el ruido sin copiarlo y es varias veces más rápida.", "Only for measurements coupled by Kramers–Kronig (R, ε₁, n, k, α, T). Automatic puts one anchor between each pair of points and, if the spectrum is too long for that, refines the mesh only where needed. N/2 is the optimum Kuzmenko quotes: it fits down to the noise without copying it and is several times faster.", "仅用于由克拉默斯–克罗尼格耦合的测量（R、ε₁、n、k、α、T）。自动模式在每两个数据点之间放一个锚点；若光谱太长，则只在需要的地方加密网格。N/2 是 Kuzmenko 给出的最优值：拟合到噪声水平而不复制噪声，并且快数倍。", "Só em medidas acopladas por Kramers–Kronig (R, ε₁, n, k, α, T). Automática põe uma âncora entre cada par de dados e, se o espectro for longo demais para isso, refina a malha só onde é preciso. N/2 é o ótimo citado por Kuzmenko: ajusta até o ruído sem copiá-lo e é várias vezes mais rápida.");
+    let solver_label = tx(lang, "Sistema lineal", "Linear system", "线性方程组", "Sistema linear");
+    let solver_help = tx(lang, "Cómo se resuelve cada paso de Levenberg–Marquardt. Gauss–Jordan es el del trabajo de grado; Cholesky da el mismo paso con menos operaciones. Automático usa Gauss–Jordan hasta 2500 anclas y Cholesky por encima.", "How each Levenberg–Marquardt step is solved. Gauss–Jordan is the one in the thesis; Cholesky gives the same step with fewer operations. Automatic uses Gauss–Jordan up to 2500 anchors and Cholesky above.", "每一步 Levenberg–Marquardt 的解法。Gauss–Jordan 是论文中的方法；Cholesky 用更少的运算得到同样的步长。自动模式在 2500 个锚点以内用 Gauss–Jordan，以上用 Cholesky。", "Como se resolve cada passo de Levenberg–Marquardt. Gauss–Jordan é o do trabalho de grau; Cholesky dá o mesmo passo com menos operações. Automático usa Gauss–Jordan até 2500 âncoras e Cholesky acima.");
+    let edges_label = tx(lang, "ε₂ fuera del rango", "ε₂ outside the range", "范围之外的 ε₂", "ε₂ fora do intervalo");
+    let edges_help = tx(lang, "Colas suaves: σ₁ constante por debajo del primer dato y caída ω⁻³ por encima del último, sin osciladores ni Drude. Cero en los bordes es la malla del trabajo de grado: ε₂ baja en línea recta a cero justo fuera del rango, y con una muestra que conduce eso deforma ε₁ y ε₂ cerca de los extremos.", "Smooth tails: constant σ₁ below the first point and an ω⁻³ decay above the last, with no oscillators or Drude. Zero at the edges is the thesis mesh: ε₂ falls linearly to zero just outside the range, and for a conducting sample that distorts ε₁ and ε₂ near the ends.", "平滑尾部：第一个数据点以下 σ₁ 恒定，最后一个数据点以上按 ω⁻³ 衰减，不用振子也不用 Drude。边界处为零是论文的网格：ε₂ 在范围外线性降为零；对导电样品，这会使两端附近的 ε₁ 和 ε₂ 变形。", "Caudas suaves: σ₁ constante abaixo do primeiro dado e queda ω⁻³ acima do último, sem osciladores nem Drude. Zero nas bordas é a malha do trabalho de grau: ε₂ cai linearmente a zero logo fora do intervalo e, numa amostra condutora, isso deforma ε₁ e ε₂ perto dos extremos.");
     let has_result = loaded.is_some() || !report_id.is_empty();
     let result = match loaded {
         Some(item) => {
@@ -211,7 +244,7 @@ pub fn page(req: FlowRequest) -> View {
     let lead = tx(lang, "Pega frecuencia y lo que mediste: ε₂, ε₁, n, k, R, α, T o luminiscencia. Con las ópticas, Levenberg–Marquardt busca el ε₂ cuyo par Kramers–Kronig reproduce tu medida; de ahí salen ε₁, n, k, R, la pérdida, α, σ₁, σ₂ y los picos. Con el espesor salen también T y la absorbancia. La luminiscencia no pasa por Kramers–Kronig: salen picos, anchos, áreas, centroide y la forma de la absorción.", "Paste the frequency and what you measured: ε₂, ε₁, n, k, R, α, T, or luminescence. For the optical ones, Levenberg–Marquardt looks for the ε₂ whose Kramers–Kronig pair reproduces your measurement; from that pair come ε₁, n, k, R, the loss, α, σ₁, σ₂, and the peaks. With a thickness, T and the absorbance too. Luminescence does not go through Kramers–Kronig: you get peaks, widths, areas, the centroid, and the absorption shape.", "粘贴频率和测量值：ε₂、ε₁、n、k、R、α、T 或发光。对光学量，Levenberg–Marquardt 寻找其克拉默斯–克罗尼格配对能再现测量的 ε₂；由此得到 ε₁、n、k、R、能量损失、α、σ₁、σ₂ 和峰。有厚度时还有 T 和吸光度。发光不经过克拉默斯–克罗尼格：得到峰、宽度、面积、质心和吸收线形。", "Cole a frequência e o que mediu: ε₂, ε₁, n, k, R, α, T ou luminescência. Nas ópticas, Levenberg–Marquardt procura o ε₂ cujo par Kramers–Kronig reproduz a medida; daí saem ε₁, n, k, R, a perda, α, σ₁, σ₂ e os picos. Com a espessura saem também T e a absorbância. A luminescência não passa por Kramers–Kronig: saem picos, larguras, áreas, centroide e a forma da absorção.");
     let legend1 = tx(lang, "1 · Espectro", "1 · Spectrum", "1 · 光谱", "1 · Espectro");
     let help1 = tx(lang, "Dos columnas: ω positiva y tu medida. La tercera, si la tienes, es el error de ese punto: pesa el χ² y dibuja la barra ±1σ. Una línea de texto, o que empiece por #, se ignora. Al soltar un archivo, sus números pasan al cuadro y la curva sale al lado, antes de pulsar analizar.", "Two columns: positive ω and your measurement. The third, if you have it, is that point’s error: it weights χ² and draws the ±1σ bar. A text line, or one that starts with #, is ignored. When you drop a file, its numbers go into the box and the curve appears beside it, before you press fit.", "两列：正的 ω 和测量值。若有第三列，是该点的误差：它给 χ² 加权并画出 ±1σ 误差棒。文字行或以 # 开头的行会被忽略。放下文件后，数字进入文本框，曲线立刻出现在旁边，不必先按分析。", "Duas colunas: ω positiva e a sua medida. A terceira, se existir, é o erro desse ponto: pesa o χ² e desenha a barra ±1σ. Uma linha de texto, ou que comece por #, é ignorada. Ao soltar um arquivo, os números passam para a caixa e a curva aparece ao lado, antes de analisar.");
-    let server_limit = tx(lang, "Se admiten hasta 8000 puntos y 2000 pasos. En medidas ópticas densas la malla llega a 800 anclas (prioridad a picos y valles); todos los puntos medidos entran en χ².", "Up to 8000 points and 2000 iterations are accepted. Dense optical fits use up to 800 anchors (peaks and valleys first); every measured point is included in χ².", "最多接受 8000 个数据点和 2000 步。密集光学拟合最多使用 800 个锚点（优先峰谷）；所有测量点都会计入 χ²。", "São aceitos até 8000 pontos e 2000 passos. Ajustes ópticos densos usam até 800 âncoras (picos e vales primeiro); todos os pontos medidos entram no χ².");
+    let server_limit = tx(lang, "Se admiten hasta 50 000 puntos y 2000 pasos. Todos los puntos medidos entran en χ²; el ajuste se detiene solo cuando el residuo llega al ruido de la medida.", "Up to 50,000 points and 2000 iterations are accepted. Every measured point is included in χ²; the fit stops by itself once the residual reaches the measurement noise.", "最多接受 50 000 个数据点和 2000 步。所有测量点都会计入 χ²；残差降到测量噪声时拟合自动停止。", "São aceitos até 50 000 pontos e 2000 passos. Todos os pontos medidos entram no χ²; o ajuste para sozinho quando o resíduo chega ao ruído da medida.");
     let what = tx(lang, "Qué mediste", "What you measured", "测量的是", "O que você mediu");
     let unit_of = tx(lang, "Unidad de ω", "Unit of ω", "ω 的单位", "Unidade de ω");
     let thick = tx(lang, "Espesor (µm)", "Thickness (µm)", "厚度 (µm)", "Espessura (µm)");
@@ -228,12 +261,12 @@ pub fn page(req: FlowRequest) -> View {
     let drude = tx(lang, " Fondo Drude", " Drude background", " Drude 背景", " Fundo de Drude");
     let log_mesh = tx(lang, " Eje ω en escala log", " ω axis on a log scale", " ω 轴用对数刻度", " Eixo ω em escala log");
     let extended = tx(lang, " Dibujar fuera del rango", " Draw outside the range", " 画出范围之外", " Desenhar fora do intervalo");
-    let help3 = tx(lang, "Drude resta un fondo de electrones libres antes de ajustar ε₂. Todos los puntos entran en χ². Con ε₂ cada frecuencia medida es un ancla; con R se usan los puntos medios de la malla de la tesis. El eje ω pasa a log si el rango supera ×20. Fuera de los datos, ε₂ baja linealmente a cero en los nodos de borde; los datos no fijan esa cola y la elección puede cambiar ε₁ dentro del rango.", "Drude subtracts a free-electron background before fitting ε₂. Every point enters χ². For ε₂ each measured frequency is an anchor; for R the model uses the thesis mesh midpoints. The ω axis becomes log if the range exceeds ×20. Outside the data, ε₂ falls linearly to zero at the boundary nodes; the data do not determine that tail, and this choice can change ε₁ within the range.", "Drude 在拟合 ε₂ 之前减去自由电子背景。所有点都进入 χ²。对 ε₂，每个测量频率都是一个锚点；对 R，模型使用论文网格的中点。若范围超过 ×20，ω 轴改为对数。数据之外，ε₂ 在线性边界节点降为零；数据不能确定这条尾部，而这个选择可能改变范围内的 ε₁。", "Drude subtrai um fundo de elétrons livres antes de ajustar ε₂. Todos os pontos entram no χ². Com ε₂ cada frequência medida é uma âncora; com R, o modelo usa os pontos médios da malha da tese. O eixo ω passa a log se o intervalo superar ×20. Fora dos dados, ε₂ cai linearmente a zero nos nós de borda; os dados não determinam essa cauda, e a escolha pode mudar ε₁ dentro do intervalo.");
+    let help3 = tx(lang, "Drude resta un fondo de electrones libres antes de ajustar ε₂; sin marcar, el análisis es solo la función variacional restringida por Kramers–Kronig. Todos los puntos entran en χ². Con ε₂ cada frecuencia medida es un ancla; con R las anclas van en los puntos medios entre datos. El eje ω pasa a log si el rango supera ×20. Los datos no fijan ε₂ fuera del rango, y lo que se suponga ahí puede cambiar ε₁ dentro.", "Drude subtracts a free-electron background before fitting ε₂; unticked, the analysis is only the Kramers–Kronig constrained variational function. Every point enters χ². For ε₂ each measured frequency is an anchor; for R the anchors sit at the midpoints between data. The ω axis becomes log if the range exceeds ×20. The data do not determine ε₂ outside the range, and what is assumed there can change ε₁ inside.", "Drude 在拟合 ε₂ 之前减去自由电子背景；不勾选时，分析只用受克拉默斯–克罗尼格约束的变分函数。所有点都进入 χ²。对 ε₂，每个测量频率都是一个锚点；对 R，锚点位于相邻数据的中点。若范围超过 ×20，ω 轴改为对数。数据不能确定范围之外的 ε₂，而那里的假设可能改变范围内的 ε₁。", "Drude subtrai um fundo de elétrons livres antes de ajustar ε₂; desmarcado, a análise é só a função variacional restrita por Kramers–Kronig. Todos os pontos entram no χ². Com ε₂ cada frequência medida é uma âncora; com R as âncoras ficam nos pontos médios entre dados. O eixo ω passa a log se o intervalo superar ×20. Os dados não determinam ε₂ fora do intervalo, e o que se supõe ali pode mudar ε₁ dentro.");
     let eps_help = tx(lang, "ε₁ por encima de tu rango (absorción no medida a más alta frecuencia). Vacío = auto: con n o ε₁ se ajusta; con R se estima del extremo alto (k≈0) y se ajusta dentro de [1, 50]. Con α, k o T vacío usa 1 fijo. Prioridad: si conoces n en zona transparente, escribe ε∞ = n² (queda fijo). Cómo obtener n²: /learn#n2", "ε₁ above your range (unmeasured higher-frequency absorption). Blank = auto: with n or ε₁ it is fitted; with R it is estimated from the high-frequency end (k≈0) and fitted within [1, 50]. With α, k, or T blank uses fixed 1. Priority: if you know n in a transparent region, enter ε∞ = n² (held fixed). How to get n²: /learn#n2", "你的范围之上的 ε₁（更高频未测吸收）。留空 = auto：对 n 或 ε₁ 会拟合；对 R 先从高频端估计（k≈0）再在 [1, 50] 内拟合。对 α、k 或 T 留空则固定为 1。优先：若知道透明区的 n，填写 ε∞ = n²（固定）。如何得到 n²：/learn#n2", "ε₁ acima do seu intervalo (absorção não medida em frequência mais alta). Vazio = auto: com n ou ε₁ é ajustado; com R é estimado da ponta alta (k≈0) e ajustado em [1, 50]. Com α, k ou T o vazio usa 1 fixo. Prioridade: se conhece n na região transparente, escreva ε∞ = n² (fica fixo). Como obter n²: /learn#n2");
     let wp_help = tx(lang, "Frecuencia de plasma del Drude.", "Drude plasma frequency.", "Drude 等离子体频率。", "Frequência de plasma de Drude.");
     let gamma_help = tx(lang, "Ancho de amortiguamiento.", "Damping width.", "阻尼宽度。", "Largura de amortecimento.");
     let steps = tx(lang, "Pasos", "Steps", "步数", "Passos");
-    let steps_help = tx(lang, "Máximo: 2000. Sigue mientras un punto quede lejos. En un reststrahlen, pasar de 80 baja el χ² y rellena el valle; la punta se estanca.", "Maximum: 2000. It continues while a point is still far. On a reststrahlen, going past 80 lowers χ² and fills the valley; the tip stalls.", "上限：2000。只要还有点离得远就继续。对剩余射线，超过 80 步会降低 χ² 并填平谷；尖峰会停住。", "Máximo: 2000. Continua enquanto um ponto estiver longe. Num reststrahlen, passar de 80 baixa o χ² e enche o vale; a ponta estaciona.");
+    let steps_help = tx(lang, "Máximo: 2000. Es un tope: el ajuste para antes, cuando el residuo llega al ruido o deja de bajar.", "Maximum: 2000. It is a cap: the fit stops earlier, once the residual reaches the noise or stops falling.", "上限：2000。这只是上限：残差降到噪声或不再下降时，拟合会提前停止。", "Máximo: 2000. É um teto: o ajuste para antes, quando o resíduo chega ao ruído ou deixa de baixar.");
     let smooth = tx(lang, "Suavidad", "Smoothness", "平滑", "Suavidade");
     let smooth_help = tx(lang, "Por defecto 0 (solo los datos). Sube un poco si el espectro es ruidoso; en reststrahlen afilados de R déjala en 0 o aplana los valles.", "Default 0 (data only). Raise it a little if the spectrum is noisy; on sharp R reststrahlen leave it at 0 or it flattens the valleys.", "默认 0（只用数据）。光谱很噪时可略提高；对尖锐的 R 剩余射线保持 0，否则会抹平谷。", "Por padrão 0 (só os dados). Suba um pouco se o espectro for ruidoso; em reststrahlen afilado de R deixe 0 ou aplaina os vales.");
     let neg = tx(lang, "Si ε₂ baja de 0", "If ε₂ goes below 0", "若 ε₂ 低于 0", "Se ε₂ fica abaixo de 0");
@@ -291,6 +324,11 @@ pub fn page(req: FlowRequest) -> View {
                             <label class="check">{ext_box}{extended}</label>
                         </div>
                         <p class="help">{help3}</p>
+                        <div class="drude-fields" data-lm-unless="lum">
+                            <label>{mesh_label}{mesh_select}<span class="help">{mesh_help}</span></label>
+                            <label>{solver_label}{solver_select}<span class="help">{solver_help}</span></label>
+                            <label>{edges_label}{edges_select}<span class="help">{edges_help}</span></label>
+                        </div>
                         <div class="drude-fields">
                             <label>"ε∞"<input name="eps_inf" type="text" inputmode="decimal" placeholder={eps_inf_placeholder} value={form.eps_inf.clone()} /><span class="help">{eps_help}</span></label>
                             <label>"ωₚ"<input name="omega_p" type="text" inputmode="decimal" placeholder="auto" value={form.omega_p.clone()} /><span class="help">{wp_help}</span></label>

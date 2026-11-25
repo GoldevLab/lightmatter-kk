@@ -432,7 +432,7 @@ fn extended(out: &mut String, report: &FitReport, section: &mut u32, lang: Lang)
         cell(out, &fmt(report.ext_eps2[i]));
         out.push_str("</tr>");
     }
-    out.push_str("</tbody><caption>Extrapolación. ε₂ baja en línea recta hasta cero fuera de la ventana medida, y esa cola ya entró en ε₁. No son datos nuevos.</caption></table>");
+    out.push_str("</tbody><caption>Extrapolación. Fuera de la ventana medida ε₂ sigue la cola elegida (suave, o recta hasta cero), y esa cola ya entró en ε₁. No son datos nuevos.</caption></table>");
 }
 
 fn luminescence_spectrum(out: &mut String, report: &FitReport, section: &mut u32, lang: Lang) {
@@ -473,7 +473,7 @@ fn definitions(out: &mut String, report: &FitReport, section: &mut u32, lang: La
     } else {
         item(out, "χ². Suma de ((dato − modelo) / error)² de la magnitud medida. Sin tercera columna el error vale 1. La suavidad y el castigo de ε₂ negativa no entran en este número.");
         item(out, "ε∞. Parte real por encima de la ventana, la contribución de lo que no se midió a más alta frecuencia.");
-        item(out, "ε₂. Suma de triángulos de altura Aₖ en anclas fijas, más el ε₂ de Drude si se pidió. A los lados de la ventana baja en línea recta hasta cero.");
+        item(out, "ε₂. Suma de triángulos de altura Aₖ en anclas fijas, más el ε₂ de Drude si se pidió. A los lados de la ventana sigue la extrapolación elegida: colas suaves (σ₁ constante abajo, ω⁻³ arriba) o una bajada recta hasta cero.");
         item(out, "ε₁. ε∞ más la Kramers–Kronig de ese ε₂. El kernel es g(x, y) = (x+y) ln|x+y| − (x−y) ln|x−y|, y el término central se resta.");
         item(out, "n y k. n = √((|ε| + ε₁) / 2) y k = signo(ε₂) √((|ε| − ε₁) / 2), con |ε| = √(ε₁² + ε₂²). Cumplen ε₁ = n² − k² y ε₂ = 2nk.");
         item(out, "R. ((n−1)² + k²) / ((n+1)² + k²). Reflectividad de un semiespacio a incidencia normal, no la de una película.");
@@ -498,7 +498,7 @@ fn status_line(report: &FitReport) -> String {
         return format!("sin pasos registrados · tope {budget}");
     }
     if report.converged {
-        format!("{steps} de {budget} · paró: χ² ya no bajaba un 1 % y ningún punto queda a más del 2 % del rango")
+        format!("{steps} de {budget} · paró: el residuo ya está dentro del ruido de la medida o χ² dejó de bajar")
     } else if steps >= budget {
         format!("{steps} de {budget} · llegó al tope y algún punto sigue lejos. El espectro es el mejor aceptado")
     } else {

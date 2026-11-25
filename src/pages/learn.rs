@@ -63,7 +63,7 @@ pub fn page(_req: FlowRequest) -> View {
                 <h2>{tx(lang, "Qué puedes medir", "What you can measure", "可以测量什么", "O que você pode medir")}</h2>
                 <p>"Para las medidas ópticas, tú dices qué es la segunda columna. El ajuste busca un ε₂ cuyo par (ε₁, ε₂), ligado por Kramers–Kronig, reproduce esa magnitud. La luminiscencia es la excepción: su columna es intensidad emitida, no una parte de ε."</p>
                 <ul>
-                    <li>"ε₂. Es la magnitud del modelo. Con esta medida cada frecuencia puede ser una ancla, hasta 8000."</li>
+                    <li>"ε₂. Es la magnitud del modelo. Con esta medida cada frecuencia es un ancla, hasta 50 000."</li>
                     <li>"ε₁. La parte real. ε∞ se ajusta junto con ε₂, salvo que lo escribas."</li>
                     <li>"n, índice de refracción. Igual: ε∞ se ajusta. El valor de partida es n² del último punto, entre 1 y 50."</li>
                     <li>"k, coeficiente de extinción. ε∞ no sale de k. Vacío usa 1, y entonces n se queda cerca de 1 donde la muestra es transparente."</li>
@@ -72,7 +72,7 @@ pub fn page(_req: FlowRequest) -> View {
                     <li>"T, transmitancia de una lámina en aire. Necesita unidad de ω y el espesor en µm. Sin espesor el análisis no arranca."</li>
                     <li>"Luminiscencia. Es emisión, no absorción: la intensidad medida no es ε₂ y no determina una pareja ε₁/ε₂. Se analizan picos y propiedades de la emisión, sin fingir una constante dieléctrica."</li>
                 </ul>
-                <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. El modelo usa hasta 800 anclas (prioridad a picos y valles afilados) y admite hasta 8000 filas. Con R parte de los puntos medios de la malla medida, como en la tesis. Todos los puntos, aunque no sean ancla, entran en el χ²."</p>
+                <p>"Con R, T, n, k o α el paso es denso: ε₁ en cada punto depende de todas las anclas. La malla por defecto pone un ancla entre cada par de datos (con R, en los puntos medios, como en la tesis); se puede pedir una cada dos datos, el N/2 que Kuzmenko da como óptimo, o una malla adaptativa que parte de pocas anclas y las añade solo donde el residuo supera el ruido. Si el espectro es tan largo que un ancla por dato no cabe en el presupuesto de cómputo, se usa la adaptativa. El ajuste recorre mallas cada vez más finas, de modo que la fina arranca ya cerca de la solución, y se detiene cuando el residuo típico llega al ruido de la medida. Se admiten hasta 50 000 filas y todas entran en el χ². Fuera del rango medido ε₂ sigue con colas suaves (σ₁ constante hacia ω → 0, caída ω⁻³ por arriba) en lugar de caer a cero en el borde; no hay osciladores ni Drude salvo que marques el fondo Drude."</p>
             </section>
 
             <section id="metodo">
@@ -97,7 +97,7 @@ pub fn page(_req: FlowRequest) -> View {
                     tx(lang, "La integral cerrada de un triángulo", "The closed integral of a triangle", "一个三角的封闭积分", "A integral fechada de um triângulo"),
                     proof_g(lang),
                 )}
-                <p>"A la izquierda de la primera ancla medida y a la derecha de la última hay un ancla extra con coeficiente cero. Entre el extremo medido y esa ancla, ε₂ baja en línea recta hasta cero. Los datos no fijan esa cola y la elección puede cambiar ε₁ dentro del rango. La tesis contempla añadir un oscilador fuera de la ventana si hace falta; esta app no ofrece ese control. La casilla de dibujar fuera del rango muestra la extrapolación: no son datos nuevos."</p>
+                <p>"Fuera del rango medido hay que suponer algo. Por defecto ε₂ sigue con colas suaves: por debajo de la primera ancla conserva la conductividad σ₁ de ese punto (ε₂ ∝ 1/ω) y por encima de la última cae como ω⁻³. La otra opción es la del trabajo de grado: un ancla extra a cada lado con coeficiente cero, de modo que ε₂ baja en línea recta hasta cero. Los datos no fijan esa cola y la elección puede cambiar ε₁ dentro del rango; con una muestra que conduce, cortar ε₂ en el borde deforma ε₁ y ε₂ cerca de los extremos. La tesis contempla añadir un oscilador fuera de la ventana si hace falta; esta app no ofrece ese control. La casilla de dibujar fuera del rango muestra la extrapolación: no son datos nuevos."</p>
                 <p>"Esta es la restricción variacional de Kuzmenko (2005). El triángulo es flexible: no supone que el material sea un oscilador de Lorentz, ni un Tauc–Lorentz, ni un Fano. Esos modelos siguen siendo útiles para interpretar, pero aquí no se imponen."</p>
                 <h3 id="eps-inf">"ε∞ — qué es, auto y cómo fijar n²"</h3>
                 <p>"ε∞ es el valor de ε₁ por encima de tu ventana de medida: junta toda la absorción a frecuencias más altas que no mediste. En la fórmula de Kramers–Kronig aparece como el fondo constante al que se suma la integral de ε₂. No es un segundo ajuste de la curva medida; es la hipótesis sobre lo que hay fuera del rango."</p>

@@ -184,6 +184,9 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
     let mut unit = String::new();
     let mut thickness = String::new();
     let mut temperature = String::new();
+    let mut mesh = String::new();
+    let mut solver = String::new();
+    let mut edges = String::new();
     let mut job_id = None;
     let mut bytes_seen = 0usize;
 
@@ -220,6 +223,9 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
             "unit" => unit = value,
             "thickness" => thickness = value,
             "temperature" => temperature = value,
+            "mesh" => mesh = value,
+            "solver" => solver = value,
+            "edges" => edges = value,
             "job_id" => job_id = Some(value),
             _ => {}
         }
@@ -246,6 +252,9 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         unit,
         thickness,
         temperature,
+        mesh,
+        solver,
+        edges,
     };
     let (job_id, created) = match store::create_job(job_id.as_deref(), &source_name, &text, &options) {
         Ok(job) => job,

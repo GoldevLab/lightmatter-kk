@@ -744,17 +744,17 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     };
     let status = if report.converged && report.chisq < 1e-8 {
         match lang {
-            Lang::Es => format!("Usó {steps} de {budget} pasos. Paró porque el objetivo ya no bajaba un 1 % y los puntos ya quedan cerca."),
-            Lang::En => format!("Used {steps} of {budget} steps. It stopped because the objective no longer fell by 1% and the points are already close."),
-            Lang::Zh => format!("用了 {budget} 步中的 {steps} 步。目标不再下降 1%，而且各点已经接近，所以停止。"),
-            Lang::Pt => format!("Usou {steps} de {budget} passos. Parou porque o objetivo já não caía 1% e os pontos já estão perto."),
+            Lang::Es => format!("Usó {steps} de {budget} pasos. Paró porque el residuo ya está dentro del ruido de la medida o el objetivo dejó de bajar."),
+            Lang::En => format!("Used {steps} of {budget} steps. It stopped because the residual is already within the measurement noise or the objective stopped falling."),
+            Lang::Zh => format!("用了 {budget} 步中的 {steps} 步。残差已降到测量噪声以内，或目标不再下降，所以停止。"),
+            Lang::Pt => format!("Usou {steps} de {budget} passos. Parou porque o resíduo já está dentro do ruído da medida ou o objetivo deixou de cair."),
         }
     } else if report.converged {
         match lang {
-            Lang::Es => format!("Usó {steps} de {budget} pasos. Paró porque el objetivo ya no bajaba un 1 % y ningún punto queda a más del 2 % del rango."),
-            Lang::En => format!("Used {steps} of {budget} steps. It stopped because the objective no longer fell by 1% and no point is more than 2% of the range away."),
-            Lang::Zh => format!("用了 {budget} 步中的 {steps} 步。目标不再下降 1%，且没有点偏离超过范围的 2%，所以停止。"),
-            Lang::Pt => format!("Usou {steps} de {budget} passos. Parou porque o objetivo já não caía 1% e nenhum ponto fica a mais de 2% da faixa."),
+            Lang::Es => format!("Usó {steps} de {budget} pasos. Paró porque el residuo ya está dentro del ruido de la medida o el objetivo dejó de bajar."),
+            Lang::En => format!("Used {steps} of {budget} steps. It stopped because the residual is already within the measurement noise or the objective stopped falling."),
+            Lang::Zh => format!("用了 {budget} 步中的 {steps} 步。残差已降到测量噪声以内，或目标不再下降，所以停止。"),
+            Lang::Pt => format!("Usou {steps} de {budget} passos. Parou porque o resíduo já está dentro do ruído da medida ou o objetivo deixou de cair."),
         }
     } else if report.iters_used == 0 {
         tx(lang, "Sin pasos registrados.", "No steps recorded.", "没有记录步数。", "Nenhum passo registrado.").into()
@@ -842,7 +842,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     let g_chi = tx(lang, "Suma de ((dato − modelo) / error)², solo de", "Sum of ((data − model) / error)², only for", "((数据 − 模型) / 误差)² 之和，只计", "Soma de ((dado − modelo) / erro)², só de");
     let g_chi2 = tx(lang, "Sin tercera columna el error vale 1. La suavidad y el castigo de ε₂ negativa no entran en este número; sí entran en la parada.", "Without a third column the error is 1. Smoothness and the penalty on negative ε₂ are not in this number; they do enter the stopping rule.", "没有第三列时误差为 1。平滑和对负 ε₂ 的惩罚不计入这个数，但会计入停止条件。", "Sem terceira coluna o erro vale 1. A suavidade e a penalidade de ε₂ negativa não entram neste número; entram na parada.");
     let g_bar = tx(lang, "Barra de confianza. Es la raíz de la diagonal de la covarianza, la inversa de la curvatura de los datos. Aparece cuando pegas el error de cada punto. La suavidad no entra en esa barra.", "Confidence bar. It is the square root of the covariance diagonal, the inverse of the curvature of the data. It appears when you paste the error of each point. Smoothness is not in that bar.", "置信条。它是协方差对角元的平方根，即数据曲率的逆。粘贴每点误差时出现。平滑不进入这条。", "Barra de confiança. É a raiz da diagonal da covariância, o inverso da curvatura dos dados. Aparece quando você cola o erro de cada ponto. A suavidade não entra nessa barra.");
-    let g_e2 = tx(lang, "Lo que ajusta la base triangular. En los extremos medidos puede valer lo que mediste; un poco más allá baja en línea recta hasta cero.", "What the triangular basis fits. At the measured ends it can equal what you measured; a little beyond that it falls in a straight line to zero.", "三角基底所拟合的量。在测量端点可以等于你测到的值；再往外则直线降到零。", "O que a base triangular ajusta. Nos extremos medidos pode valer o que você mediu; um pouco além disso desce em linha reta até zero.");
+    let g_e2 = tx(lang, "Lo que ajusta la base triangular. En los extremos medidos puede valer lo que mediste; más allá sigue con la extrapolación elegida: colas suaves o una bajada recta hasta cero.", "What the triangular basis fits. At the measured ends it can equal what you measured; beyond them it follows the chosen extrapolation: smooth tails or a straight fall to zero.", "三角基底所拟合的量。在测量端点可以等于你测到的值；再往外按所选的外推延续：平滑尾部，或直线降到零。", "O que a base triangular ajusta. Nos extremos medidos pode valer o que você mediu; além deles segue a extrapolação escolhida: caudas suaves ou uma descida reta até zero.");
     let g_e1 = tx(lang, "ε∞ más la Kramers–Kronig de ε₂, incluida esa cola. No es un segundo ajuste.", "ε∞ plus the Kramers–Kronig transform of ε₂, including that tail. It is not a second fit.", "ε∞ 加上 ε₂ 的克拉默斯–克罗尼格变换，含那条尾部。不是第二次拟合。", "ε∞ mais a Kramers–Kronig de ε₂, incluindo essa cauda. Não é um segundo ajuste.");
     let g_nk = tx(lang, "índice de refracción.", "refractive index.", "折射率。", "índice de refração.");
     let g_k = tx(lang, "extinción, con el signo de ε₂, de modo que n² − k² = ε₁ y 2nk = ε₂.", "extinction, with the sign of ε₂, so that n² − k² = ε₁ and 2nk = ε₂.", "消光，符号与 ε₂ 相同，因此 n² − k² = ε₁ 且 2nk = ε₂。", "extinção, com o sinal de ε₂, de modo que n² − k² = ε₁ e 2nk = ε₂.");
