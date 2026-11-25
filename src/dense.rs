@@ -1339,23 +1339,30 @@ enum End {
 }
 
 impl Run<'_> {
-    /// Residuo típico en unidades del ruido: mediana de |yᵢ − modeloᵢ|/σᵢ, escalada para valer
-    /// 1 cuando el residuo es puro ruido gaussiano. La mediana no deja que unos pocos puntos
-    /// de un flanco abrupto, donde el ruido se sobreestima, decidan por todo el espectro.
-    fn noise_ratio(&mut self, pts: &Points) -> f64 {
+    /// Mediana y máximo de |yᵢ − modeloᵢ|/σᵢ, escalados para valer ~1 con ruido gaussiano.
+    /// La mediana evita que un flanco abrupto (σ sobreestimada) mande en la parada; el máximo
+    /// evita parar cuando el grueso ya está en el ruido pero un mínimo LO u otro rasgo local
+    /// sigue con residuo enorme.
+    fn noise_stats(&mut self, pts: &Points) -> (f64, f64) {
         let problem = self.problem;
         self.scratch.clear();
-        self.scratch.extend(problem.y.iter().zip(&pts.q).zip(&self.sigma).map(|((y, q), s)| {
+        let mut max_r = 0.0_f64;
+        for ((y, q), s) in problem.y.iter().zip(&pts.q).zip(&self.sigma) {
             let r = (y - q).abs();
-            if *s > 0.0 {
+            let u = if *s > 0.0 {
                 r / s
             } else if r == 0.0 {
                 0.0
             } else {
                 f64::INFINITY
+            };
+            if u > max_r {
+                max_r = u;
             }
-        }));
-        median_in_place(&mut self.scratch) / 0.674_489_75
+            self.scratch.push(u);
+        }
+        let med = median_in_place(&mut self.scratch) / 0.674_489_75;
+        (med, max_r / 0.674_489_75)
     }
 
     /// Levenberg–Marquardt (Numerical Recipes §15.5) sobre una malla fija.
@@ -1418,8 +1425,8 @@ impl Run<'_> {
             let (chi_try, data_try) = problem.objective(mesh, &trial, &mut trial_pts, threads);
             if chi_try.is_finite() && chi_try <= chi {
                 let gain = chi - chi_try;
-                let ratio = if last { self.noise_ratio(&trial_pts) } else { f64::INFINITY };
-                let near_noise = ratio <= 2.0;
+                let (ratio, max_ratio) = if last { self.noise_stats(&trial_pts) } else { (f64::INFINITY, f64::INFINITY) };
+                let near_noise = ratio <= 2.0 && max_ratio <= 8.0;
                 let small = gain <= self.floor.max(if near_noise { noise_tol } else { tol } * chi);
                 std::mem::swap(p, &mut trial);
                 std::mem::swap(pts, &mut trial_pts);
@@ -1437,7 +1444,7 @@ impl Run<'_> {
                 } else {
                     flat = 0;
                 }
-                if flat >= 2 || data <= self.floor || (accepted >= 1 && ratio <= 1.0) {
+                if flat >= 2 || data <= self.floor || (accepted >= 1 && ratio <= 1.0 && max_ratio <= 5.0) {
                     end = End::Converged;
                     break;
                 }
@@ -1491,6 +1498,40 @@ fn prolong(old: &Mesh, p: &[f64], new: &Mesh) -> Vec<f64> {
     }
     out.push(p[old.interior()]);
     out
+}
+
+/// Parámetros de partida en una malla: ε₂ de la semilla en cada ancla interior y ε∞ dada.
+fn seed_params(mesh: &Mesh, seed: &dyn Fn(f64) -> f64, eps_inf: f64, bounds: Option<(f64, f64)>) -> Vec<f64> {
+    let mi = mesh.interior();
+    let mut p: Vec<f64> = (0..mi).map(|j| seed(mesh.anchors[j + 1])).collect();
+    let mut e = eps_inf;
+    if let Some((lo, hi)) = bounds {
+        e = e.clamp(lo, hi);
+    }
+    p.push(e);
+    p
+}
+
+/// Si la semilla reproduce mejor los datos que `p` (p. ej. tras una prolongación que aplastó
+/// un mínimo LO), sustituye `p` por la semilla. La continuación gruesa→fina no puede inventar
+/// rasgos más estrechos que su paso; sin este rescate el LM fino arranca ya en un mínimo malo.
+fn take_seed_if_better(
+    problem: &Problem<'_>,
+    mesh: &Mesh,
+    p: &mut Vec<f64>,
+    pts: &mut Points,
+    seed: &dyn Fn(f64) -> f64,
+    eps_inf: f64,
+    threads: usize,
+) {
+    let seeded = seed_params(mesh, seed, eps_inf, problem.eps_inf_bounds.filter(|_| problem.fit_eps_inf));
+    let mut seed_pts = Points::new(problem.ndat());
+    let (_, data_seed) = problem.objective(mesh, &seeded, &mut seed_pts, threads);
+    let (_, data_cur) = problem.objective(mesh, p, pts, threads);
+    if data_seed.is_finite() && data_seed < data_cur {
+        *p = seeded;
+        *pts = seed_pts;
+    }
 }
 
 /// |y_i − cúbica por sus cuatro vecinos|, normalizado para que su escala sea la σ del ruido.
@@ -1637,12 +1678,7 @@ pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) 
 
     let mut picks = strided(count, stride);
     let mut mesh = build_mesh(cfg, &picks, problem.w);
-    let mut p: Vec<f64> = (0..mesh.interior()).map(|j| seed(mesh.anchors[j + 1])).collect();
-    p.push(eps_inf);
-    if let (Some((lo, hi)), true) = (problem.eps_inf_bounds, problem.fit_eps_inf) {
-        let mi = mesh.interior();
-        p[mi] = p[mi].clamp(lo, hi);
-    }
+    let mut p = seed_params(&mesh, seed, eps_inf, problem.eps_inf_bounds.filter(|_| problem.fit_eps_inf));
     let mut pts = Points::new(n);
     let mut levels = 1usize;
     let mut end = End::Steps;
@@ -1707,10 +1743,12 @@ pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) 
             p = prolong(&mesh, &p, &finer);
             mesh = finer;
             picks = next;
+            take_seed_if_better(problem, &mesh, &mut p, &mut pts, seed, eps_inf, threads);
             levels += 1;
         }
         let left = iter_max.saturating_sub(run.iters);
         run.problem = problem;
+        take_seed_if_better(problem, &mesh, &mut p, &mut pts, seed, eps_inf, threads);
         if left > 0 {
             let (level_end, _, _) = run.levenberg(&mesh, &mut p, &mut pts, left, final_tol, true)?;
             end = level_end;
@@ -1721,6 +1759,9 @@ pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) 
             let left = iter_max.saturating_sub(run.iters);
             if left == 0 {
                 break;
+            }
+            if last {
+                take_seed_if_better(problem, &mesh, &mut p, &mut pts, seed, eps_inf, threads);
             }
             let (steps, tol) = if last { (left, final_tol) } else { (coarse_steps.min(left), 0.02) };
             run.problem = if last || !freeze { problem } else { &frozen };
@@ -1737,6 +1778,7 @@ pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) 
             let finer = build_mesh(cfg, &picks, problem.w);
             p = prolong(&mesh, &p, &finer);
             mesh = finer;
+            take_seed_if_better(problem, &mesh, &mut p, &mut pts, seed, eps_inf, threads);
             levels += 1;
         }
     }
