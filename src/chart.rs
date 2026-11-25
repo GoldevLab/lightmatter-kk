@@ -9,6 +9,47 @@ pub struct Series<'a> {
     pub color: &'a str,
     pub xs: &'a [f64],
     pub ys: &'a [f64],
+    /// Grosor del trazo. Por defecto 1.8.
+    pub width: f64,
+    /// `stroke-dasharray` SVG; vacío = continuo.
+    pub dash: &'a str,
+}
+
+impl<'a> Series<'a> {
+    pub fn line(name: &'a str, color: &'a str, xs: &'a [f64], ys: &'a [f64]) -> Self {
+        Self {
+            name,
+            color,
+            xs,
+            ys,
+            width: 1.8,
+            dash: "",
+        }
+    }
+
+    /// Datos bajo el modelo: trazo más grueso para que, al solaparse, se vea un halo.
+    pub fn data(name: &'a str, color: &'a str, xs: &'a [f64], ys: &'a [f64]) -> Self {
+        Self {
+            name,
+            color,
+            xs,
+            ys,
+            width: 3.15,
+            dash: "",
+        }
+    }
+
+    /// Curva del ajuste encima de los datos.
+    pub fn fit(name: &'a str, color: &'a str, xs: &'a [f64], ys: &'a [f64]) -> Self {
+        Self {
+            name,
+            color,
+            xs,
+            ys,
+            width: 1.55,
+            dash: "",
+        }
+    }
 }
 
 pub fn line_chart(
@@ -182,15 +223,34 @@ pub fn line_chart(
             started = true;
             d.push_str(&format!("{cmd}{:.2},{:.2} ", mapx(s.xs[i]), mapy(s.ys[i])));
         }
+        let dash_attr = if s.dash.is_empty() {
+            String::new()
+        } else {
+            format!(" stroke-dasharray=\"{}\"", escape(s.dash))
+        };
         svg.push_str(&format!(
-            "<path d=\"{d}\" fill=\"none\" stroke=\"{}\" stroke-width=\"1.8\" stroke-linejoin=\"round\" data-series=\"{}\"/>",
+            "<path d=\"{d}\" fill=\"none\" stroke=\"{}\" stroke-width=\"{:.2}\" stroke-linejoin=\"round\" stroke-linecap=\"round\"{dash_attr} data-series=\"{}\"/>",
             s.color,
+            s.width.max(0.5),
             escape(s.name)
         ));
         let lx = left + idx as f64 * 150.0;
+        let legend = if s.dash.is_empty() {
+            format!(
+                "<rect x=\"{lx:.0}\" y=\"10\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{}\"/>",
+                s.color
+            )
+        } else {
+            format!(
+                "<line x1=\"{lx:.0}\" y1=\"15\" x2=\"{:.0}\" y2=\"15\" stroke=\"{}\" stroke-width=\"2.4\" stroke-dasharray=\"{}\" stroke-linecap=\"round\"/>",
+                lx + 14.0,
+                s.color,
+                escape(s.dash)
+            )
+        };
+        svg.push_str(&legend);
         svg.push_str(&format!(
-            "<rect x=\"{lx:.0}\" y=\"10\" width=\"10\" height=\"10\" rx=\"2\" fill=\"{}\"/><text x=\"{:.0}\" y=\"19\" fill=\"var(--chart-label)\" font-size=\"12\" font-family=\"Segoe UI,sans-serif\">{}</text>",
-            s.color,
+            "<text x=\"{:.0}\" y=\"19\" fill=\"var(--chart-label)\" font-size=\"12\" font-family=\"Segoe UI,sans-serif\">{}</text>",
             lx + 16.0,
             escape(s.name)
         ));
@@ -492,7 +552,7 @@ fn luminescence_markup(source: &str, report: &FitReport, download_href: &str, la
         "Luminiscencia — intensidad medida",
         "I",
         x_label,
-        &[Series { name: "I", color: "#3ee0c5", xs: &report.data_x, ys: &report.data_y }],
+        &[Series::line("I", "#3ee0c5", &report.data_x, &report.data_y)],
         false,
         None,
     );
@@ -503,7 +563,7 @@ fn luminescence_markup(source: &str, report: &FitReport, download_href: &str, la
             &format!("Absorción relativa por van Roosbroeck–Shockley, T = {:.0} K", report.options.temperature_k),
             "α / α máx",
             x_label,
-            &[Series { name: "α relativa", color: "#f2c14e", xs: &report.vrs_x, ys: &report.vrs_y }],
+            &[Series::line("α relativa", "#f2c14e", &report.vrs_x, &report.vrs_y)],
             false,
             None,
         )
@@ -569,8 +629,8 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
         sym,
         x_label,
         &[
-            Series { name: tx(lang, "datos", "data", "数据", "dados"), color: "#9aa7b2", xs: &report.data_x, ys: &report.data_y },
-            Series { name: tx(lang, "ajuste", "fit", "拟合", "ajuste"), color: "#3ee0c5", xs: fit_x, ys: fit_y },
+            Series::data(tx(lang, "datos", "data", "数据", "dados"), "#d8e0e6", &report.data_x, &report.data_y),
+            Series::fit(tx(lang, "ajuste", "fit", "拟合", "ajuste"), "#0f9f8a", fit_x, fit_y),
         ],
         log_x,
         q_band.as_ref().map(|(lo, hi)| (fit_x, lo.as_slice(), hi.as_slice())),
@@ -583,7 +643,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
             &format!("{} {sym}", tx(lang, "ε₂ recuperada de", "ε₂ recovered from", "由以下量恢复的 ε₂", "ε₂ recuperada de")),
             "ε₂",
             x_label,
-            &[Series { name: "ε₂", color: "#3ee0c5", xs: &report.omega, ys: &report.eps2 }],
+            &[Series::line("ε₂", "#3ee0c5", &report.omega, &report.eps2)],
             log_x,
             band.as_ref().map(|(lo, hi)| (report.omega.as_slice(), lo.as_slice(), hi.as_slice())),
         )
@@ -592,21 +652,22 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
         tx(lang, "ε₁ — parte real, Kramers–Kronig", "ε₁ — real part, Kramers–Kronig", "ε₁ — 实部，克拉默斯–克罗尼格", "ε₁ — parte real, Kramers–Kronig"),
         "ε₁",
         x_label,
-        &[Series { name: "ε₁", color: "#f2c14e", xs: &report.omega, ys: &report.eps1 }],
+        &[Series::line("ε₁", "#f2c14e", &report.omega, &report.eps1)],
         log_x,
         None,
     );
+    // Par complejo ε̂ = ε₁ + iε₂: real a la izquierda, imaginaria a la derecha.
     let (fit_markup, eps_pair) = if measure == Measure::Eps2 {
-        (String::new(), chart_pair(fit_panel, eps1))
+        (String::new(), chart_pair(eps1, fit_panel))
     } else {
-        (wrap_primary(fit_panel), chart_pair(eps2_panel, eps1))
+        (wrap_primary(fit_panel), chart_pair(eps1, eps2_panel))
     };
     let diff = if report.difference.len() == report.data_x.len() {
         line_chart(
             tx(lang, "Diferencia (ajuste − datos) × 100", "Difference (fit − data) × 100", "差值（拟合 − 数据）× 100", "Diferença (ajuste − dados) × 100"),
             "Δ × 100",
             x_label,
-            &[Series { name: "Δ × 100", color: "#7aa2ff", xs: &report.data_x, ys: &report.difference }],
+            &[Series::line("Δ × 100", "#7aa2ff", &report.data_x, &report.difference)],
             log_x,
             None,
         )
@@ -617,7 +678,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
         tx(lang, "n — índice de refracción", "n — refractive index", "n — 折射率", "n — índice de refração"),
         "n",
         x_label,
-        &[Series { name: "n", color: "#3ee0c5", xs: &report.omega, ys: &report.n_index }],
+        &[Series::line("n", "#3ee0c5", &report.omega, &report.n_index)],
         log_x,
         None,
     );
@@ -625,16 +686,17 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
         tx(lang, "k — coeficiente de extinción", "k — extinction coefficient", "k — 消光系数", "k — coeficiente de extinção"),
         "k",
         x_label,
-        &[Series { name: "k", color: "#7aa2ff", xs: &report.omega, ys: &report.k_index }],
+        &[Series::line("k", "#7aa2ff", &report.omega, &report.k_index)],
         log_x,
         None,
     );
+    // Par complejo N̂ = n + ik: real | imaginaria.
     let nk_pair = chart_pair(n_panel, k_panel);
     let refl = line_chart(
         tx(lang, "R de un medio semi-infinito, a incidencia normal", "R of a semi-infinite medium, at normal incidence", "半无限介质的正入射 R", "R de um meio semi-infinito, em incidência normal"),
         "R",
         x_label,
-        &[Series { name: "R", color: "#3ee0c5", xs: &report.omega, ys: &report.reflectivity }],
+        &[Series::line("R", "#3ee0c5", &report.omega, &report.reflectivity)],
         log_x,
         None,
     );
@@ -643,7 +705,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
             tx(lang, "Función de pérdida −Im(1/ε)", "Loss function −Im(1/ε)", "损失函数 −Im(1/ε)", "Função de perda −Im(1/ε)"),
             "−Im(1/ε)",
             x_label,
-                &[Series { name: tx(lang, "pérdida", "loss", "损失", "perda"), color: "#f28b82", xs: &report.omega, ys: &report.loss }],
+            &[Series::line(tx(lang, "pérdida", "loss", "损失", "perda"), "#f28b82", &report.omega, &report.loss)],
             log_x,
             None,
         )
@@ -656,7 +718,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
                 tx(lang, "α coeficiente de absorción, 4πν̃k", "α absorption coefficient, 4πν̃k", "α 吸收系数，4πν̃k", "α coeficiente de absorção, 4πν̃k"),
                 "α (cm⁻¹)",
                 x_label,
-                &[Series { name: "α", color: "#f2c14e", xs: &report.omega, ys: &report.absorption }],
+                &[Series::line("α", "#f2c14e", &report.omega, &report.absorption)],
                 log_x,
                 None,
             ),
@@ -664,7 +726,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
                 tx(lang, "σ₁ conductividad óptica, ν̃ε₂/60", "σ₁ optical conductivity, ν̃ε₂/60", "σ₁ 光电导，ν̃ε₂/60", "σ₁ condutividade óptica, ν̃ε₂/60"),
                 "σ₁ (Ω⁻¹cm⁻¹)",
                 x_label,
-                &[Series { name: "σ₁", color: "#7aa2ff", xs: &report.omega, ys: &report.sigma1 }],
+                &[Series::line("σ₁", "#7aa2ff", &report.omega, &report.sigma1)],
                 log_x,
                 None,
             ),
@@ -673,7 +735,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
                     tx(lang, "σ₂ conductividad óptica, ν̃(ε∞ − ε₁)/60", "σ₂ optical conductivity, ν̃(ε∞ − ε₁)/60", "σ₂ 光电导，ν̃(ε∞ − ε₁)/60", "σ₂ condutividade óptica, ν̃(ε∞ − ε₁)/60"),
                     "σ₂ (Ω⁻¹cm⁻¹)",
                     x_label,
-                    &[Series { name: "σ₂", color: "#c084fc", xs: &report.omega, ys: &report.sigma2 }],
+                    &[Series::line("σ₂", "#c084fc", &report.omega, &report.sigma2)],
                     log_x,
                     None,
                 )
@@ -684,6 +746,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     } else {
         (String::new(), String::new(), String::new())
     };
+    // Par complejo σ̂ = σ₁ + iσ₂: real | imaginaria.
     let sigma_pair = chart_pair(sigma_panel, sigma2_panel);
     let (trans_panel, absorb_panel) = if report.transmittance.len() == report.omega.len() && !report.transmittance.is_empty() {
         (
@@ -691,7 +754,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
                 tx(lang, "T transmitancia de una lámina en aire", "T transmittance of a slab in air", "空气中薄片的透射率 T", "T transmitância de uma lâmina no ar"),
                 "T",
                 x_label,
-                &[Series { name: "T", color: "#3ee0c5", xs: &report.omega, ys: &report.transmittance }],
+                &[Series::line("T", "#3ee0c5", &report.omega, &report.transmittance)],
                 log_x,
                 None,
             ),
@@ -699,7 +762,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
                 tx(lang, "A absorbancia, −log₁₀(T)", "A absorbance, −log₁₀(T)", "吸光度 A，−log₁₀(T)", "A absorbância, −log₁₀(T)"),
                 "A",
                 x_label,
-                &[Series { name: "A", color: "#f2c14e", xs: &report.omega, ys: &report.absorbance }],
+                &[Series::line("A", "#f2c14e", &report.omega, &report.absorbance)],
                 log_x,
                 None,
             ),
@@ -719,18 +782,18 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
         );
         chart_pair(
             line_chart(
-                &format!("ε₂ · {outside}"),
-                "ε₂",
+                &format!("ε₁ · {outside}"),
+                "ε₁",
                 x_label,
-                &[Series { name: "ε₂", color: "#3ee0c5", xs: &report.ext_omega, ys: &report.ext_eps2 }],
+                &[Series::line("ε₁", "#f2c14e", &report.ext_omega, &report.ext_eps1)],
                 log_x,
                 None,
             ),
             line_chart(
-                &format!("ε₁ · {outside}"),
-                "ε₁",
+                &format!("ε₂ · {outside}"),
+                "ε₂",
                 x_label,
-                &[Series { name: "ε₁", color: "#f2c14e", xs: &report.ext_omega, ys: &report.ext_eps1 }],
+                &[Series::line("ε₂", "#3ee0c5", &report.ext_omega, &report.ext_eps2)],
                 log_x,
                 None,
             ),
@@ -855,7 +918,7 @@ pub fn result_markup(source: &str, report: &FitReport, download_href: &str, lang
     let charts_word = tx(lang, "Gráficas", "Charts", "图", "Gráficos");
     let result_word = tx(lang, "Resultado", "Result", "结果", "Resultado");
     format!(
-        "<section class=\"panel results\"><div class=\"result-head\"><div><p class=\"eyebrow\">{result_word} · {label}</p><h2>{score}</h2><p class=\"muted\">{meta}</p><p>{status}</p></div>{downloads}</div>{warns}{facts}{table}{fit}{eps_pair}{diff}{nk_pair}{refl}{loss}{alpha}{sigma_pair}{trans}{absorb}{ext}<ul class=\"glossary\"><li><strong>χ²</strong> {g_chi} {sym}. {g_chi2}</li><li><strong>χ²/dof</strong> {dof_help}</li><li><strong>±1σ</strong> {g_bar}</li><li><strong>{data_word}</strong> <span class=\"swatch swatch-data\"></span> {measure_note}</li><li><strong>ε₂</strong> <span class=\"swatch swatch-e2\"></span> {g_e2}</li><li><strong>ε₁</strong> <span class=\"swatch swatch-e1\"></span> {g_e1}</li><li><strong>n</strong> {g_nk} <strong>k</strong> {g_k} <strong>R</strong> {g_r} <strong>−Im(1/ε)</strong> {g_loss}</li>{units_note}<li><strong>{peaks_word}</strong> {g_peaks}</li><li><strong>{charts_word}</strong> {g_charts}</li></ul>{publish}{informe}</section>",
+        "<section class=\"panel results\"><div class=\"result-head\"><div><p class=\"eyebrow\">{result_word} · {label}</p><h2>{score}</h2><p class=\"muted\">{meta}</p><p>{status}</p></div>{downloads}</div>{warns}{facts}{table}{fit}{eps_pair}{diff}{nk_pair}{refl}{loss}{alpha}{sigma_pair}{trans}{absorb}{ext}<ul class=\"glossary\"><li><strong>χ²</strong> {g_chi} {sym}. {g_chi2}</li><li><strong>χ²/dof</strong> {dof_help}</li><li><strong>±1σ</strong> {g_bar}</li><li><strong>{data_word}</strong> <span class=\"swatch swatch-data\"></span> {measure_note}</li><li><strong>ε₁</strong> <span class=\"swatch swatch-e1\"></span> {g_e1}</li><li><strong>ε₂</strong> <span class=\"swatch swatch-e2\"></span> {g_e2}</li><li><strong>n</strong> {g_nk} <strong>k</strong> {g_k} <strong>R</strong> {g_r} <strong>−Im(1/ε)</strong> {g_loss}</li>{units_note}<li><strong>{peaks_word}</strong> {g_peaks}</li><li><strong>{charts_word}</strong> {g_charts}</li></ul>{publish}{informe}</section>",
         label = escape(measure.symbol()),
         meta = escape(&format!(
             "{} {} · {} {} · {} · {}",

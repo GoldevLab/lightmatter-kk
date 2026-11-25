@@ -76,13 +76,13 @@ Cualquier error restante es responsabilidad del autor.
 
 \chapter*{Resumen}
 \addcontentsline{toc}{chapter}{Resumen}
-La respuesta lineal de un s\'olido a un campo electromagn\'etico se describe mediante la funci\'on diel\'ectrica compleja
-$\hat\varepsilon(\omega)=\varepsilon_1(\omega)+i\varepsilon_2(\omega)$.
-De ella se derivan el \'indice de refracci\'on, la extinci\'on, la reflectividad, la absorci\'on y la conductividad \'optica.
-En un experimento suele medirse una sola de esas magnitudes en una ventana finita de frecuencias, no el par $(\varepsilon_1,\varepsilon_2)$ en todo el eje.
-Este trabajo formula e implementa un an\'alisis variacional restringido por Kramers--Kronig: representa $\varepsilon_2$ con una base triangular, calcula $\varepsilon_1$ con la transformada anal\'itica de esa base y ajusta las amplitudes con Levenberg--Marquardt para reproducir la magnitud medida.
-Define un protocolo de validaci\'on (cierre algebraico, fidelidad a datos, Kramers--Kronig independiente, sensibilidad a $\varepsilon_\infty$, regularizaci\'on y recuperaci\'on sint\'etica) y lo completa con una comparaci\'on frente a RefFIT, el programa de referencia de Kuzmenko que implementa el mismo formalismo y modelos de osciladores.
-La memoria se organiza en tres partes alineadas con el itinerario de seminarios del Departamento: Seminario~I (fundamentos), Seminario~II (m\'etodo e implementaci\'on en Rust de la aplicaci\'on) y Seminario~III (validaci\'on, comparaci\'on con RefFIT y defensa final).
+Desde las ecuaciones de Maxwell en el vac\'io hasta la onda plana en un medio lineal se deduce la funci\'on diel\'ectrica compleja
+$\hat\varepsilon(\omega)=\varepsilon_1(\omega)+i\varepsilon_2(\omega)$,
+y de ella el \'indice $n$, la extinci\'on $k$, la conductividad \'optica $(\sigma_1,\sigma_2)$ y la reflectividad a incidencia normal~$R$.
+En el laboratorio suele medirse una sola de esas magnitudes en una ventana finita, no el par $(\varepsilon_1,\varepsilon_2)$ en todo el eje.
+Este trabajo formula e implementa un an\'alisis variacional restringido por Kramers--Kronig: representa $\varepsilon_2$ con una base triangular, calcula $\varepsilon_1$ con la transformada anal\'itica de esa base (y colas fuera de la ventana) y ajusta las amplitudes con Levenberg--Marquardt para reproducir la magnitud medida.
+Define un protocolo de validaci\'on (cierre algebraico, fidelidad a datos, Kramers--Kronig independiente, sensibilidad a $\varepsilon_\infty$, regularizaci\'on y recuperaci\'on sint\'etica), lo aplica al espectro p\'ublico \texttt{R1.DAT} del tutorial de RefFIT y lo completa con una comparaci\'on frente a ese programa, referente de Kuzmenko para el mismo formalismo y para modelos de osciladores.
+La memoria se organiza en tres partes alineadas con el itinerario de seminarios del Departamento: Seminario~I (fundamentos), Seminario~II (m\'etodo e implementaci\'on en Rust de la aplicaci\'on) y Seminario~III (validaci\'on, caso de estudio, comparaci\'on con RefFIT y defensa final).
 
 \vspace{0.8cm}
 \noindent\textbf{Palabras clave:} funci\'on diel\'ectrica, Kramers--Kronig, an\'alisis variacional, espectroscop\'ia \'optica, Levenberg--Marquardt, RefFIT, Universidad de los Andes.
@@ -91,8 +91,8 @@ La memoria se organiza en tres partes alineadas con el itinerario de seminarios 
 \addcontentsline{toc}{chapter}{Abstract}
 The linear optical response of a solid is described by its complex dielectric function.
 This undergraduate thesis formulates and implements a Kramers--Kronig constrained variational analysis: it represents the imaginary part with triangular basis functions, obtains the real part from their analytic transforms, and fits the measured optical quantity with Levenberg--Marquardt.
-It defines validation tests for algebraic consistency, causality, data fidelity and sensitivity to quantities that the measurement does not determine, and compares the approach with RefFIT, Kuzmenko's reference software for the same method and for oscillator models.
-The manuscript is organized around three departmental seminars: foundations; method and Rust implementation of the application; validation, RefFIT comparison and final defense.
+It defines validation tests for algebraic consistency, causality, data fidelity and sensitivity to quantities that the measurement does not determine, applies them to the public RefFIT tutorial spectrum \texttt{R1.DAT}, and compares the approach with RefFIT, Kuzmenko's reference software for the same method and for oscillator models.
+The manuscript is organized around three departmental seminars: foundations; method and Rust implementation of the application; validation, case study, RefFIT comparison and final defense.
 
 \mainmatter
 \input{parte1}

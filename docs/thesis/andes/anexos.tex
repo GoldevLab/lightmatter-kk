@@ -61,7 +61,7 @@ Cap\'itulos~\ref{ch:problema}--\ref{ch:kk}. Mensaje: causalidad y $\hat\varepsil
 \item[Seminario~II.]
 Cap\'itulos~\ref{ch:variacional}--\ref{ch:app}. Mensaje: tri\'angulos, $\Phi$, cada medida, \textbf{arquitectura Rust} (\texttt{measure}, \texttt{fit}, \texttt{http}, \texttt{run\_fit}).
 \item[Seminario~III (final).]
-Cap\'itulos~\ref{ch:verdad}--\ref{ch:conclusiones} y Secci\'on~\ref{sem:3}. Mensaje: validaci\'on, RefFIT, l\'imites.
+Cap\'itulos~\ref{ch:verdad}--\ref{ch:conclusiones} (incluye el caso \texttt{R1.DAT},~\ref{ch:r1}) y Secci\'on~\ref{sem:3}. Mensaje: validaci\'on, caso de estudio, RefFIT, l\'imites.
 \end{description}
 
 \chapter{Mapa r\'apido del c\'odigo Rust (Seminario~II)}
@@ -78,13 +78,28 @@ Archivo / s\'imbolo & Rol \\
 \endhead
 \texttt{measure::quantity} & Proyecta $(\varepsilon_1,\varepsilon_2)\to Q$ (la magnitud medida) \\
 \texttt{measure::guess\_eps\_inf} & Auto $\varepsilon_\infty$ desde cola de $R$ o desde $n$ \\
-\texttt{fit::kk\_kernel} & N\'ucleo anal\'itico $K_k$ del tri\'angulo \\
-\texttt{fit::mesh\_sample\_indices} & Elige anclas (picos/valles + fondo) \\
-\texttt{fit::Model} & $\varepsilon_1$, $\varepsilon_2$, $\chi^{2}$ y derivadas en un punto de par\'ametros \\
-\texttt{fit::levenberg} & Paso amortiguado, cotas, parada temprana \\
+\texttt{measure::seed\_eps2} & Siembra de $\varepsilon_2$ (fase KK de $R$, etc.) \\
+\texttt{dense::solve} & Motor denso: malla, colas, LM multilevel, solvers \\
+\texttt{dense::Mesh} / colas & Tri\'angulos + n\'ucleos $K_k$ y colas suaves \\
 \texttt{fit::run\_fit} & Pipeline completo $\to$ \texttt{FitReport} \\
 \texttt{fit::fit\_text\_with\_progress} & Entrada texto + ganchos de progreso \\
+\texttt{examples/spectrum\_bench} & Corrida nativa reproducible (p.\ ej.\ \texttt{R1.DAT}, tabla~\ref{tab:r1-lm}) \\
 \texttt{http::fit\_worker} & Job en servidor, cancelaci\'on, curva en vivo \\
 \texttt{store::*} & Disco: jobs e informes \\
 \bottomrule
 \end{longtable}
+
+\chapter{Comando de reproducci\'on del caso \texttt{R1.DAT}}
+\label{ap:r1-cmd}
+
+Desde la ra\'iz del crate \texttt{lightmatter-kk}:
+
+\begin{verbatim}
+cargo run --release --example spectrum_bench -- \
+  r test-data/reffit-tutorial/Tutorial/Part1/R1.DAT \
+  2000 auto auto 100 dump.tsv tails
+\end{verbatim}
+
+Argumentos (en orden): medida (\texttt{r}), ruta del espectro, tope de pasos, modo de malla (\texttt{auto}), solver (\texttt{auto}), negatividad ($\lambda_-=100$), archivo TSV de salida y tipo de cola (\texttt{tails}).
+La salida imprime $\chi^{2}$, RMS, $\varepsilon_\infty$, el m\'aximo de $\varepsilon_2$ y el residuo m\'aximo de $R$; el TSV guarda las columnas del informe para graficar fuera del laboratorio web.
+Esos n\'umeros deben coincidir, dentro de la precisi\'on de impresi\'on, con la tabla~\ref{tab:r1-lm}.

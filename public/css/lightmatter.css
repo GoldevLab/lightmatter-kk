@@ -260,7 +260,7 @@ select option { background: #0a1c24; color: var(--text); }
 .swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; margin: 0 0.2rem; vertical-align: middle; }
 .swatch-e2 { background: #3ee0c5; }
 .swatch-e1 { background: #f2c14e; }
-.swatch-data { background: #9aa7b2; }
+.swatch-data { background: #d8e0e6; box-shadow: inset 0 0 0 2px #0f9f8a; }
 .form-error {
   background: rgba(242, 193, 78, 0.12);
   border: 1px solid rgba(242, 193, 78, 0.4);
@@ -279,9 +279,10 @@ select option { background: #0a1c24; color: var(--text); }
 .server-job-state { min-width: 0; overflow-wrap: anywhere; }
 .server-job .btn { justify-self: end; }
 .results { display: grid; gap: 0.8rem; }
-.results > .chart-primary { order: 1; }
-.results > .chart-pair { order: 2; }
-.results > .chart-wrap { order: 3; }
+/* Todas las gráficas comparten el mismo order para respetar el DOM: real|imag por pares. */
+.results > .chart-primary,
+.results > .chart-pair,
+.results > .chart-wrap { order: 1; }
 .results > .glossary { order: 4; }
 .results > .publish-card, .results > .report-download { order: 5; }
 .result-head { justify-content: space-between; }

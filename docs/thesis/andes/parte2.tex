@@ -71,12 +71,25 @@ Aunque cada logaritmo contiene una frecuencia dimensional, cualquier escala de r
 
 \section{Malla de anclas y colas}
 
-Las anclas se colocan de forma densa en picos y valles del espectro y se reparte el resto del intervalo medido. La selecci\'on conserva primero los extremos locales y luego distribuye anclas en el resto de la malla.
-Fuera de la primera y la \'ultima ancla interior se a\~naden extremos con coeficiente nulo, de modo que $\varepsilon_2$ baja en l\'inea recta hasta cero.
-Esa cola no est\'a fijada por los datos y puede desplazar $\varepsilon_1$ dentro de la ventana; por eso $\varepsilon_\infty$ y la extrapolaci\'on deben declararse con claridad al reportar resultados.
+Con $R$ (y en general con cualquier medida acoplada por Kramers--Kronig) las anclas interiores se colocan en los puntos medios entre frecuencias medidas, como en la malla de Kuzmenko~\cite{constrained}.
+Todas las mediciones entran en $\chi^{2}$; no hace falta que cada ancla coincida con un dato.
+La implementaci\'on actual ofrece cuatro modos de malla:
+\begin{itemize}[leftmargin=*]
+\item \textbf{completa:} un ancla entre cada par de datos (hasta el presupuesto de c\'omputo);
+\item \textbf{N/2:} una ancla cada dos intervalos, el \'optimo que cita Kuzmenko para ajustar hasta el ruido sin copiarlo;
+\item \textbf{adaptativa:} parte de una malla gruesa y a\~nade anclas solo donde el residuo supera el ruido estimado;
+\item \textbf{autom\'atica:} completa si cabe; si no, adaptativa.
+\end{itemize}
+El ajuste recorre mallas anidadas de gruesa a fina (continuaci\'on): cada nivel prolonga $\varepsilon_2$ al siguiente sin cambiar la funci\'on.
+Si la prolongaci\'on desde una malla demasiado gruesa aplastara un rasgo estrecho (p.\ ej.\ un m\'inimo LO de reststrahlen), se restaura la semilla Kramers--Kronig de reflectividad cuando esta reproduce mejor los datos antes del nivel fino.
+Se admiten hasta $50\,000$ puntos; el tope de anclas libres sigue un presupuesto $\propto N_{\mathrm{exp}}M^{2}$ (mayor en el servidor nativo que en WASM).
 
-Cuando la magnitud medida no es $\varepsilon_2$ sino $R$, $T$, $n$, $k$ o $\alpha$, el n\'umero de anclas se limita porque $\varepsilon_1$ en cada punto acopla globalmente las alturas. No se requiere una ancla por dato: todas las mediciones, sean o no anclas, entran en $\chi^{2}$.
-Con $R$ se parte de los puntos medios entre frecuencias medidas ($N_{\mathrm{exp}}-2$), como en la malla de Kuzmenko, y se recorta si hace falta al presupuesto de c\'omputo. El coste del paso denso de Levenberg--Marquardt crece aproximadamente como $N_{\mathrm{exp}}M^{2}$ por iteraci\'on, donde $M$ es el n\'umero de anclas libres: por ello la implementaci\'on descrita aqu\'i limita $M$ a 800 anclas interiores (hasta 8000 puntos y 2000 iteraciones). La selecci\'on conserva primero los extremos locales por prominencia y densifica vecinos en los m\'as afilados, de modo que un reststrahlen estrecho no se pierda al reducir $M$ respecto de $N_{\mathrm{exp}}-2$. Esta es una decisi\'on num\'erica de la implementaci\'on, no un requisito general del m\'etodo.
+\paragraph{Extrapolaci\'on fuera de la ventana.}
+Los datos no fijan $\varepsilon_2$ fuera de $[\omega_{\min},\omega_{\max}]$.
+Por defecto se usan \emph{colas suaves}: $\sigma_1$ constante (Drude ideal) por debajo de la primera ancla interior y una ca\'ida $\propto\omega^{-3}$ por encima de la \'ultima, con n\'ucleos Kramers--Kronig en forma cerrada.
+La alternativa ``cero en los bordes'' (malla del trabajo de grado original) hace bajar $\varepsilon_2$ en l\'inea recta hasta nodos extremos con amplitud nula.
+Ambas extrapolaciones pueden desplazar $\varepsilon_1$ dentro de la ventana; deben declararse al reportar resultados.
+No hay osciladores ni Drude salvo que el usuario marque un fondo Drude opcional.
 
 \section{Funcional a minimizar}
 
@@ -133,7 +146,9 @@ Para $Q=\varepsilon_1$ o $\varepsilon_2$, las derivadas respecto de la funci\'on
 
 \section{Convergencia e incertidumbres}
 
-En la implementaci\'on, una mejora menor al 1\% en $\Phi$ puede cerrar el ajuste solo cuando ning\'un residuo estandarizado supera el 2\% del rango total de la medida. Si el amortiguamiento crece sin reducir los residuos, el resultado se marca como estancado; alcanzar el m\'aximo de iteraciones tampoco equivale por s\'i solo a converger.
+En cada paso lineal el sistema se resuelve con Gauss--Jordan (bloqueado) o con Cholesky; el modo autom\'atico usa Gauss--Jordan hasta unas $2500$ anclas y Cholesky por encima.
+En la malla final la parada sigue el principio de discrepancia: cuando el residuo t\'ipico (mediana de $|y-Q|/\sigma$) ya est\'a en el ruido estimado de la medida \emph{y} el residuo m\'aximo no queda lejos de ese ruido, seguir solo copiar\'ia fluctuaciones en $\varepsilon_2$.
+Si el amortiguamiento $\lambda$ crece sin reducir el objetivo, el resultado se marca como estancado; alcanzar el m\'aximo de iteraciones tampoco equivale por s\'i solo a converger.
 Cuando se suministran errores experimentales y el problema est\'a bien condicionado, la inversa de la curvatura de los datos $\alpha_{\mathrm{datos}}^{-1}$ permite estimar barras $\pm 1\sigma$ de los par\'ametros~\cite{NR}:
 \begin{equation}
 \delta p_k=\sqrt{(\delta\chi^{2}_{\mathrm{datos}})\,(\alpha_{\mathrm{datos}}^{-1})^{kk}}.
@@ -267,7 +282,9 @@ $\to$ \texttt{run\_fit} $\to$ \texttt{FitReport} $\to$ gr\'aficas / JSON / CSV /
 \item[\texttt{src/measure.rs}]
 Tipos \texttt{Measure} y \texttt{Unit}; proyecciones $Q(\varepsilon_1,\varepsilon_2)$ y sus derivadas parciales (\texttt{quantity}, \texttt{quantity\_grad}); \'optica $n,k,R$ (\texttt{optics}); siembra de $\varepsilon_2$ (\texttt{seed\_eps2}); estimaci\'on de $\varepsilon_\infty$ (\texttt{guess\_eps\_inf}); Tauc, picos y utilidades espectrales.
 \item[\texttt{src/fit.rs}]
-N\'ucleo del an\'alisis: parseo del espectro, malla de anclas, n\'ucleo $K_k$ / $G(x,y)$, modelo \texttt{Model}, matrices densas o de banda, Levenberg--Marquardt, \texttt{run\_fit}, informe \texttt{FitReport}, exportaci\'on y bater\'ia de pruebas.
+Orquestaci\'on: parseo del espectro, \texttt{run\_fit}, informe \texttt{FitReport}, camino de banda para $\varepsilon_2$ puro, exportaci\'on y pruebas.
+\item[\texttt{src/dense.rs}]
+Motor denso Kramers--Kronig: malla completa / N/2 / adaptativa, colas suaves, Levenberg--Marquardt multilevel, Gauss--Jordan o Cholesky, siembra y rescate de la semilla.
 \item[\texttt{src/http.rs}]
 Worker del servidor: un sem\'aforo (un ajuste denso a la vez), cancelaci\'on at\'omica, progreso y curva en vivo cada $\sim 2\,\mathrm{s}$, guardado del informe.
 \item[\texttt{src/store.rs}]
@@ -299,30 +316,56 @@ Una vez validado el espectro (longitudes, $\omega>0$, l\'imites de puntos, unida
 \begin{enumerate}[leftmargin=*]
 \item \textbf{Normalizaci\'on.} Si la unidad es nm, se convierte a eV. Si $R$ o $T$ vienen en \% (m\'aximo entre $1.5$ y $100.5$), se dividen entre $100$. Se ordena por $\omega$ y se colapsan duplicados.
 \item \textbf{$\varepsilon_\infty$.} Si el usuario lo escribi\'o, queda fijo. Si no: con $R$, \texttt{guess\_eps\_inf} promedia la cola alta, invierte $n=(1+\sqrt{R})/(1-\sqrt{R})$ y toma $\varepsilon_\infty=n^{2}$ en $[1,50]$; con $n$ o $\varepsilon_1$ se inicia un valor y se ajusta; con $\alpha$, $k$ o $T$ se usa $1$ fijo.
-\item \textbf{Malla.} Con $R$ se parte de puntos medios entre frecuencias medidas (estilo Kuzmenko) y se recorta al presupuesto (hasta $800$ anclas interiores): \texttt{mesh\_sample\_indices} prioriza extremos locales por prominencia relativa y densifica anillos de vecinos en los m\'as afilados. Con $\varepsilon_2$ cada punto puede ser ancla.
-\item \textbf{Siembra.} Las alturas $A_k$ se inicializan interpolando una estimaci\'on local de $\varepsilon_2$ (\texttt{seed\_eps2}).
-\item \textbf{Modelo.} Para cada dato se guardan los pesos de los dos tri\'angulos que lo tocan y, si la medida no es $\varepsilon_2$, la fila del n\'ucleo Kramers--Kronig $K_k(\omega_i)$. El fondo Drude, si est\'a activo, se resta en $\varepsilon_2$ y se suma su parte real en $\varepsilon_1$ sin volver a contar $\varepsilon_\infty$.
-\item \textbf{Levenberg--Marquardt.} Se minimiza $\Phi$. Con $\varepsilon_2$ puro (sin ajustar $\varepsilon_\infty$) la curvatura es de banda; con $R$, $T$, $n$, \ldots es densa porque $\varepsilon_1$ acopla todas las anclas. En $R$ con $\varepsilon_\infty$ libre, cada paso de prueba acota $\varepsilon_\infty\in[1,50]$.
-\item \textbf{Parada.} Mejora $<1\%$ y ning\'un residuo ``lejos'' ($>2\%$ del rango de la medida); o $\lambda$ grande; o $25$ pasos sin mejora significativa (para no quemar $800$ iteraciones cuando el $\chi^{2}$ ya est\'a plano).
-\item \textbf{Informe.} Se construye \texttt{FitReport}: $\varepsilon_1$, $\varepsilon_2$, $n$, $k$, $R$, p\'erdida, $\sigma_1$, $\sigma_2$, $\alpha$, $T$, Tauc si aplica, $\chi^{2}$, avisos, opciones usadas.
+\item \textbf{Malla.} Con $R$ se parten los puntos medios entre datos (estilo Kuzmenko). El modo autom\'atico pone un ancla por intervalo si cabe en el presupuesto; si no, afina solo donde el residuo supera el ruido. Con $\varepsilon_2$ cada frecuencia medida puede ser ancla (camino de banda).
+\item \textbf{Siembra.} Las alturas $A_k$ se inicializan con \texttt{seed\_eps2} (para $R$, fase Kramers--Kronig de $\ln\sqrt{R}$). Tras cada prolongaci\'on gruesa$\to$fina se restaura esa semilla si reproduce mejor los datos.
+\item \textbf{Modelo.} $\varepsilon_2$ es la suma de tri\'angulos; $\varepsilon_1=\varepsilon_\infty+\sum A_k K_k$ m\'as las colas. El fondo Drude, si est\'a activo, se resta en $\varepsilon_2$ y se suma su parte real en $\varepsilon_1$ sin volver a contar $\varepsilon_\infty$.
+\item \textbf{Levenberg--Marquardt.} Se minimiza $\Phi$ en \texttt{dense::solve} (medidas acopladas) o en el camino de banda ($\varepsilon_2$). El paso lineal es Gauss--Jordan o Cholesky. En $R$ con $\varepsilon_\infty$ libre, cada paso de prueba acota $\varepsilon_\infty\in[1,50]$; en mallas gruesas $\varepsilon_\infty$ puede quedar congelado en su valor de partida.
+\item \textbf{Parada.} En la malla final: residuo t\'ipico dentro del ruido (mediana) y residuo m\'aximo no disparado; o $\Phi$ plano; o $\lambda$ grande; tope de $2000$ pasos.
+\item \textbf{Informe.} Se construye \texttt{FitReport}: $\varepsilon_1$, $\varepsilon_2$, $n$, $k$, $R$, p\'erdida, $\sigma_1$, $\sigma_2$, $\alpha$, $T$, Tauc si aplica, $\chi^{2}$, avisos, malla y solver usados.
 \end{enumerate}
 
 \section{Estructuras clave en Rust}
 
-\paragraph{Modelo.}
-El struct \texttt{Model} concentra, en cada evaluaci\'on de par\'ametros $p=\{A_k,\varepsilon_\infty\}$:
+\paragraph{Camino de banda (\texttt{fit.rs}).}
+Cuando la medida es $\varepsilon_2$ (sin acoplar $\varepsilon_1$ a todas las anclas), el struct \texttt{Model} concentra, en cada evaluaci\'on de $p=\{A_k,\varepsilon_\infty\}$,
 \begin{equation}
 \varepsilon_2(i)=e_{2,\mathrm{fijo}}(i)+A_{j_0}b_0+A_{j_0+1}b_1,
 \qquad
 \varepsilon_1(i)=\varepsilon_\infty+e_{1,\mathrm{fijo}}(i)+\sum_j A_j K_j(\omega_i).
 \end{equation}
-Luego $Q=\texttt{quantity}(\mathrm{medida},\varepsilon_1,\varepsilon_2,\tilde\nu,d)$ y el residuo $y_i-Q_i$ alimenta $\chi^{2}_{\mathrm{datos}}$ y las derivadas para la matriz de curvatura.
+Luego $Q=\texttt{quantity}(\mathrm{medida},\varepsilon_1,\varepsilon_2,\tilde\nu,d)$ y el residuo $y_i-Q_i$ alimenta $\chi^{2}_{\mathrm{datos}}$.
+
+\paragraph{Camino denso (\texttt{dense.rs}).}
+Para $R$, $n$, $k$, $\alpha$, $T$ o $\varepsilon_1$, el struct \texttt{Problem} guarda los datos, pesos $1/\sigma_i^{2}$, suavidad y negatividad;
+\texttt{Mesh} guarda las anclas, los coeficientes del tri\'angulo en cada dato y los n\'ucleos $K_k(\omega_i)$ (m\'as las colas).
+\texttt{solve} orquesta la continuaci\'on de mallas y el Levenberg--Marquardt.
+La proyecci\'on $Q$ sigue siendo \texttt{measure::quantity}: la f\'isica de Fresnel y de Beer est\'a en un solo sitio.
 
 \paragraph{N\'ucleo triangular.}
-\texttt{kk\_kernel} / \texttt{kuzmenko\_g} implementan $G(x,y)$ y $K_k$ de las ecuaciones~\eqref{eq:G}--\eqref{eq:Kk}: no hay integraci\'on num\'erica de Kramers--Kronig en el bucle de ajuste.
+Las funciones $G(x,y)$ y $K_k$ de las ecuaciones~\eqref{eq:G}--\eqref{eq:Kk} (y los n\'ucleos cerrados de las colas) se eval\'uan en forma anal\'itica: no hay integraci\'on num\'erica de Kramers--Kronig en el bucle de ajuste.
 
 \paragraph{Progreso en vivo.}
-La rutina de progreso escribe una malla reducida de datos/modelo y las alturas $A_k$ en las anclas. El worker de \texttt{http.rs} la copia al estado del job; el cliente dibuja $R$ (o la magnitud) y la malla $\varepsilon_2$, con marcas de anclas sobre el mismo eje $\omega$.
+La rutina de progreso escribe una malla reducida de datos/modelo y las alturas $A_k$ en las anclas. El worker de \texttt{http.rs} la copia al estado del job; el cliente dibuja $R$ (o la magnitud) y la malla $\varepsilon_2$.
+
+\section{Algoritmo del motor denso, paso a paso}
+\label{sec:dense-algo}
+
+El siguiente esquema es el contrato num\'erico de \texttt{dense::solve} cuando la medida acopla $\varepsilon_1$ (caso t\'ipico: reflectividad).
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Candidatas.} Con $R$, las frecuencias candidatas a ancla son los puntos medios entre datos consecutivos (estilo Kuzmenko). Se a\~naden dos nodos de borde $\omega_{\mathrm{lo}}<\omega_{\min}$ y $\omega_{\mathrm{hi}}>\omega_{\max}$.
+\item \textbf{Modo de malla.} Autom\'atico: malla completa (stride~$1$) si el n\'umero de anclas cabe en el presupuesto $M\le\texttt{anchor\_cap}(N)$; si no, adaptativa. El usuario puede forzar completa, N/2 o adaptativa.
+\item \textbf{Siembra.} Se interpola \texttt{seed\_eps2} en las anclas. Para $R$, la semilla es la $\varepsilon_2$ de la ruta cl\'asica (fase de $\ln\sqrt{R}$).
+\item \textbf{Nivel grueso.} Se construye una malla con paso $2^{\ell}$ sobre las candidatas y se corre Levenberg--Marquardt con pocas iteraciones. En niveles gruesos $\varepsilon_\infty$ puede congelarse en su valor de partida para no intercambiarse con $\varepsilon_2$ donde la muestra es transparente.
+\item \textbf{Prolongaci\'on.} Al pasar a una malla m\'as fina que contiene a la anterior, $\varepsilon_2$ se conserva por interpolaci\'on lineal por tramos (\texttt{prolong}).
+\item \textbf{Rescate de la semilla.} Si la semilla reproduce mejor los datos que la funci\'on prolongada (p.\ ej.\ tras aplastar un m\'inimo LO), se restaura la semilla antes de seguir. Sin este paso, el LM fino puede quedar atrapado en un m\'inimo local.
+\item \textbf{Nivel fino.} Se libera $\varepsilon_\infty$ (si aplica), se resuelve el sistema lineal con Gauss--Jordan o Cholesky, y se acepta o rechaza el paso seg\'un $\Phi$.
+\item \textbf{Parada.} En la malla final: residuo t\'ipico dentro del ruido \emph{y} residuo m\'aximo no disparado; o $\Phi$ plano; o $\lambda$ estancado.
+\item \textbf{Salida.} Anclas, amplitudes $A_k$, $\varepsilon_\infty$, modelo $Q(\omega_i)$, n\'umero de niveles y solver usado. \texttt{run\_fit} deriva $n$, $k$, $R$, $\alpha$, $\sigma_1$, $\sigma_2$ y la p\'erdida con las f\'ormulas del cap\'itulo~\ref{ch:marco}.
+\end{enumerate}
+
+Cada evaluaci\'on del modelo reconstruye $\varepsilon_2=\sum A_k\Lambda_k$ (m\'as colas) y $\varepsilon_1=\varepsilon_\infty+\sum A_k K_k$:
+Kramers--Kronig no es un post-proceso, es la definici\'on de $\varepsilon_1$ en cada paso.
 
 \section{Jobs en el servidor}
 
@@ -339,7 +382,7 @@ La cancelaci\'on pone un \texttt{AtomicBool} que Levenberg--Marquardt consulta a
 \section{Pruebas automatizadas del n\'ucleo}
 
 El m\'odulo \texttt{fit::tests} sintetiza un $\hat\varepsilon$ conocido (dos Lorentz + $\varepsilon_\infty=2.5$), proyecta $R$, $\alpha$, $k$, $T$, $n$ y comprueba que \texttt{run\_fit} recupera $\varepsilon_2$ bajo umbrales fijados (tabla~\ref{tab:pruebaF} en la Parte~III).
-Hay tests adicionales de malla (\texttt{mesh\_sample\_indices}), presupuesto de anclas, estimaci\'on de $\varepsilon_\infty$ desde $R$ y cierre algebraico.
+Hay tests adicionales del motor denso (Cholesky frente a Gauss--Jordan, prolongaci\'on, n\'ucleos de cola, presupuesto de anclas), estimaci\'on de $\varepsilon_\infty$ desde $R$ y cierre algebraico.
 Esas pruebas no sustituyen un experimento de laboratorio, pero anclan el Seminario~II a evidencia reproducible del c\'odigo.
 
 \section{Qu\'e no hace el c\'odigo (l\'imites de implementaci\'on)}
@@ -347,7 +390,7 @@ Esas pruebas no sustituyen un experimento de laboratorio, pero anclan el Seminar
 \begin{itemize}[leftmargin=*]
 \item no resuelve multicapas coherentes ni elipsometr\'ia anisotr\'opica;
 \item la luminiscencia no pasa por Kramers--Kronig (rama aparte en \texttt{run\_fit});
-\item el tope de $800$ anclas / $8000$ puntos / $800$ pasos es un presupuesto de c\'omputo, no una ley f\'isica;
+\item el tope de anclas (presupuesto $N_{\mathrm{exp}}M^{2}$, hasta $50\,000$ puntos y $2000$ pasos) es num\'erico, no una ley f\'isica;
 \item JavaScript solo visualiza; cualquier cambio de f\'isica debe hacerse en Rust.
 \end{itemize}
 
@@ -408,4 +451,4 @@ El auditorio debe ser capaz de:
 \section*{S.II.6 Puente hacia la Parte~III y el Seminario~III}
 
 La validaci\'on final exige comprobar que los resultados minimizan $\Phi$, reproducen los datos dentro de la incertidumbre declarada y satisfacen las pruebas A--G.
-El Seminario~III cierra el trabajo de grado con recuperaci\'on sint\'etica, comparaci\'on frente a RefFIT~\cite{guide} y la defensa de que el c\'odigo Rust implementa el formalismo aqu\'i descrito.
+El Seminario~III cierra el trabajo de grado con recuperaci\'on sint\'etica, el caso \texttt{R1.DAT} corrido con este mismo binario, comparaci\'on frente a RefFIT~\cite{guide} y la defensa de que el c\'odigo Rust implementa el formalismo aqu\'i descrito.

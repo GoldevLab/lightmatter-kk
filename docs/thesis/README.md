@@ -11,15 +11,18 @@ Archivo principal: `andes/documento.pdf`
 Fuentes: `documento.tex`, `parte1.tex`, `parte2.tex`, `parte3.tex`, `anexos.tex`, `bibliografia.bib`.
 
 Estructura alineada a tres seminarios:
-1. **Seminario I** — fundamentos y Kramers–Kronig (`parte1`)
-2. **Seminario II** — método triangular, LM e implementación (`parte2`)
-3. **Seminario III (final)** — validación A–G, comparación con RefFIT, conclusiones (`parte3` + anexos)
+1. **Seminario I** — Maxwell (vacío → medio) → ε̂ → n, k, σ, R a incidencia normal; Kramers–Kronig (`parte1`)
+2. **Seminario II** — método triangular, malla/colas actuales, LM e implementación Rust (`parte2`)
+3. **Seminario III (final)** — validación A–G, caso `R1.DAT` con el binario Rust, comparación con RefFIT, conclusiones (`parte3` + anexos)
 
-Compilar Andes:
+PDFs generados:
+- `andes/documento.pdf` — tesis ULA (leer esta)
+- `original/documento.pdf` — borrador antiguo (sin cotutor en portada)
+
+Tras editar fuentes, recompilar (TeX Live / `pdflatex`+`bibtex`, o `tectonic`):
+
 ```
 cd docs/thesis/andes
-pdflatex documento
-bibtex documento
-pdflatex documento
-pdflatex documento
+tectonic -X compile documento.tex
+# o: pdflatex documento && bibtex documento && pdflatex documento && pdflatex documento
 ```
