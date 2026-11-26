@@ -33,6 +33,19 @@ pub fn adjust(text: &str, opts_json: &str) -> String {
     }
 }
 
+/// Une varias medidas (`[[nombre, texto], ...]`) con la misma regla que el servidor.
+#[wasm_bindgen]
+pub fn merge_spectra_json(parts_json: &str) -> String {
+    let parts: Vec<(String, String)> = match serde_json::from_str(parts_json) {
+        Ok(parts) => parts,
+        Err(_) => return serde_json::json!({ "ok": false, "error": "no se pudieron leer los archivos" }).to_string(),
+    };
+    match crate::fit::merge_spectra(&parts) {
+        Ok(merged) => serde_json::json!({ "ok": true, "text": merged.text, "notes": merged.notes }).to_string(),
+        Err(error) => serde_json::json!({ "ok": false, "error": error }).to_string(),
+    }
+}
+
 fn opt_lang(raw: &str) -> Lang {
     let v = serde_json::from_str::<serde_json::Value>(raw).unwrap_or(serde_json::Value::Null);
     Lang::from_code(v.get("lang").and_then(|x| x.as_str()).unwrap_or("")).unwrap_or(Lang::Es)

@@ -375,6 +375,122 @@ pub fn parse_spectrum(text: &str) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>, bool)
     Ok((xs, ys, ss, with_error > 0))
 }
 
+/// Resultado de unir varias medidas en un solo espectro.
+pub struct MergedSpectrum {
+    /// Texto listo para `parse_spectrum`: columnas ω, R y, si todas lo traen, el error.
+    pub text: String,
+    /// Una línea por archivo: nombre, puntos aportados y tramo que cubre.
+    pub notes: Vec<String>,
+}
+
+/// Une medidas de la misma magnitud en un único espectro, como hace Speqqle con sus detectores.
+///
+/// Dos medidas que se solapan se cortan en el punto medio del solape; si hay hueco entre ellas, en
+/// el punto medio del hueco. Cada archivo aporta solo su tramo, así que ningún punto entra dos
+/// veces. Un solo archivo se devuelve tal cual, sin cabecera.
+pub fn merge_spectra(parts: &[(String, String)]) -> Result<MergedSpectrum, String> {
+    if parts.is_empty() {
+        return Err("no hay ningún archivo que unir".into());
+    }
+    if parts.len() == 1 {
+        let (x, _, _, _) = parse_spectrum(&parts[0].1).map_err(|e| format!("{}: {e}", parts[0].0))?;
+        let notes = vec![format!("{}: {} puntos", parts[0].0, x.len())];
+        return Ok(MergedSpectrum { text: parts[0].1.clone(), notes });
+    }
+
+    struct Piece {
+        name: String,
+        rows: Vec<(f64, f64, f64)>,
+        lo: f64,
+        hi: f64,
+    }
+    let mut with_error = None;
+    let mut pieces = Vec::with_capacity(parts.len());
+    for (name, text) in parts {
+        let (x, y, s, given) = parse_spectrum(text).map_err(|e| format!("{name}: {e}"))?;
+        match with_error {
+            None => with_error = Some(given),
+            Some(prev) if prev != given => {
+                return Err("para unir, o todos los archivos traen el error o ninguno tiene la tercera columna".into());
+            }
+            _ => {}
+        }
+        let mut rows: Vec<(f64, f64, f64)> = x.into_iter().zip(y).zip(s).map(|((a, b), c)| (a, b, c)).collect();
+        rows.sort_by(|p, q| p.0.total_cmp(&q.0));
+        let lo = rows.first().map(|r| r.0).unwrap_or(0.0);
+        let hi = rows.last().map(|r| r.0).unwrap_or(0.0);
+        pieces.push(Piece { name: name.clone(), rows, lo, hi });
+    }
+    pieces.sort_by(|p, q| p.lo.total_cmp(&q.lo));
+    for pair in pieces.windows(2) {
+        if pair[1].hi <= pair[0].hi {
+            return Err(format!(
+                "{} queda dentro de {}: recorta uno de los dos antes de unirlos",
+                pair[1].name, pair[0].name
+            ));
+        }
+    }
+
+    // Cortes: en el centro del solape, o del hueco si no se tocan.
+    let cuts: Vec<f64> = pieces
+        .windows(2)
+        .map(|pair| {
+            let (a, b) = (&pair[0], &pair[1]);
+            if b.lo < a.hi {
+                0.5 * (b.lo + a.hi)
+            } else {
+                0.5 * (a.hi + b.lo)
+            }
+        })
+        .collect();
+
+    if cuts.windows(2).any(|c| c[1] <= c[0]) {
+        return Err("los archivos se solapan de forma que no se puede ordenar el corte; recórtalos antes".into());
+    }
+
+    let mut kept: Vec<Vec<(f64, f64, f64)>> = Vec::with_capacity(pieces.len());
+    let mut notes = Vec::with_capacity(pieces.len());
+    for (i, piece) in pieces.iter().enumerate() {
+        let below = if i == 0 { f64::NEG_INFINITY } else { cuts[i - 1] };
+        let above = if i + 1 == pieces.len() { f64::INFINITY } else { cuts[i] };
+        let rows: Vec<(f64, f64, f64)> = piece
+            .rows
+            .iter()
+            .copied()
+            .filter(|r| r.0 >= below && r.0 < above)
+            .collect();
+        let span = match (rows.first(), rows.last()) {
+            (Some(a), Some(b)) => format!("{} … {}", fmt_num(a.0), fmt_num(b.0)),
+            _ => "ningún punto".into(),
+        };
+        notes.push(format!("{}: {} puntos, {span} cm-1", piece.name, rows.len()));
+        kept.push(rows);
+    }
+    if kept.iter().any(|rows| rows.len() < 3) {
+        return Err("alguno de los archivos se queda con menos de 3 puntos tras el corte".into());
+    }
+
+    let names: Vec<&str> = pieces.iter().map(|p| p.name.as_str()).collect();
+    let mut text = format!("# unido de {} archivos: {}\n", pieces.len(), names.join(" + "));
+    for cut in &cuts {
+        text.push_str(&format!("# corte en {} cm-1 (centro del solape o del hueco)\n", fmt_num(*cut)));
+    }
+    for rows in &kept {
+        for (x, y, s) in rows {
+            if with_error == Some(true) {
+                text.push_str(&format!("{x} {y} {s}\n"));
+            } else {
+                text.push_str(&format!("{x} {y}\n"));
+            }
+        }
+    }
+    Ok(MergedSpectrum { text, notes })
+}
+
+fn fmt_num(v: f64) -> String {
+    format!("{v:.3}")
+}
+
 pub fn downsample(values: &[f64], target: usize) -> Vec<f64> {
     if target < 2 || values.len() <= target {
         return values.to_vec();
@@ -2225,6 +2341,87 @@ pub fn report_dat(report: &FitReport) -> String {
         out.push('\n');
     }
     out
+}
+
+#[cfg(test)]
+mod merge_tests {
+    use super::*;
+
+    const D1: &str = include_str!("../test-data/sto-speqqle/STO_Detector1.dat");
+    const D2: &str = include_str!("../test-data/sto-speqqle/STO_Detector2.dat");
+    const D3: &str = include_str!("../test-data/sto-speqqle/STO_Detector3.dat");
+    const STITCHED: &str = include_str!("../test-data/sto-speqqle/STO_R_stitched.dat");
+
+    fn named(name: &str, text: &str) -> (String, String) {
+        (name.to_string(), text.to_string())
+    }
+
+    #[test]
+    fn three_sto_detectors_match_the_stitched_file() {
+        // El orden de entrada no importa: se ordenan por frecuencia.
+        let merged = merge_spectra(&[named("d3", D3), named("d1", D1), named("d2", D2)]).unwrap();
+        let (x, y, _, given) = parse_spectrum(&merged.text).unwrap();
+        let (sx, sy, _, sgiven) = parse_spectrum(STITCHED).unwrap();
+        assert!(!given && !sgiven);
+        assert_eq!(x.len(), sx.len());
+        for i in 0..x.len() {
+            assert!((x[i] - sx[i]).abs() < 1e-6, "ω distinta en {i}: {} vs {}", x[i], sx[i]);
+            assert!((y[i] - sy[i]).abs() < 1e-6, "R distinta en {i}");
+        }
+        assert!(merged.text.contains("corte en 82.686"));
+        assert!(merged.text.contains("corte en 642.181"));
+        assert_eq!(merged.notes.len(), 3);
+    }
+
+    #[test]
+    fn single_file_passes_through_unchanged() {
+        let merged = merge_spectra(&[named("d1", D1)]).unwrap();
+        assert_eq!(merged.text, D1);
+    }
+
+    #[test]
+    fn gap_is_cut_at_its_midpoint() {
+        let a = "1 0.1\n2 0.2\n3 0.3\n4 0.4\n";
+        let b = "6 0.6\n7 0.7\n8 0.8\n";
+        let merged = merge_spectra(&[named("a", a), named("b", b)]).unwrap();
+        assert!(merged.text.contains("corte en 5.000"));
+        let (x, _, _, _) = parse_spectrum(&merged.text).unwrap();
+        assert_eq!(x, vec![1.0, 2.0, 3.0, 4.0, 6.0, 7.0, 8.0]);
+    }
+
+    #[test]
+    fn overlap_keeps_each_point_once() {
+        let a = "1 0.1\n2 0.2\n3 0.3\n4 0.4\n5 0.5\n";
+        let b = "3 0.31\n4 0.41\n5 0.51\n6 0.6\n7 0.7\n";
+        let merged = merge_spectra(&[named("a", a), named("b", b)]).unwrap();
+        let (x, _, _, _) = parse_spectrum(&merged.text).unwrap();
+        assert_eq!(x, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]);
+    }
+
+    #[test]
+    fn mixed_error_columns_are_rejected() {
+        let a = "1 0.1 0.01\n2 0.2 0.01\n3 0.3 0.01\n";
+        let b = "4 0.4\n5 0.5\n6 0.6\n";
+        assert!(merge_spectra(&[named("a", a), named("b", b)]).is_err());
+    }
+
+    #[test]
+    fn nested_file_is_rejected() {
+        let a = "1 0.1\n2 0.2\n3 0.3\n4 0.4\n5 0.5\n6 0.6\n";
+        let b = "2 0.2\n3 0.3\n4 0.4\n";
+        let err = merge_spectra(&[named("a", a), named("b", b)]).err().unwrap();
+        assert!(err.contains("queda dentro"));
+    }
+
+    #[test]
+    fn errors_are_kept_when_every_file_has_them() {
+        let a = "1 0.1 0.01\n2 0.2 0.02\n3 0.3 0.03\n4 0.4 0.04\n";
+        let b = "4 0.41 0.05\n5 0.5 0.05\n6 0.6 0.06\n";
+        let merged = merge_spectra(&[named("a", a), named("b", b)]).unwrap();
+        let (_, _, s, given) = parse_spectrum(&merged.text).unwrap();
+        assert!(given);
+        assert_eq!(s.len(), 6);
+    }
 }
 
 #[cfg(test)]

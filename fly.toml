@@ -13,6 +13,7 @@ primary_region = "dfw"
   SITE_URL = "https://lightmatter-kk.fly.dev"
   CARGO_MANIFEST_DIR = "/app"
   RESUMA_QUEUE_GRAPH_TIMEOUT_SECS = "86400"
+  LIGHTMATTER_FIT_SLOTS = "4"
 
 [[mounts]]
   source = "lightmatter_data"

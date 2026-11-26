@@ -141,6 +141,48 @@ pub fn anchor_cap(points: usize) -> usize {
     (by_work as usize).clamp(64, MAX_ANCHORS)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+thread_local! {
+    /// Tope de hilos de los ajustes que corren en este hilo. 0 = sin tope (todos los núcleos).
+    static THREAD_BUDGET: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Núcleos que ve el proceso, acotados a 16. En WASM, uno.
+pub fn cores() -> usize {
+    #[cfg(target_arch = "wasm32")]
+    {
+        1
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).clamp(1, 16)
+    }
+}
+
+/// Ejecuta `f` con un tope de `threads` hilos para los cálculos paralelos de este hilo.
+///
+/// Sirve al servidor cuando varios ajustes corren a la vez: cada uno recibe una parte de los
+/// núcleos en lugar de lanzar todos los hilos y pelearse por ellos. Los hilos que `f` lance no
+/// heredan el tope, pero el motor decide cuántos lanzar en el hilo que lo llama.
+pub fn with_thread_budget<R>(threads: usize, f: impl FnOnce() -> R) -> R {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = threads;
+        f()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        struct Restore(usize);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                THREAD_BUDGET.with(|budget| budget.set(self.0));
+            }
+        }
+        let _restore = Restore(THREAD_BUDGET.with(|budget| budget.replace(threads.max(1))));
+        f()
+    }
+}
+
 /// Hilos que merece un trabajo de `work` operaciones. En WASM siempre uno.
 pub(crate) fn worker_count(work: f64) -> usize {
     #[cfg(target_arch = "wasm32")]
@@ -153,7 +195,10 @@ pub(crate) fn worker_count(work: f64) -> usize {
         if work < 4.0e6 {
             1
         } else {
-            std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).clamp(1, 16)
+            match THREAD_BUDGET.with(std::cell::Cell::get) {
+                0 => cores(),
+                budget => budget.min(cores()),
+            }
         }
     }
 }

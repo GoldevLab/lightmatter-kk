@@ -45,10 +45,10 @@ function pageLang() {
 
 function uiText(key) {
   const pack = {
-    es: { chart: "Gráfica", empty: "La curva de lo que cargues aparece aquí, sin esperar al ajuste.", needRow: "Hace falta otra fila numérica.", tooBig: "El archivo supera 4 MB.", unread: "No pude leer ese archivo.", working: "Calculando…", local: "Calculando en este aparato…", localSlow: "Este análisis puede tardar bastante. Se ejecuta en segundo plano y la página seguirá respondiendo.", serverWorking: "Calculando en el servidor…", serverFailed: "No se pudo completar el análisis en el servidor. Conservé tus datos; puedes volver a intentarlo.", needNet: "Abre la app una vez con red para guardar el motor Rust en el aparato.", engine: "El motor Rust no pudo leer ese espectro.", fail: "No se pudo ajustar.", serverLimit: "El servidor admite hasta 50 000 puntos numéricos; este espectro tiene {count}. Reduce los datos y vuelve a intentarlo.", serverWork: "Esta medida y el número de pasos exceden el trabajo permitido en el servidor. Reduce los puntos o los pasos.", save: "Bajar gráfica:", svg: "Vectorial, editable en Inkscape o Illustrator", png: "Imagen a doble resolución" },
-    en: { chart: "Plot", empty: "The curve of what you load appears here, before the fit.", needRow: "Another numeric row is needed.", tooBig: "The file is over 4 MB.", unread: "That file could not be read.", working: "Fitting…", local: "Fitting on this device…", localSlow: "This fit may take a while. It runs in the background, and the page will remain responsive.", serverWorking: "Fitting on the server…", serverFailed: "The server could not complete the fit. Your data are still here; you can try again.", needNet: "Open the app once online so the Rust engine is saved on this device.", engine: "The Rust engine could not read that spectrum.", fail: "The fit did not run.", serverLimit: "The server accepts up to 50,000 numeric points; this spectrum has {count}. Reduce the data and try again.", serverWork: "This measurement and iteration count exceed the server work limit. Reduce the number of points or iterations.", save: "Save plot:", svg: "Vector file, editable in Inkscape or Illustrator", png: "Image at double resolution" },
-    zh: { chart: "图", empty: "载入的曲线会出现在这里，不必等待拟合。", needRow: "还需要一行数字。", tooBig: "文件超过 4 MB。", unread: "无法读取这个文件。", working: "正在拟合…", local: "正在本机拟合…", localSlow: "此分析可能需要一些时间。它会在后台运行，页面仍可正常响应。", serverWorking: "正在服务器上拟合…", serverFailed: "服务器无法完成拟合。数据仍保留在此处，可以重试。", needNet: "请先联网打开一次，以便把 Rust 引擎存到这台设备。", engine: "Rust 引擎无法读取这份光谱。", fail: "未能完成拟合。", serverLimit: "服务器最多接受 50 000 个数值点；当前光谱有 {count} 个。请减少数据后重试。", serverWork: "此测量和步数设置超出服务器工作量限制。请减少点数或步数。", save: "保存图：", svg: "矢量图，可在 Inkscape 或 Illustrator 中编辑", png: "双倍分辨率图像" },
-    pt: { chart: "Gráfico", empty: "A curva do que você carregar aparece aqui, sem esperar o ajuste.", needRow: "Falta outra linha numérica.", tooBig: "O arquivo passa de 4 MB.", unread: "Não consegui ler esse arquivo.", working: "Ajustando…", local: "Ajustando neste aparelho…", localSlow: "Esta análise pode demorar. Ela roda em segundo plano, e a página continua respondendo.", serverWorking: "Ajustando no servidor…", serverFailed: "O servidor não conseguiu concluir o ajuste. Seus dados continuam aqui; você pode tentar novamente.", needNet: "Abra o app uma vez com rede para guardar o motor Rust neste aparelho.", engine: "O motor Rust não conseguiu ler esse espectro.", fail: "Não foi possível ajustar.", serverLimit: "O servidor aceita até 50 000 pontos numéricos; este espectro tem {count}. Reduza os dados e tente novamente.", serverWork: "Esta medida e o número de iterações excedem o limite de trabalho do servidor. Reduza os pontos ou as iterações.", save: "Baixar gráfica:", svg: "Vetorial, editável no Inkscape ou no Illustrator", png: "Imagem em dobro da resolução" },
+    es: { merged: "{count} archivos unidos en un solo espectro.", mergeFail: "No se pudieron unir: ", chart: "Gráfica", empty: "La curva de lo que cargues aparece aquí, sin esperar al ajuste.", needRow: "Hace falta otra fila numérica.", tooBig: "El archivo supera 4 MB.", unread: "No pude leer ese archivo.", working: "Calculando…", local: "Calculando en este aparato…", localSlow: "Este análisis puede tardar bastante. Se ejecuta en segundo plano y la página seguirá respondiendo.", serverWorking: "Calculando en el servidor…", serverFailed: "No se pudo completar el análisis en el servidor. Conservé tus datos; puedes volver a intentarlo.", needNet: "Abre la app una vez con red para guardar el motor Rust en el aparato.", engine: "El motor Rust no pudo leer ese espectro.", fail: "No se pudo ajustar.", serverLimit: "El servidor admite hasta 50 000 puntos numéricos; este espectro tiene {count}. Reduce los datos y vuelve a intentarlo.", serverWork: "Esta medida y el número de pasos exceden el trabajo permitido en el servidor. Reduce los puntos o los pasos.", save: "Bajar gráfica:", svg: "Vectorial, editable en Inkscape o Illustrator", png: "Imagen a doble resolución" },
+    en: { merged: "{count} files merged into one spectrum.", mergeFail: "They could not be merged: ", chart: "Plot", empty: "The curve of what you load appears here, before the fit.", needRow: "Another numeric row is needed.", tooBig: "The file is over 4 MB.", unread: "That file could not be read.", working: "Fitting…", local: "Fitting on this device…", localSlow: "This fit may take a while. It runs in the background, and the page will remain responsive.", serverWorking: "Fitting on the server…", serverFailed: "The server could not complete the fit. Your data are still here; you can try again.", needNet: "Open the app once online so the Rust engine is saved on this device.", engine: "The Rust engine could not read that spectrum.", fail: "The fit did not run.", serverLimit: "The server accepts up to 50,000 numeric points; this spectrum has {count}. Reduce the data and try again.", serverWork: "This measurement and iteration count exceed the server work limit. Reduce the number of points or iterations.", save: "Save plot:", svg: "Vector file, editable in Inkscape or Illustrator", png: "Image at double resolution" },
+    zh: { merged: "已将 {count} 个文件合并为一条光谱。", mergeFail: "无法合并：", chart: "图", empty: "载入的曲线会出现在这里，不必等待拟合。", needRow: "还需要一行数字。", tooBig: "文件超过 4 MB。", unread: "无法读取这个文件。", working: "正在拟合…", local: "正在本机拟合…", localSlow: "此分析可能需要一些时间。它会在后台运行，页面仍可正常响应。", serverWorking: "正在服务器上拟合…", serverFailed: "服务器无法完成拟合。数据仍保留在此处，可以重试。", needNet: "请先联网打开一次，以便把 Rust 引擎存到这台设备。", engine: "Rust 引擎无法读取这份光谱。", fail: "未能完成拟合。", serverLimit: "服务器最多接受 50 000 个数值点；当前光谱有 {count} 个。请减少数据后重试。", serverWork: "此测量和步数设置超出服务器工作量限制。请减少点数或步数。", save: "保存图：", svg: "矢量图，可在 Inkscape 或 Illustrator 中编辑", png: "双倍分辨率图像" },
+    pt: { merged: "{count} arquivos unidos em um só espectro.", mergeFail: "Não foi possível uni-los: ", chart: "Gráfico", empty: "A curva do que você carregar aparece aqui, sem esperar o ajuste.", needRow: "Falta outra linha numérica.", tooBig: "O arquivo passa de 4 MB.", unread: "Não consegui ler esse arquivo.", working: "Ajustando…", local: "Ajustando neste aparelho…", localSlow: "Esta análise pode demorar. Ela roda em segundo plano, e a página continua respondendo.", serverWorking: "Ajustando no servidor…", serverFailed: "O servidor não conseguiu concluir o ajuste. Seus dados continuam aqui; você pode tentar novamente.", needNet: "Abra o app uma vez com rede para guardar o motor Rust neste aparelho.", engine: "O motor Rust não conseguiu ler esse espectro.", fail: "Não foi possível ajustar.", serverLimit: "O servidor aceita até 50 000 pontos numéricos; este espectro tem {count}. Reduza os dados e tente novamente.", serverWork: "Esta medida e o número de iterações excedem o limite de trabalho do servidor. Reduza os pontos ou as iterações.", save: "Baixar gráfica:", svg: "Vetorial, editável no Inkscape ou no Illustrator", png: "Imagem em dobro da resolução" },
   };
   return (pack[pageLang()] || pack.es)[key];
 }
@@ -242,25 +242,41 @@ function initLabControls() {
       if (event.target !== input) input.click();
     });
     input.addEventListener("change", async () => {
-      const file = input.files && input.files[0];
-      if (!file) return;
-      if (file.size > 4_000_000) {
+      const picked = Array.from(input.files || []);
+      if (!picked.length) return;
+      const total = picked.reduce((sum, file) => sum + file.size, 0);
+      if (total > 4_000_000) {
         if (meta) meta.textContent = uiText("tooBig");
         input.value = "";
         return;
       }
-      let text = "";
+      const parts = [];
       try {
-        text = await file.text();
+        for (const file of picked) parts.push([file.name, await file.text()]);
       } catch {
         if (meta) meta.textContent = uiText("unread");
         input.value = "";
         return;
       }
-      if (box) box.value = text;
-      drop.classList.add("has-file");
-      if (name) name.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} kB · ya está en el cuadro`;
       input.value = "";
+      if (parts.length === 1) {
+        const file = picked[0];
+        if (box) box.value = parts[0][1];
+        drop.classList.add("has-file");
+        if (name) name.textContent = `${file.name} · ${(file.size / 1024).toFixed(1)} kB · ya está en el cuadro`;
+        drawPreview();
+        return;
+      }
+      const merged = await mergeInWorker(parts);
+      if (!merged.ok) {
+        if (meta) meta.textContent = `${uiText("mergeFail")}${merged.error || ""}`;
+        return;
+      }
+      if (box) box.value = merged.text;
+      drop.classList.add("has-file");
+      if (name) {
+        name.textContent = `${uiText("merged").replace("{count}", String(parts.length))} ${parts.map(([n]) => n).join(" + ")}`;
+      }
       drawPreview();
     });
   }
@@ -1078,9 +1094,9 @@ function initServerJobs() {
   void refresh();
 }
 
-function runFitInWorker(text, options) {
+function callFitWorker(payload) {
   if (!fitWorker) {
-    fitWorker = new Worker("/js/fit-worker.js?v=2", { type: "module" });
+    fitWorker = new Worker("/js/fit-worker.js?v=3", { type: "module" });
     fitWorker.addEventListener("message", (event) => {
       const request = fitRequests.get(event.data.id);
       if (!request) return;
@@ -1101,12 +1117,20 @@ function runFitInWorker(text, options) {
   return new Promise((resolve, reject) => {
     fitRequests.set(id, { resolve, reject });
     try {
-      fitWorker.postMessage({ id, text, options });
+      fitWorker.postMessage({ id, ...payload });
     } catch (error) {
       fitRequests.delete(id);
       reject(error);
     }
   });
+}
+
+function runFitInWorker(text, options) {
+  return callFitWorker({ text, options });
+}
+
+function mergeInWorker(parts) {
+  return callFitWorker({ op: "merge", parts }).then((raw) => JSON.parse(raw));
 }
 
 function initLabSubmission() {

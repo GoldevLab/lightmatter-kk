@@ -13,7 +13,7 @@ use std::{
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args().skip(1);
     let Some(measure_arg) = args.next() else {
-        eprintln!("usage: cargo run --release --example spectrum_bench -- <r|eps1|eps2> <file.dat> [iterations] [mesh] [solver] [negativity] [dump.tsv] [edges]");
+        eprintln!("usage: cargo run --release --example spectrum_bench -- <r|eps1|eps2> <file.dat> [iterations] [mesh] [solver] [negativity] [dump.tsv] [edges] [eps_inf]");
         std::process::exit(2);
     };
     let Some(path) = args.next() else {
@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let negativity = args.next().and_then(|value| value.parse().ok()).unwrap_or(100.0);
     let dump = args.next().filter(|path| path != "-");
     let edges = Extrapolation::parse(&args.next().unwrap_or_default());
+    let eps_inf: Option<f64> = args.next().and_then(|value| value.parse().ok());
     let text = fs::read_to_string(&path)?;
     let (x, y, sigma, errors_given) = parse_spectrum(&text)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
@@ -48,7 +49,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             unit: Unit::Cm,
             thickness_um: 0.0,
             temperature_k: 300.0,
-            eps_inf: None,
+            eps_inf,
         },
         cancel: None,
         progress_step: None,

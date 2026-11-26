@@ -1,7 +1,7 @@
 //! Endpoint del laboratorio y worker Resuma para ajustes persistentes.
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use axum::body::Body;
@@ -17,7 +17,40 @@ use crate::store;
 
 const MAX_UPLOAD: usize = 4_000_000;
 pub const MAX_REQUEST_BODY: usize = MAX_UPLOAD + 64_000;
-static FIT_SLOTS: Semaphore = Semaphore::const_new(1);
+/// Ajustes que pueden correr a la vez. Por defecto uno por núcleo, hasta 4; cada uno ocupa en
+/// memoria unos 0.6 GB como máximo (matriz de 6000 anclas). `LIGHTMATTER_FIT_SLOTS` lo cambia.
+fn max_parallel_fits() -> usize {
+    std::env::var("LIGHTMATTER_FIT_SLOTS")
+        .ok()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|slots| *slots >= 1)
+        .map(|slots| slots.min(16))
+        .unwrap_or_else(|| lightmatter::dense::cores().min(4))
+}
+
+fn fit_slots() -> &'static Semaphore {
+    static SLOTS: OnceLock<Semaphore> = OnceLock::new();
+    SLOTS.get_or_init(|| Semaphore::new(max_parallel_fits()))
+}
+
+static ACTIVE_FITS: AtomicUsize = AtomicUsize::new(0);
+
+/// Un ajuste en curso. Al entrar recibe su parte de los núcleos: todos si está solo, la mitad
+/// si hay otro, y así. Así varios ajustes a la vez no lanzan cada uno todos los hilos.
+struct ActiveFit;
+
+impl ActiveFit {
+    fn enter() -> (Self, usize) {
+        let active = ACTIVE_FITS.fetch_add(1, Ordering::SeqCst) + 1;
+        (Self, (lightmatter::dense::cores() / active).max(1))
+    }
+}
+
+impl Drop for ActiveFit {
+    fn drop(&mut self) {
+        ACTIVE_FITS.fetch_sub(1, Ordering::SeqCst);
+    }
+}
 
 fn redirect(loc: &str) -> Response<Body> {
     Response::builder()
@@ -55,10 +88,11 @@ pub fn fit_worker(
                 ));
             }
         }
-        let _fit_slot = FIT_SLOTS
+        let _fit_slot = fit_slots()
             .acquire()
             .await
             .map_err(|error| ResumaError::Other(error.to_string()))?;
+        let (_active_fit, threads) = ActiveFit::enter();
         if store::job_is_cancelled(&id) {
             return Err(ResumaError::Other("cancelado".into()));
         }
@@ -103,13 +137,15 @@ pub fn fit_worker(
         let curve_fit = Arc::clone(&curve_slot);
         let fit = match context
             .run_blocking(move || {
-                fit_text_with_progress(
-                    &text,
-                    &options,
-                    Some(cancel_fit),
-                    Some(progress_fit),
-                    Some(curve_fit),
-                )
+                lightmatter::dense::with_thread_budget(threads, || {
+                    fit_text_with_progress(
+                        &text,
+                        &options,
+                        Some(cancel_fit),
+                        Some(progress_fit),
+                        Some(curve_fit),
+                    )
+                })
             })
             .await
         {
@@ -169,8 +205,7 @@ pub fn fit_worker(
 
 pub async fn run_lab(mut form: Multipart) -> Response<Body> {
     let mut spectrum = String::new();
-    let mut file_text = String::new();
-    let mut file_name = String::new();
+    let mut files: Vec<(String, String)> = Vec::new();
     let mut drude_on = false;
     let mut log_mesh = false;
     let mut extended = false;
@@ -201,8 +236,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         if name == "file" {
             if let Some(n) = fname {
                 if !n.is_empty() && !bytes.is_empty() {
-                    file_name = safe_name(&n);
-                    file_text = String::from_utf8_lossy(&bytes).into_owned();
+                    files.push((safe_name(&n), String::from_utf8_lossy(&bytes).into_owned()));
                 }
             }
             continue;
@@ -231,12 +265,19 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         }
     }
 
-    let source_name = if file_text.trim().is_empty() {
-        "manual".into()
-    } else {
-        file_name
+    let files: Vec<(String, String)> = files.into_iter().filter(|(_, text)| !text.trim().is_empty()).collect();
+    let (source_name, text) = match files.len() {
+        0 => ("manual".to_string(), spectrum),
+        1 => files.into_iter().next().unwrap_or_default(),
+        _ => {
+            let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
+            let merged = match lightmatter::fit::merge_spectra(&files) {
+                Ok(merged) => merged,
+                Err(error) => return redirect(&format!("/lab?e={}", urlencode(&error))),
+            };
+            (names.join(" + "), merged.text)
+        }
     };
-    let text = if file_text.trim().is_empty() { spectrum } else { file_text };
     let iter_max = iter.trim().parse::<usize>().unwrap_or(20).clamp(1, 2000);
     let options = TextFit {
         iter_max,
