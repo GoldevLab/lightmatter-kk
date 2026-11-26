@@ -1,0 +1,19 @@
+# Speqqle session: Reflectivity analysis STO
+# Material: Strontium Titanate (bulk), quantity = Reflectivity
+# Source: Session+-+Reflectivity+analysis+STO.spqs
+#
+# epsilon_inf = 5.314487644981076
+#
+# Drude-Lorentz oscillators (omega_0, omega_p, gamma) in cm^-1:
+#   #1  92.75504   1540.54173    8.61431
+#   #2 175.86257    347.74989    3.12830
+#   #3 544.89361    637.51976   19.78288
+#
+# Experimental files (cm^-1):
+#   STO_Detector1.dat  277 pts   27.48 .. 94.98
+#   STO_Detector2.dat 1207 pts   70.39 .. 651.85
+#   STO_Detector3.dat 3303 pts  632.51 .. 7000.07
+# Stitched for Lightmatter:
+#   STO_R_stitched.dat 4687 pts  27.48 .. 7000.07
+#   cut Det1->Det2 @ 82.686 cm^-1
+#   cut Det2->Det3 @ 642.181 cm^-1
