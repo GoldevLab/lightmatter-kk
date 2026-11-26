@@ -359,20 +359,6 @@ pub struct Peak {
     pub area: f64,
 }
 
-fn smooth(y: &[f64], half: usize) -> Vec<f64> {
-    if half == 0 {
-        return y.to_vec();
-    }
-    let n = y.len();
-    (0..n)
-        .map(|i| {
-            let a = i.saturating_sub(half);
-            let b = (i + half).min(n - 1);
-            y[a..=b].iter().sum::<f64>() / (b - a + 1) as f64
-        })
-        .collect()
-}
-
 fn cross(x0: f64, y0: f64, x1: f64, y1: f64, level: f64) -> f64 {
     if (y1 - y0).abs() < 1e-300 {
         x0
@@ -382,12 +368,15 @@ fn cross(x0: f64, y0: f64, x1: f64, y1: f64, level: f64) -> f64 {
 }
 
 /// Máximos con prominencia de al menos el 5 % del rango, los 12 más prominentes, ordenados por posición.
+///
+/// No suaviza: un suavizado con ventana en puntos (antes n/200) ensancha el pico y desplaza
+/// su posición y altura. El umbral de prominencia ya descarta el ruido.
 pub fn find_peaks(x: &[f64], y: &[f64]) -> Vec<Peak> {
     let n = x.len().min(y.len());
     if n < 5 {
         return Vec::new();
     }
-    let ys = smooth(&y[..n], if n > 200 { n / 200 } else { 0 });
+    let ys = &y[..n];
     let lo = ys.iter().copied().fold(f64::INFINITY, f64::min);
     let hi = ys.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let range = hi - lo;
@@ -753,6 +742,20 @@ mod tests {
         assert!((p.fwhm.unwrap() - fwhm).abs() < 0.005, "fwhm {:?}", p.fwhm);
         let area = s * (2.0 * PI).sqrt();
         assert!((p.area - area).abs() < 0.003, "área {}", p.area);
+    }
+
+    #[test]
+    fn narrow_peak_keeps_height_on_long_grids() {
+        // Malla larga (n > 200): antes el suavizado de n/200 puntos aplanaba el pico.
+        let n = 4000;
+        let x: Vec<f64> = (0..n).map(|i| 80.0 + i as f64 * 0.01).collect();
+        let s = 0.2_f64;
+        let y: Vec<f64> = x.iter().map(|v| 1500.0 * (-(v - 92.8) * (v - 92.8) / (2.0 * s * s)).exp()).collect();
+        let peaks = find_peaks(&x, &y);
+        assert_eq!(peaks.len(), 1);
+        let p = &peaks[0];
+        assert!((p.position - 92.8).abs() < 0.011, "posición {}", p.position);
+        assert!((p.height - 1500.0).abs() < 1e-6, "altura {}", p.height);
     }
 
     #[test]
