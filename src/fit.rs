@@ -385,10 +385,18 @@ pub struct MergedSpectrum {
 
 /// Une medidas de la misma magnitud en un único espectro, como hace Speqqle con sus detectores.
 ///
-/// Dos medidas que se solapan se cortan en el punto medio del solape; si hay hueco entre ellas, en
-/// el punto medio del hueco. Cada archivo aporta solo su tramo, así que ningún punto entra dos
-/// veces. Un solo archivo se devuelve tal cual, sin cabecera.
+/// Cada archivo se reescala al anterior con la mediana del cociente en su solape: dos detectores
+/// que miran la misma muestra deben dar lo mismo ahí, y un salto de calibración de unos pocos por
+/// ciento se vuelve un escalón falso que el ajuste no puede reproducir. Dos medidas que se solapan
+/// se cortan en el punto medio del solape; si hay hueco entre ellas, en el punto medio del hueco.
+/// Cada archivo aporta solo su tramo, así que ningún punto entra dos veces. Un solo archivo se
+/// devuelve tal cual, sin cabecera.
 pub fn merge_spectra(parts: &[(String, String)]) -> Result<MergedSpectrum, String> {
+    merge_spectra_with(parts, true)
+}
+
+/// Como [`merge_spectra`], pero `match_scale = false` deja los datos tal como vienen (solo cortes).
+pub fn merge_spectra_with(parts: &[(String, String)], match_scale: bool) -> Result<MergedSpectrum, String> {
     if parts.is_empty() {
         return Err("no hay ningún archivo que unir".into());
     }
@@ -403,6 +411,8 @@ pub fn merge_spectra(parts: &[(String, String)]) -> Result<MergedSpectrum, Strin
         rows: Vec<(f64, f64, f64)>,
         lo: f64,
         hi: f64,
+        /// Factor aplicado frente al archivo anterior (1 si no hubo solape que lo fije).
+        scale: f64,
     }
     let mut with_error = None;
     let mut pieces = Vec::with_capacity(parts.len());
@@ -419,7 +429,7 @@ pub fn merge_spectra(parts: &[(String, String)]) -> Result<MergedSpectrum, Strin
         rows.sort_by(|p, q| p.0.total_cmp(&q.0));
         let lo = rows.first().map(|r| r.0).unwrap_or(0.0);
         let hi = rows.last().map(|r| r.0).unwrap_or(0.0);
-        pieces.push(Piece { name: name.clone(), rows, lo, hi });
+        pieces.push(Piece { name: name.clone(), rows, lo, hi, scale: 1.0 });
     }
     pieces.sort_by(|p, q| p.lo.total_cmp(&q.lo));
     for pair in pieces.windows(2) {
@@ -428,6 +438,35 @@ pub fn merge_spectra(parts: &[(String, String)]) -> Result<MergedSpectrum, Strin
                 "{} queda dentro de {}: recorta uno de los dos antes de unirlos",
                 pair[1].name, pair[0].name
             ));
+        }
+    }
+
+    if match_scale {
+        // Cada archivo se alinea con el anterior ya alineado. Con menos de 3 puntos en el solape
+        // no hay cociente fiable y el factor queda en 1.
+        for i in 1..pieces.len() {
+            let (done, rest) = pieces.split_at_mut(i);
+            let prev = &done[i - 1];
+            let cur = &mut rest[0];
+            let xs: Vec<f64> = prev.rows.iter().map(|r| r.0).collect();
+            let ys: Vec<f64> = prev.rows.iter().map(|r| r.1).collect();
+            let mut ratios: Vec<f64> = cur
+                .rows
+                .iter()
+                .filter(|r| r.0 >= prev.lo && r.0 <= prev.hi && r.1 > 0.0)
+                .map(|r| interp(r.0, &xs, &ys) / r.1)
+                .filter(|v| v.is_finite() && *v > 0.0)
+                .collect();
+            if ratios.len() >= 3 {
+                ratios.sort_by(f64::total_cmp);
+                let m = ratios.len();
+                let s = if m % 2 == 1 { ratios[m / 2] } else { 0.5 * (ratios[m / 2 - 1] + ratios[m / 2]) };
+                for row in cur.rows.iter_mut() {
+                    row.1 *= s;
+                    row.2 *= s;
+                }
+                cur.scale = s;
+            }
         }
     }
 
@@ -463,7 +502,8 @@ pub fn merge_spectra(parts: &[(String, String)]) -> Result<MergedSpectrum, Strin
             (Some(a), Some(b)) => format!("{} … {}", fmt_num(a.0), fmt_num(b.0)),
             _ => "ningún punto".into(),
         };
-        notes.push(format!("{}: {} puntos, {span} cm-1", piece.name, rows.len()));
+        let scale_note = if match_scale && i > 0 { format!(", escala ×{:.4}", piece.scale) } else { String::new() };
+        notes.push(format!("{}: {} puntos, {span} cm-1{scale_note}", piece.name, rows.len()));
         kept.push(rows);
     }
     if kept.iter().any(|rows| rows.len() < 3) {
@@ -474,6 +514,11 @@ pub fn merge_spectra(parts: &[(String, String)]) -> Result<MergedSpectrum, Strin
     let mut text = format!("# unido de {} archivos: {}\n", pieces.len(), names.join(" + "));
     for cut in &cuts {
         text.push_str(&format!("# corte en {} cm-1 (centro del solape o del hueco)\n", fmt_num(*cut)));
+    }
+    if match_scale {
+        for piece in pieces.iter().skip(1) {
+            text.push_str(&format!("# {} escalado ×{:.6} frente al anterior (solape)\n", piece.name, piece.scale));
+        }
     }
     for rows in &kept {
         for (x, y, s) in rows {
@@ -1337,10 +1382,14 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             Measure::Eps1 | Measure::N => (guess.unwrap_or(1.0), true, "ajustado junto con ε₂".to_string()),
             Measure::R => {
                 let v = guess.unwrap_or(1.0);
+                // Con solo R, ε∞ y una absorción ancha cerca del extremo alto dan la misma medida:
+                // si ε∞ queda libre, el ajuste la lleva a donde el ruido o un error de escala
+                // quieran, e inventa esa absorción para compensar. Por eso no se ajusta: se toma
+                // de R en el extremo alto, que es suponer la muestra transparente ahí.
                 warnings.push(format!(
-                    "ε∞ vacío: se inicia en {v:.3} a partir de R en el extremo alto (k≈0: n=(1+√R)/(1−√R), ε∞=n²) y se ajusta junto con ε₂. Con solo R, la solución sigue dependiendo de lo que haya fuera del rango; si conoces ε∞, escríbelo para fijarlo."
+                    "ε∞ vacío: se fija en {v:.3} a partir de R en el extremo alto (k≈0: n=(1+√R)/(1−√R), ε∞=n²). Con solo R, ε∞ no se puede ajustar junto con ε₂: una absorción ancha arriba da la misma medida. Si conoces n donde la muestra es transparente, escribe ε∞ = n²."
                 ));
-                (v, true, "estimado de R en el extremo alto y ajustado junto con ε₂".to_string())
+                (v, false, "estimado de R en el extremo alto".to_string())
             }
             Measure::K | Measure::Alpha | Measure::T => {
                 warnings.push(format!(
@@ -1351,7 +1400,6 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             _ => (1.0, false, "1 por defecto".to_string()),
         },
     };
-    let eps_inf_start = base;
     let auto_log = log_mesh && !input.log_mesh;
     // Los extremos medidos quedan libres. Un ancla extra a cada lado, con coeficiente 0,
     // hace que ε₂ baje en línea recta hasta cero. La Kramers–Kronig integra esa cola:
@@ -1377,7 +1425,6 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let negativity = input.negativity.max(0.0);
     let inv_var: Vec<f64> = sigma.iter().map(|s| 1.0 / (s * s)).collect();
     let iter_max = input.iter_max.max(1);
-    let eps_inf_bounds = if fit_base && measure == Measure::R { Some((1.0, 50.0)) } else { None };
 
     let fitted = if measure == Measure::Eps2 {
         // Con ε₂ nada acopla anclas lejanas: cada frecuencia medida es un ancla, la matriz
@@ -1408,10 +1455,16 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             e1_fixed: &e1_fixed,
             e2_fixed: &eps2_mod,
             fit_eps_inf: fit_base,
-            eps_inf_bounds,
+            eps_inf_bounds: None,
             errors_given,
             smoothness,
-            negativity,
+        };
+        // Medio pasivo: ε₂ total ≥ 0 en cada ancla. La parte de Drude ya aporta la suya, así
+        // que la función variacional puede bajar hasta compensarla y no más.
+        let lower: Vec<f64> = if negativity > 0.0 {
+            candidates.iter().map(|&om| -drude.as_ref().map(|d| eps2_drude(om, d)).unwrap_or(0.0)).collect()
+        } else {
+            Vec::new()
         };
         let cfg = dense::Config {
             mesh: input.mesh,
@@ -1425,6 +1478,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             edge_hi: w_hi,
             tails,
             want_errors: errors_given,
+            lower: &lower,
         };
         let sol = dense::solve(&problem, &cfg, &|om| interp(om, &w, &seed), base)?;
         let inner = sol.anchors.len() - 2;
@@ -1467,7 +1521,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     };
     let Fitted {
         anchors,
-        mut a,
+        a,
         mfit,
         iters_used,
         converged,
@@ -1485,15 +1539,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         tails,
     } = fitted;
     let ma = anchors.len();
-    if let Some((lo, hi)) = eps_inf_bounds {
-        a[ma] = a[ma].clamp(lo, hi);
-    }
     let base = a[ma];
-    if fit_base && measure == Measure::R {
-        warnings.push(format!(
-            "ε∞ se ajustó dentro de [1, 50] (partida {eps_inf_start:.3} → {base:.3}). Si conoces n donde la muestra es transparente, escribe ε∞ = n² para fijarlo."
-        ));
-    }
 
     let unit = phys.unit;
     let n_inner = ma - 2;
@@ -1554,6 +1600,23 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         }
     }
 
+    // ε∞ salió de suponer k ≈ 0 en el extremo alto. Si el ajuste necesitó absorción justo ahí,
+    // la suposición no se sostiene y hay que decirlo.
+    if measure == Measure::R && given.is_none() && n_inner > 0 {
+        let top = (n_inner / 50).clamp(1, 24);
+        let (mut k2, mut n2) = (0.0, 0.0);
+        for i in n_inner - top..n_inner {
+            k2 += k_index[i] * k_index[i];
+            n2 += (n_index[i] - 1.0) * (n_index[i] - 1.0);
+        }
+        if k2 > 0.05 * n2 {
+            warnings.push(format!(
+                "ε∞ = {base:.3} supone que la muestra es transparente en el extremo alto, pero el ajuste necesitó absorción ahí (k² ≈ {:.0} % de (n−1)²). Esa ε∞ no es fiable: escribe la que conozcas.",
+                100.0 * k2 / n2.max(1e-300)
+            ));
+        }
+    }
+
     let neg = eps2.iter().filter(|v| **v < 0.0).count();
     if neg > 2.max(eps2.len() / 20) {
         warnings.push(format!("ε₂ es negativa en {neg}/{} puntos interiores.", eps2.len()));
@@ -1589,7 +1652,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
             "{below} datos están bajo cero. El castigo de ε₂ negativa ({negativity:.3}) no deja que el ajuste baje ahí. Si el valle es real, pon ese control en 0. Más pasos no lo cruzan."
         ));
     } else if below > 0 && negativity == 0.0 && measure != Measure::Eps2 {
-        warnings.push(format!("ε₂ quedó negativa en {below} datos. Sube el castigo de ε₂ negativa para un medio pasivo."));
+        warnings.push(format!("ε₂ quedó negativa en {below} datos. Con el control de ε₂ negativa mayor que cero, el ajuste impone ε₂ ≥ 0, como en un medio pasivo."));
     }
     match measure {
         Measure::Eps1 => warnings.push(
@@ -1607,7 +1670,7 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     }
     if stalled {
         warnings.push(
-            "El paso se frenó (λ demasiado grande o un χ² no finito). En pantalla está el mejor espectro aceptado.".into(),
+            "El ajuste se atascó antes de converger: muchos pasos seguidos sin mejora apreciable, o un χ² no finito. En pantalla está el mejor espectro aceptado.".into(),
         );
     } else if !converged && iters_used >= iter_max {
         warnings.push(format!(
@@ -2358,8 +2421,9 @@ mod merge_tests {
 
     #[test]
     fn three_sto_detectors_match_the_stitched_file() {
-        // El orden de entrada no importa: se ordenan por frecuencia.
-        let merged = merge_spectra(&[named("d3", D3), named("d1", D1), named("d2", D2)]).unwrap();
+        // El orden de entrada no importa: se ordenan por frecuencia. Sin escalar, el resultado es
+        // exactamente el archivo de referencia de Speqqle.
+        let merged = merge_spectra_with(&[named("d3", D3), named("d1", D1), named("d2", D2)], false).unwrap();
         let (x, y, _, given) = parse_spectrum(&merged.text).unwrap();
         let (sx, sy, _, sgiven) = parse_spectrum(STITCHED).unwrap();
         assert!(!given && !sgiven);
@@ -2396,6 +2460,29 @@ mod merge_tests {
         let merged = merge_spectra(&[named("a", a), named("b", b)]).unwrap();
         let (x, _, _, _) = parse_spectrum(&merged.text).unwrap();
         assert_eq!(x, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]);
+    }
+
+    #[test]
+    fn overlap_scales_the_second_file_onto_the_first() {
+        // b mide 3 % menos que a en el solape (3, 4 y 5): tras escalar, b vale 0.5 allí.
+        let a = "1 0.5\n2 0.5\n3 0.5\n4 0.5\n5 0.5\n";
+        let b = "3 0.48543689\n4 0.48543689\n5 0.48543689\n6 0.4\n7 0.3\n";
+        let merged = merge_spectra(&[named("a", a), named("b", b)]).unwrap();
+        let (x, y, _, _) = parse_spectrum(&merged.text).unwrap();
+        assert_eq!(x, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]);
+        assert!((y[3] - 0.5).abs() < 1e-6, "el solape debe coincidir: {}", y[3]);
+        assert!((y[5] - 0.412).abs() < 1e-6, "el resto de b se escala igual: {}", y[5]);
+        assert!(merged.notes[1].contains("escala ×1.03"), "{}", merged.notes[1]);
+    }
+
+    #[test]
+    fn overlap_scaling_can_be_switched_off() {
+        let a = "1 0.5\n2 0.5\n3 0.5\n4 0.5\n5 0.5\n";
+        let b = "3 0.48543689\n4 0.48543689\n5 0.48543689\n6 0.4\n7 0.3\n";
+        let merged = merge_spectra_with(&[named("a", a), named("b", b)], false).unwrap();
+        let (_, y, _, _) = parse_spectrum(&merged.text).unwrap();
+        assert!((y[3] - 0.48543689).abs() < 1e-8);
+        assert!((y[5] - 0.4).abs() < 1e-8);
     }
 
     #[test]
@@ -2501,8 +2588,9 @@ mod tests {
             if m == Measure::R {
                 assert!(report.chisq < 1e-3, "R χ² {} pasos {}", report.chisq, report.iters_used);
                 assert_eq!(report.n_anchor, report.points_used);
-                let expected_mfit = report.points_used - if eps_inf.is_some() { 2 } else { 1 };
-                assert_eq!(report.mfit, expected_mfit);
+                // ε∞ no se ajusta con R: escrita o estimada, queda fija.
+                assert_eq!(report.mfit, report.points_used - 2);
+                let _ = eps_inf;
                 let first_interval = report.data_x[1] - report.data_x[0];
                 assert!((report.omega[0] - (report.data_x[0] + first_interval * 0.5)).abs() < 1e-9);
             } else {

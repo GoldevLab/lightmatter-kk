@@ -655,7 +655,6 @@ pub(crate) struct Problem<'a> {
     /// El espectro trajo el error de cada punto.
     pub errors_given: bool,
     pub smoothness: f64,
-    pub negativity: f64,
 }
 
 /// Anclas, pesos cerrados del núcleo KK y la base triangular de cada dato.
@@ -673,6 +672,8 @@ pub(crate) struct Mesh {
     seg: Vec<usize>,
     /// ε₂ sigue fuera de la malla con las colas `tail_low` y `tail_high` en vez de caer a cero.
     pub tails: bool,
+    /// Cota inferior de cada altura interior. −∞ si ε₂ puede bajar de cero.
+    pub lower: Vec<f64>,
 }
 
 /// Cola baja: ε₂(ω) = A·a/ω para ω < a, la de una conductividad σ₁ constante.
@@ -764,7 +765,7 @@ impl Mesh {
             b_right.push(br);
             segs.push(seg);
         }
-        Mesh { anchors, cm, c0, cp, left, right, b_left, b_right, seg: segs, tails }
+        Mesh { anchors, cm, c0, cp, left, right, b_left, b_right, seg: segs, tails, lower: vec![f64::NEG_INFINITY; mi] }
     }
 
     pub fn interior(&self) -> usize {
@@ -960,7 +961,7 @@ impl Problem<'_> {
         total
     }
 
-    /// Solo el objetivo (χ² más castigos) y los valores del modelo. Cuesta N·M logaritmos.
+    /// Solo el objetivo (χ² más suavidad) y los valores del modelo. Cuesta N·M logaritmos.
     fn objective(&self, mesh: &Mesh, p: &[f64], pts: &mut Points, threads: usize) -> (f64, f64) {
         let n = self.ndat();
         let mi = mesh.interior();
@@ -968,9 +969,8 @@ impl Problem<'_> {
         let base = p[mi];
         let workers = if threads <= 1 { 1 } else { worker_count((n * mesh.anchors.len()) as f64 * 8.0).min(threads) };
         let chunk = n.div_ceil(workers).max(1);
-        let run = |start: usize, q: &mut [f64], e1: &mut [f64], e2: &mut [f64]| -> (f64, f64) {
+        let run = |start: usize, q: &mut [f64], e1: &mut [f64], e2: &mut [f64]| -> f64 {
             let mut data = 0.0;
-            let mut pen = 0.0;
             for k in 0..q.len() {
                 let i = start + k;
                 let om = self.w[i];
@@ -989,16 +989,13 @@ impl Problem<'_> {
                 let (qi, _, _) = quantity_grad(self.measure, v1, v2, self.nu[i], self.d_cm);
                 let dy = self.y[i] - qi;
                 data += dy * dy * self.inv_var[i];
-                if self.negativity > 0.0 && v2 < 0.0 {
-                    pen += self.negativity * v2 * v2;
-                }
                 q[k] = qi;
                 e1[k] = v1;
                 e2[k] = v2;
             }
-            (data, pen)
+            data
         };
-        let (data, pen) = if workers <= 1 {
+        let data = if workers <= 1 {
             run(0, &mut pts.q, &mut pts.e1, &mut pts.e2)
         } else {
             std::thread::scope(|scope| {
@@ -1008,14 +1005,11 @@ impl Problem<'_> {
                     let run = &run;
                     handles.push(scope.spawn(move || run(t * chunk, q, e1, e2)));
                 }
-                handles.into_iter().fold((0.0, 0.0), |acc, h| {
-                    let (d, p) = h.join().unwrap_or((f64::NAN, 0.0));
-                    (acc.0 + d, acc.1 + p)
-                })
+                handles.into_iter().fold(0.0, |acc, h| acc + h.join().unwrap_or(f64::NAN))
             })
         };
         let smooth = self.smooth_terms(mi, p, None);
-        (data + pen + smooth, data)
+        (data + smooth, data)
     }
 
     /// Filas del jacobiano (ya multiplicadas por √peso) y valores del modelo, datos [i0, i0 + filas).
@@ -1135,27 +1129,6 @@ impl Problem<'_> {
             i0 += rows;
         }
         if penalties {
-            if self.negativity > 0.0 {
-                for i in 0..n {
-                    let v2 = pts.e2[i];
-                    if v2 < 0.0 {
-                        pen += self.negativity * v2 * v2;
-                        let (l, r) = (mesh.left[i], mesh.right[i]);
-                        let (bl, br) = (mesh.b_left[i], mesh.b_right[i]);
-                        b[l] -= self.negativity * v2 * bl;
-                        h[l * m + l] += self.negativity * bl * bl;
-                        if r != l {
-                            b[r] -= self.negativity * v2 * br;
-                            h[r * m + r] += self.negativity * br * br;
-                            let (hi, lo) = if r > l { (r, l) } else { (l, r) };
-                            h[hi * m + lo] += self.negativity * bl * br;
-                        } else {
-                            b[l] -= self.negativity * v2 * br;
-                            h[l * m + l] += self.negativity * (2.0 * bl * br + br * br);
-                        }
-                    }
-                }
-            }
             pen += self.smooth_terms(mi, p, Some((h, m, b)));
         }
         Ok((data + pen, data))
@@ -1204,6 +1177,8 @@ pub(crate) struct Config<'a> {
     /// ε₂ sigue fuera del rango con colas suaves en vez de caer a cero en los nodos de borde.
     pub tails: bool,
     pub want_errors: bool,
+    /// Cota inferior de la altura en cada candidata (ε₂ total ≥ 0). Vacío: sin cota.
+    pub lower: &'a [f64],
 }
 
 struct Workspace {
@@ -1211,9 +1186,23 @@ struct Workspace {
     work: Vec<f64>,
     b: Vec<f64>,
     threads: usize,
+    /// Por incógnita: NaN si queda libre en el paso; si no, el desplazamiento impuesto.
+    fixed: Vec<f64>,
+    free: Vec<usize>,
 }
 
+/// λ por debajo de la cual el paso es casi el de Gauss–Newton.
+const GAUSS_NEWTON_LAMBDA: f64 = 1e-2;
+/// Pasos seguidos sin mejora apreciable antes de dar el ajuste por atascado.
+const SLOW_STOP: usize = 30;
+/// Veces que el paso se vuelve a resolver tras llevar a su cota las anclas que la cruzaban.
+const ACTIVE_ROUNDS: usize = 6;
+
 impl Workspace {
+    fn new(threads: usize) -> Self {
+        Workspace { h: Vec::new(), work: Vec::new(), b: Vec::new(), threads, fixed: Vec::new(), free: Vec::new() }
+    }
+
     fn ensure(&mut self, m: usize) {
         if self.h.len() < m * m {
             self.h.resize(m * m, 0.0);
@@ -1224,39 +1213,90 @@ impl Workspace {
         }
     }
 
-    /// Resuelve (α + λ·diag α)·x = β.
-    fn step(&mut self, m: usize, lam: f64, solver: Solver) -> Option<Vec<f64>> {
-        let (h, work) = (&self.h[..m * m], &mut self.work[..m * m]);
+    /// Resuelve (α + λ·diag α)·x = β con `p[j] + x[j] ≥ lower[j]` en las primeras incógnitas.
+    ///
+    /// Es un conjunto activo. Un ancla que ya está en su cota y a la que el gradiente empuja
+    /// hacia fuera se queda quieta. Una que el paso sacaría de la cota se lleva justo hasta ella
+    /// y el sistema se resuelve otra vez con las demás, que así ya cuentan con ese cambio. Un
+    /// castigo cuadrático no sirve aquí: el paso de Gauss–Newton solo lo ve en las anclas que ya
+    /// son negativas, cruza con las otras y el objetivo salta.
+    fn step(&mut self, m: usize, lam: f64, solver: Solver, p: &[f64], lower: &[f64]) -> Option<Vec<f64>> {
+        let Workspace { h, work, b, threads, fixed, free } = self;
+        let h = &h[..m * m];
         let top = (0..m).map(|j| h[j * m + j]).fold(0.0, f64::max);
         if !(top > 0.0) || !top.is_finite() {
             return None;
         }
-        let mut x = self.b[..m].to_vec();
-        match solver {
-            Solver::GaussJordan => {
-                for j in 0..m {
-                    for k in 0..=j {
-                        let v = h[j * m + k];
-                        work[j * m + k] = v;
-                        work[k * m + j] = v;
+        fixed.clear();
+        fixed.resize(m, f64::NAN);
+        for (j, lo) in lower.iter().enumerate() {
+            if p[j] <= *lo && b[j] <= 0.0 {
+                fixed[j] = 0.0;
+            }
+        }
+        let mut x = vec![0.0; m];
+        for _ in 0..ACTIVE_ROUNDS {
+            free.clear();
+            free.extend((0..m).filter(|&j| fixed[j].is_nan()));
+            let f = free.len();
+            let mut rhs: Vec<f64> = free.iter().map(|&j| b[j]).collect();
+            for (j, &d) in fixed.iter().enumerate() {
+                if d.is_nan() || d == 0.0 {
+                    continue;
+                }
+                for (r, &i) in rhs.iter_mut().zip(free.iter()) {
+                    *r -= d * if i >= j { h[i * m + j] } else { h[j * m + i] };
+                }
+            }
+            if f > 0 {
+                let work = &mut work[..f * f];
+                // `free` va en orden creciente: (free[a], free[c]) con c ≤ a cae en el triángulo inferior.
+                for a in 0..f {
+                    let row = &h[free[a] * m..free[a] * m + m];
+                    for c in 0..=a {
+                        work[a * f + c] = row[free[c]];
                     }
                 }
-            }
-            _ => {
-                for j in 0..m {
-                    work[j * m..j * m + j + 1].copy_from_slice(&h[j * m..j * m + j + 1]);
+                if solver == Solver::GaussJordan {
+                    for a in 0..f {
+                        for c in 0..a {
+                            work[c * f + a] = work[a * f + c];
+                        }
+                    }
+                }
+                for a in 0..f {
+                    // Un ancla sin sensibilidad dejaría un cero en la diagonal: el suelo relativo la fija.
+                    work[a * f + a] = work[a * f + a] * (1.0 + lam) + top * 1e-14;
+                }
+                let ok = match solver {
+                    Solver::GaussJordan => gauss_jordan_solve(work, f, &mut rhs, *threads),
+                    _ => cholesky_solve(work, f, &mut rhs, *threads),
+                };
+                if !ok {
+                    return None;
                 }
             }
+            for (j, d) in fixed.iter().enumerate() {
+                if !d.is_nan() {
+                    x[j] = *d;
+                }
+            }
+            for (&j, v) in free.iter().zip(&rhs) {
+                x[j] = *v;
+            }
+            let mut crossed = false;
+            for (j, lo) in lower.iter().enumerate() {
+                if fixed[j].is_nan() && p[j] + x[j] < *lo {
+                    fixed[j] = *lo - p[j];
+                    x[j] = *lo - p[j];
+                    crossed = true;
+                }
+            }
+            if !crossed {
+                break;
+            }
         }
-        for j in 0..m {
-            // Un ancla sin sensibilidad dejaría un cero en la diagonal: el suelo relativo la fija.
-            work[j * m + j] = h[j * m + j] * (1.0 + lam) + top * 1e-14;
-        }
-        let ok = match solver {
-            Solver::GaussJordan => gauss_jordan_solve(work, m, &mut x, self.threads),
-            _ => cholesky_solve(work, m, &mut x, self.threads),
-        };
-        ok.then_some(x)
+        Some(x)
     }
 }
 
@@ -1410,7 +1450,7 @@ impl Run<'_> {
         (med, max_r / 0.674_489_75)
     }
 
-    /// Levenberg–Marquardt (Numerical Recipes §15.5) sobre una malla fija.
+    /// Levenberg–Marquardt (Numerical Recipes §15.5) sobre una malla fija, con las cotas de la malla.
     ///
     /// En la malla final (`last`) la parada sigue el principio de discrepancia: con el residuo
     /// ya dentro del ruido, seguir solo copia el ruido en ε₂.
@@ -1422,6 +1462,12 @@ impl Run<'_> {
         let threads = self.ws.threads;
         let solver = pick_solver(self.cfg.solver, m);
         self.solver_used = solver;
+        let lower = &mesh.lower[..];
+        for (v, lo) in p.iter_mut().zip(lower) {
+            if *v < *lo {
+                *v = *lo;
+            }
+        }
         let (mut chi, mut data) = problem.assemble(mesh, p, &mut self.ws.h, &mut self.ws.b, pts, true, threads, self.cfg.cancel)?;
         if !chi.is_finite() {
             return Err("el χ² inicial no es finito. Revisa el espectro.".into());
@@ -1433,6 +1479,7 @@ impl Run<'_> {
         let mut end = End::Steps;
         let mut steps = 0usize;
         let mut flat = 0usize;
+        let mut slow = 0usize;
         let mut accepted = 0usize;
         let mut failed_last = false;
         // Un cambio relativo de χ² menor que su propia dispersión estadística, √(2/N), no dice nada.
@@ -1450,7 +1497,8 @@ impl Run<'_> {
             if let Some(step) = self.cfg.progress_step {
                 step.store(self.iters, Ordering::Relaxed);
             }
-            let Some(dx) = self.ws.step(m, lam, solver) else {
+            let lam_used = lam;
+            let Some(dx) = self.ws.step(m, lam, solver, p, lower) else {
                 lam *= 10.0;
                 if lam > 1e12 {
                     end = End::Stalled;
@@ -1459,7 +1507,7 @@ impl Run<'_> {
                 continue;
             };
             for j in 0..mi {
-                trial[j] = p[j] + dx[j];
+                trial[j] = (p[j] + dx[j]).max(lower[j]);
             }
             trial[mi] = if problem.fit_eps_inf { p[mi] + dx[mi] } else { p[mi] };
             if let Some((lo, hi)) = problem.eps_inf_bounds {
@@ -1468,6 +1516,10 @@ impl Run<'_> {
                 }
             }
             let (chi_try, data_try) = problem.objective(mesh, &trial, &mut trial_pts, threads);
+            if std::env::var("LM_TRACE").is_ok() {
+                let at = (0..mi).filter(|&j| trial[j] <= lower[j]).count();
+                eprintln!("TRACE it={} m={} lam={:.1e} chi={:.8e} try={:.8e} einf={:.4} bound={} {}", self.iters, m, lam, chi, chi_try, trial[mi], at, if chi_try <= chi { "ok" } else { "rej" });
+            }
             if chi_try.is_finite() && chi_try <= chi {
                 let gain = chi - chi_try;
                 let (ratio, max_ratio) = if last { self.noise_stats(&trial_pts) } else { (f64::INFINITY, f64::INFINITY) };
@@ -1485,12 +1537,22 @@ impl Run<'_> {
                 failed_last = false;
                 publish(self.cfg.progress_curve, problem, mesh, p, pts, data);
                 if small {
-                    flat += 1;
+                    slow += 1;
+                    // Una mejora pequeña solo cierra el ajuste si el paso era casi de Gauss–Newton.
+                    // Con λ alta el paso es corto por construcción y su mejora pequeña no dice nada.
+                    if lam_used <= GAUSS_NEWTON_LAMBDA {
+                        flat += 1;
+                    }
                 } else {
                     flat = 0;
+                    slow = 0;
                 }
                 if flat >= 2 || data <= self.floor || (accepted >= 1 && ratio <= 1.0 && max_ratio <= 5.0) {
                     end = End::Converged;
+                    break;
+                }
+                if slow >= SLOW_STOP {
+                    end = End::Stalled;
                     break;
                 }
                 if steps < max_steps {
@@ -1499,15 +1561,17 @@ impl Run<'_> {
                     data = d;
                 }
             } else {
-                // Un paso que no baja el objetivo, y casi no lo mueve, es la misma parada.
-                let nearly = chi_try.is_finite() && (chi_try - chi) <= self.floor.max(tol * chi);
                 failed_last = true;
                 lam *= 10.0;
-                if nearly && lam >= 1.0 {
-                    end = End::Converged;
+                slow += 1;
+                if lam > 1e10 {
+                    // Ni el paso más corto baja el objetivo: o es el mínimo a la precisión de la
+                    // máquina, o el objetivo dejó de ser finito.
+                    let nearly = chi_try.is_finite() && (chi_try - chi) <= self.floor.max(tol * chi);
+                    end = if nearly { End::Converged } else { End::Stalled };
                     break;
                 }
-                if lam > 1e10 {
+                if slow >= SLOW_STOP {
                     end = End::Stalled;
                     break;
                 }
@@ -1531,7 +1595,11 @@ fn build_mesh(cfg: &Config<'_>, picks: &[usize], w: &[f64]) -> Mesh {
     anchors.push(cfg.edge_lo);
     anchors.extend(picks.iter().map(|&i| cfg.candidates[i]));
     anchors.push(cfg.edge_hi);
-    Mesh::new(anchors, w, cfg.tails)
+    let mut mesh = Mesh::new(anchors, w, cfg.tails);
+    if !cfg.lower.is_empty() {
+        mesh.lower = picks.iter().map(|&i| cfg.lower[i]).collect();
+    }
+    mesh
 }
 
 /// Lleva las alturas de una malla a otra que la contiene: ε₂ no cambia.
@@ -1539,7 +1607,7 @@ fn prolong(old: &Mesh, p: &[f64], new: &Mesh) -> Vec<f64> {
     let mi = new.interior();
     let mut out = Vec::with_capacity(mi + 1);
     for j in 0..mi {
-        out.push(old.eps2_at(new.anchors[j + 1], p));
+        out.push(old.eps2_at(new.anchors[j + 1], p).max(new.lower[j]));
     }
     out.push(p[old.interior()]);
     out
@@ -1548,7 +1616,7 @@ fn prolong(old: &Mesh, p: &[f64], new: &Mesh) -> Vec<f64> {
 /// Parámetros de partida en una malla: ε₂ de la semilla en cada ancla interior y ε∞ dada.
 fn seed_params(mesh: &Mesh, seed: &dyn Fn(f64) -> f64, eps_inf: f64, bounds: Option<(f64, f64)>) -> Vec<f64> {
     let mi = mesh.interior();
-    let mut p: Vec<f64> = (0..mi).map(|j| seed(mesh.anchors[j + 1])).collect();
+    let mut p: Vec<f64> = (0..mi).map(|j| seed(mesh.anchors[j + 1]).max(mesh.lower[j])).collect();
     let mut e = eps_inf;
     if let Some((lo, hi)) = bounds {
         e = e.clamp(lo, hi);
@@ -1688,7 +1756,7 @@ pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) 
     let mut run = Run {
         problem,
         cfg,
-        ws: Workspace { h: Vec::new(), work: Vec::new(), b: Vec::new(), threads },
+        ws: Workspace::new(threads),
         iters: 0,
         solver_used: pick_solver(cfg.solver, count),
         floor: 1e-12 * scale,
@@ -1727,7 +1795,7 @@ pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) 
     let mut pts = Points::new(n);
     let mut levels = 1usize;
     let mut end = End::Steps;
-    let final_tol = 1e-3;
+    let final_tol = std::env::var("LM_TOL").ok().and_then(|v| v.parse().ok()).unwrap_or(1e-4);
 
     if mode == MeshMode::Adaptive {
         let noise = noise_level(problem.w, problem.y);
@@ -2082,6 +2150,7 @@ mod tests {
             edge_hi: 50.0,
             tails: false,
             want_errors: false,
+            lower: &[],
         };
         let coarse = build_mesh(&cfg, &strided(cand.len(), 4), &w);
         let fine = build_mesh(&cfg, &strided(cand.len(), 1), &w);
