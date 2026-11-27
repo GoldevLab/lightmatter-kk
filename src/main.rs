@@ -238,7 +238,7 @@ async fn main() -> std::io::Result<()> {
                 .cookie("lightmatter_theme")
                 .storage_key("lightmatter-theme"),
         )
-        .with_stylesheet("/images/lightmatter.css?v=36")
+        .with_stylesheet("/images/lightmatter.css?v=37")
         .with_sitemap_exclude(["/admin"])
         .static_asset("/icon.svg", ICON, "image/svg+xml")
         .static_asset("/.well-known/security.txt", security_txt, "text/plain; charset=utf-8")
@@ -251,7 +251,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-56".into(),
+            cache_version: "lm-57".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),
@@ -260,7 +260,7 @@ async fn main() -> std::io::Result<()> {
                 "/".into(),
                 "/lab".into(),
                 "/learn".into(),
-                "/images/lightmatter.css?v=36".into(),
+                "/images/lightmatter.css?v=37".into(),
                 "/js/lang.js?v=5".into(),
                 "/_resuma/ui.css?v=4679afe0d6db98bc".into(),
                 "/_resuma/loader.js?v=2.0.1".into(),

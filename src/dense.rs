@@ -24,7 +24,8 @@ const PI: f64 = std::f64::consts::PI;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MeshMode {
-    /// Completa si cabe en el presupuesto de cómputo; si no, adaptativa.
+    /// N/2 si el espectro va más fino que el ruido; completa si saltar un punto
+    /// pierde estructura; adaptativa si ni N/2 cabe en el presupuesto.
     #[default]
     Auto,
     /// Un ancla por cada intervalo entre datos.
@@ -1719,6 +1720,37 @@ fn noise_profile(w: &[f64], y: &[f64]) -> Vec<f64> {
         .collect()
 }
 
+/// N/2 basta cuando el espectro está muestreado más fino que sus rasgos. Con pocos
+/// puntos no se adelgaza. Si en el 5 % más alto saltarse un punto deja un hueco mayor
+/// que el ruido (o que el 0.5 % del rango, si la curva viene sin ruido), hace falta
+/// un ancla por intervalo: hay estructura de un solo paso en una parte grande del espectro.
+fn prefers_half_mesh(w: &[f64], y: &[f64]) -> bool {
+    const MIN_POINTS: usize = 48;
+    let n = y.len();
+    if n < MIN_POINTS || w.len() != n {
+        return false;
+    }
+    let mut skip = Vec::with_capacity(n - 2);
+    for i in 1..n - 1 {
+        let span = w[i + 1] - w[i - 1];
+        if span == 0.0 {
+            continue;
+        }
+        let t = (w[i] - w[i - 1]) / span;
+        let pred = y[i - 1] + t * (y[i + 1] - y[i - 1]);
+        skip.push((y[i] - pred).abs());
+    }
+    if skip.len() < MIN_POINTS - 2 {
+        return false;
+    }
+    let noise = noise_level(w, y);
+    let (lo, hi) = y.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |acc, v| (acc.0.min(*v), acc.1.max(*v)));
+    let limit = (4.0 * noise).max(0.005 * (hi - lo).max(1e-300));
+    let k = ((skip.len() - 1) as f64 * 0.95).round() as usize;
+    let (_, p95, _) = skip.select_nth_unstable_by(k, |a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    *p95 <= limit
+}
+
 /// Ajusta la función variacional a la medida y devuelve la malla, las alturas y el modelo.
 pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) -> f64, eps_inf: f64) -> Result<Solution, String> {
     let n = problem.ndat();
@@ -1730,7 +1762,7 @@ pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) 
     let mut notes = Vec::new();
     let mut mode = cfg.mesh;
     if mode == MeshMode::Auto {
-        mode = if count <= cap { MeshMode::Full } else { MeshMode::Adaptive };
+        mode = if prefers_half_mesh(problem.w, problem.y) { MeshMode::Half } else { MeshMode::Full };
     }
     let target = match mode {
         MeshMode::Half => 2usize,
@@ -1743,6 +1775,10 @@ pub(crate) fn solve(problem: &Problem<'_>, cfg: &Config<'_>, seed: &dyn Fn(f64) 
             if cfg!(target_arch = "wasm32") { " En el servidor el presupuesto es veinte veces mayor." } else { "" }
         ));
         mode = MeshMode::Adaptive;
+    } else if cfg.mesh == MeshMode::Auto && mode == MeshMode::Half {
+        notes.push("Malla automática: el espectro va más fino que el ruido, así que se usa un ancla cada dos puntos (N/2). Una ancla por intervalo copiaría ese ruido.".into());
+    } else if cfg.mesh == MeshMode::Auto && mode == MeshMode::Full {
+        notes.push("Malla automática: saltar un punto pierde estructura por encima del ruido en una parte grande del espectro, así que se usa un ancla entre cada par de datos.".into());
     }
     let threads = worker_count(f64::INFINITY);
     // En las mallas gruesas ε∞ se queda en su valor de partida. Una malla gruesa no puede
@@ -2184,5 +2220,45 @@ mod tests {
             .collect();
         let s = noise_level(&w, &y);
         assert!(s > 1e-4 && s < 2e-3, "ruido {s}");
+    }
+
+    #[test]
+    fn automatic_mesh_uses_half_when_the_sampling_is_finer_than_the_noise() {
+        let n = 800;
+        let w: Vec<f64> = (0..n).map(|i| 20.0 + i as f64 * 0.25).collect();
+        let mut y: Vec<f64> = w
+            .iter()
+            .map(|&x| {
+                let soft = 1.0 / (1.0 + (x - 90.0) * (x - 90.0) / 36.0);
+                let edge = 1.0 / (1.0 + ((x - 160.0) / 8.0).exp());
+                0.15 + 0.7 * soft + 0.75 * edge
+            })
+            .collect();
+        y[280] += 0.04;
+        assert!(prefers_half_mesh(&w, &y));
+        let stitched = include_str!("../test-data/sto-speqqle/STO_R_stitched.dat");
+        let mut sw = Vec::new();
+        let mut sy = Vec::new();
+        for line in stitched.lines() {
+            let mut cols = line.split_whitespace();
+            let (Some(a), Some(b)) = (cols.next(), cols.next()) else { continue };
+            let (Ok(a), Ok(b)) = (a.parse::<f64>(), b.parse::<f64>()) else { continue };
+            sw.push(a);
+            sy.push(b);
+        }
+        assert!(sw.len() > 4_000, "{}", sw.len());
+        assert!(prefers_half_mesh(&sw, &sy), "el STO cosido debería salir en N/2");
+        let short: Vec<f64> = (0..30).map(|i| i as f64).collect();
+        assert!(!prefers_half_mesh(&short, &vec![0.4; 30]));
+    }
+
+    #[test]
+    fn automatic_mesh_keeps_every_interval_when_features_are_one_step_wide() {
+        let n = 80;
+        let w: Vec<f64> = (0..n).map(|i| i as f64).collect();
+        let y: Vec<f64> = (0..n)
+            .map(|i| if (20..28).contains(&i) || (50..58).contains(&i) { 1.0 } else { 0.02 })
+            .collect();
+        assert!(!prefers_half_mesh(&w, &y));
     }
 }

@@ -344,8 +344,9 @@ fn peaks_table(peaks: &[Peak], unit: Unit, what: &str, lang: Lang) -> String {
             None => tx(lang, "abierto", "open", "未闭合", "aberto").into(),
         };
         let share = if total > 0.0 { format!("{:.1} %", 100.0 * p.area / total) } else { "—".into() };
+        let class = if crate::measure::is_ripple(i, peaks) { " class=\"peak-ripple\"" } else { " class=\"peak-main\"" };
         rows.push_str(&format!(
-            "<tr><td>{}</td><td class=\"mono\">{}</td>{lambda}<td class=\"mono\">{}</td><td class=\"mono\">{}</td><td class=\"mono\">{}</td><td class=\"mono\">{share}</td></tr>",
+            "<tr{class}><td>{}</td><td class=\"mono\">{}</td>{lambda}<td class=\"mono\">{}</td><td class=\"mono\">{}</td><td class=\"mono\">{}</td><td class=\"mono\">{share}</td></tr>",
             i + 1,
             num(p.position),
             escape(&width),
@@ -354,8 +355,19 @@ fn peaks_table(peaks: &[Peak], unit: Unit, what: &str, lang: Lang) -> String {
         ));
     }
     let lambda_head = if energy { "<th>λ (nm)</th>" } else { "" };
+    let note = if peaks.iter().enumerate().any(|(i, _)| crate::measure::is_ripple(i, peaks)) {
+        tx(
+            lang,
+            " En verde, los que no caben dentro de otro más ancho. En tenue, un rizo estrecho sobre un pico más ancho: no es otro modo.",
+            " In green, those that do not sit inside a wider one. Dimmed, a narrow ripple on a wider peak: not another mode.",
+            " 绿色的不落在更宽的峰里面。变淡的是更宽峰上的窄起伏，不是另一个模式。",
+            " Em verde, os que não cabem dentro de outro mais largo. Em tom suave, uma ondulação estreita sobre um pico mais largo: não é outro modo.",
+        )
+    } else {
+        ""
+    };
     format!(
-        "<div class=\"table-wrap\"><table class=\"peaks\"><caption>{} {what}</caption><thead><tr><th>#</th><th>{}</th>{lambda_head}<th>FWHM</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{rows}</tbody></table></div>",
+        "<div class=\"table-wrap\"><table class=\"peaks\"><caption>{} {what}.{note}</caption><thead><tr><th>#</th><th>{}</th>{lambda_head}<th>FWHM</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{rows}</tbody></table></div>",
         tx(lang, "Picos de", "Peaks of", "峰：", "Picos de"),
         escape(unit.axis()),
         tx(lang, "Altura", "Height", "高度", "Altura"),

@@ -472,6 +472,23 @@ pub fn find_peaks(x: &[f64], y: &[f64]) -> Vec<Peak> {
     peaks
 }
 
+/// Un máximo estrecho que cae dentro del ancho de otro al menos tres veces más ancho.
+/// Es un rizo sobre ese pico, no un modo aparte. Un pico aislado, aunque sea fino, no lo es.
+pub fn is_ripple(index: usize, peaks: &[Peak]) -> bool {
+    let Some(peak) = peaks.get(index) else {
+        return false;
+    };
+    let Some(width) = peak.fwhm.filter(|w| *w > 0.0) else {
+        return false;
+    };
+    peaks.iter().enumerate().any(|(j, other)| {
+        j != index
+            && other
+                .fwhm
+                .is_some_and(|wider| wider >= width * 3.0 && (other.position - peak.position).abs() <= wider)
+    })
+}
+
 /// Integral por trapecios y centroide Σ x·y / Σ y.
 pub fn integral_and_centroid(x: &[f64], y: &[f64]) -> (f64, Option<f64>) {
     let mut area = 0.0;
@@ -762,6 +779,18 @@ mod tests {
         assert!((p.fwhm.unwrap() - fwhm).abs() < 0.005, "fwhm {:?}", p.fwhm);
         let area = s * (2.0 * PI).sqrt();
         assert!((p.area - area).abs() < 0.003, "área {}", p.area);
+    }
+
+    #[test]
+    fn a_narrow_spike_inside_a_wider_peak_is_a_ripple() {
+        let peaks = vec![
+            Peak { position: 92.8, height: 2159.0, prominence: 2159.0, fwhm: Some(13.3), area: 45_000.0 },
+            Peak { position: 97.6, height: 2040.0, prominence: 200.0, fwhm: Some(0.9), area: 1_100.0 },
+            Peak { position: 175.7, height: 172.0, prominence: 172.0, fwhm: Some(5.0), area: 3_000.0 },
+        ];
+        assert!(is_ripple(1, &peaks));
+        assert!(!is_ripple(0, &peaks));
+        assert!(!is_ripple(2, &peaks));
     }
 
     #[test]

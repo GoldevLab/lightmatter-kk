@@ -124,6 +124,7 @@ thead th {{ border-bottom: 2px solid #1c1915; font-size: 0.72rem; letter-spacing
 tbody tr:nth-child(even) {{ background: #faf8f3; }}
 tr.key td {{ background: #e5f5f0; font-weight: 650; }}
 tr.key td.text {{ box-shadow: inset 3px 0 0 #0c6b5c; }}
+tr.ripple td {{ color: #8a8478; font-weight: 400; }}
 ul {{ margin: 0.2rem 0 0; padding-left: 1.15rem; }}
 li {{ margin: 0.28rem 0; }}
 footer {{ margin-top: 2.4rem; border-top: 1px solid #e6e0d4; padding-top: 0.8rem; font-size: 0.88rem; }}
@@ -281,7 +282,7 @@ fn peaks(out: &mut String, report: &FitReport, n: &mut u32, lang: Lang) {
     let unit = report.options.unit;
     let energy = unit.known();
     let total: f64 = report.peaks.iter().map(|p| p.area).sum();
-    let best = tallest(&report.peaks).map(|p| p.position);
+    let any_ripple = report.peaks.iter().enumerate().any(|(i, _)| crate::measure::is_ripple(i, &report.peaks));
     out.push_str("<table><thead><tr><th class=\"text\">#</th><th>");
     out.push_str(&esc(unit.axis()));
     out.push_str("</th>");
@@ -290,8 +291,8 @@ fn peaks(out: &mut String, report: &FitReport, n: &mut u32, lang: Lang) {
     }
     out.push_str("<th>FWHM</th><th>Altura</th><th>Prominencia</th><th>Área</th><th>% del área</th></tr></thead><tbody>");
     for (i, p) in report.peaks.iter().enumerate() {
-        let key = best.is_some_and(|b| (b - p.position).abs() <= 1e-9);
-        out.push_str(if key { "<tr class=\"key\">" } else { "<tr>" });
+        let class = if crate::measure::is_ripple(i, &report.peaks) { "ripple" } else { "key" };
+        out.push_str(&format!("<tr class=\"{class}\">"));
         cell_text(out, &format!("{}", i + 1));
         cell(out, &fmt(p.position));
         if energy {
@@ -308,7 +309,11 @@ fn peaks(out: &mut String, report: &FitReport, n: &mut u32, lang: Lang) {
     }
     out.push_str("</tbody><caption>Máximos locales de ");
     out.push_str(what);
-    out.push_str(" cuya prominencia pasa del 5 % del rango. La fila verde es el más alto. FWHM es el ancho a media altura sobre la base local; «abierto» si esa mitad no se alcanza dentro del rango. El área es la integral del pico sobre su base.</caption></table>");
+    out.push_str(" cuya prominencia pasa del 5 % del rango. En verde, los que no caben dentro de otro más ancho.");
+    if any_ripple {
+        out.push_str(" En tenue, un rizo estrecho sobre un pico más ancho: no es otro modo.");
+    }
+    out.push_str(" FWHM es el ancho a media altura sobre la base local; «abierto» si esa mitad no se alcanza dentro del rango. El área es la integral del pico sobre su base.</caption></table>");
 }
 
 fn comparison(out: &mut String, report: &FitReport, section: &mut u32, lang: Lang) {
