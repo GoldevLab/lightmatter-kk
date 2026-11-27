@@ -44,16 +44,19 @@ Lightmatter **no usa ε∞ de Speqqle como entrada**: ajusta ε∞ con los datos
 
 ## Reproducir el ajuste
 
-Desde la raíz del repo, configuración por defecto de la web (malla N/2, colas, solver automático,
-ε₂ ≥ 0 como cota, tolerancia final 1e-4). Con solo R, ε∞ vacío **no se ajusta**: se fija en n² de R en el
-extremo alto (aquí ≈ 5.65 con los datos unidos):
+Desde la raíz del repo, la ruta por defecto (malla N/2, extrapolación `auto`, solver automático,
+ε₂ ≥ 0 como cota, tolerancia final 1e-4). Con este espectro el extremo bajo no refleja como un conductor,
+así que `auto` lleva ε₂ a cero fuera del rango. ε∞ vacío no se ajusta: se fija en n² de R en el extremo
+alto (≈ 5.65). Para reproducir eso hay que unir los tres detectores con `merge_spectra` (escala el solape)
+y no pasar ε∞:
 
 ```bash
-cargo run --release --example spectrum_bench -- r test-data/sto-speqqle/STO_R_stitched.dat 2000 half auto 100 /tmp/sto_free.tsv tails
+cargo run --release --example spectrum_bench -- r test-data/sto-speqqle/STO_R_stitched.dat 2000 half auto 100 /tmp/sto_auto.tsv auto
 ```
 
-Ojo: este archivo ya está unido pero sin escalar. Para reproducir lo que hace la app, une los tres
-detectores con `merge_spectra` (que escala) y ajusta ese resultado. El bench admite un solo archivo.
+Ese archivo está unido sin escalar, así que no es lo que hace la app. Con los tres detectores unidos por
+`merge_spectra` (con escala) la ruta `auto` da, en el bench: ε∞ = 5.646, RMSE 1.39e-3, ε₂(28 cm⁻¹) ≈ 9,
+pico del fonón 1 ≈ 2159, ningún ε₂ negativo. La tabla de abajo es una medida anterior, con ε∞ libre.
 
 ## Resultados
 

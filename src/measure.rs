@@ -322,20 +322,40 @@ fn reflectivity_seed(w: &[f64], y: &[f64]) -> Vec<f64> {
     out
 }
 
+/// Reflectividad media del extremo alto, ya con los datos ordenados por ω.
+pub fn high_end_reflectivity(y: &[f64]) -> f64 {
+    if y.is_empty() {
+        return 0.0;
+    }
+    let n_tail = (y.len() / 50).clamp(1, 24);
+    let start = y.len() - n_tail;
+    y[start..].iter().sum::<f64>() / n_tail as f64
+}
+
+/// n² = ε∞ a partir de R, suponiendo k ≈ 0. Por encima de 25 el extremo no es una ventana
+/// transparente (R ≳ 0.44): la fórmula ya no da ε∞, da una mezcla con la absorción.
+pub fn eps_inf_if_transparent(reflectivity: f64) -> Option<f64> {
+    if !(0.0..0.95).contains(&reflectivity) {
+        return None;
+    }
+    let n = (1.0 + reflectivity.sqrt()) / (1.0 - reflectivity.sqrt());
+    let eps = n * n;
+    if eps > 25.0 { None } else { Some(eps.clamp(1.0, 25.0)) }
+}
+
 /// ε∞ que sugiere el extremo alto de la medida, cuando nadie lo escribió.
 ///
 /// Con R: media del extremo de alta frecuencia (datos ya ordenados por ω),
 /// invirtiendo R = ((n−1)/(n+1))² con k ≈ 0, luego ε∞ = n² en [1, 50].
+/// Si el extremo refleja demasiado para ser transparente, devuelve el tope 50:
+/// ese caso hay que distinguirlo con [`eps_inf_if_transparent`].
 pub fn guess_eps_inf(m: Measure, y: &[f64]) -> Option<f64> {
     if y.is_empty() {
         return None;
     }
     match m {
         Measure::R => {
-            // Un solo punto final es ruidoso; promedia la cola alta (hasta ~2 % o 24 puntos).
-            let n_tail = (y.len() / 50).clamp(1, 24);
-            let start = y.len() - n_tail;
-            let mean = y[start..].iter().sum::<f64>() / n_tail as f64;
+            let mean = high_end_reflectivity(y);
             let s = mean.clamp(0.0, 0.95).sqrt();
             let n = (1.0 + s) / (1.0 - s);
             Some((n * n).clamp(1.0, 50.0))

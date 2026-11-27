@@ -48,7 +48,7 @@ impl Default for FormState {
             temperature: "300".into(),
             mesh: MeshMode::Auto,
             solver: Solver::Auto,
-            edges: Extrapolation::Tails,
+            edges: Extrapolation::Auto,
             axis_note: String::new(),
         }
     }
@@ -211,6 +211,7 @@ pub fn page(req: FlowRequest) -> View {
         ("cholesky", "Cholesky"),
     ];
     let edge_modes = [
+        ("auto", tx(lang, "Según la reflectividad", "From the reflectivity", "按反射率", "Segundo a refletividade")),
         ("tails", tx(lang, "Colas suaves", "Smooth tails", "平滑尾部", "Caudas suaves")),
         ("zero", tx(lang, "Cero en los bordes", "Zero at the edges", "边界处为零", "Zero nas bordas")),
     ];
@@ -222,7 +223,7 @@ pub fn page(req: FlowRequest) -> View {
     let solver_label = tx(lang, "Sistema lineal", "Linear system", "线性方程组", "Sistema linear");
     let solver_help = tx(lang, "Cómo se resuelve cada paso de Levenberg–Marquardt. Gauss–Jordan es el del trabajo de grado; Cholesky da el mismo paso con menos operaciones. Automático usa Gauss–Jordan hasta 2500 anclas y Cholesky por encima.", "How each Levenberg–Marquardt step is solved. Gauss–Jordan is the one in the thesis; Cholesky gives the same step with fewer operations. Automatic uses Gauss–Jordan up to 2500 anchors and Cholesky above.", "每一步 Levenberg–Marquardt 的解法。Gauss–Jordan 是论文中的方法；Cholesky 用更少的运算得到同样的步长。自动模式在 2500 个锚点以内用 Gauss–Jordan，以上用 Cholesky。", "Como se resolve cada passo de Levenberg–Marquardt. Gauss–Jordan é o do trabalho de grau; Cholesky dá o mesmo passo com menos operações. Automático usa Gauss–Jordan até 2500 âncoras e Cholesky acima.");
     let edges_label = tx(lang, "ε₂ fuera del rango", "ε₂ outside the range", "范围之外的 ε₂", "ε₂ fora do intervalo");
-    let edges_help = tx(lang, "Colas suaves: σ₁ constante por debajo del primer dato y caída ω⁻³ por encima del último, sin osciladores ni Drude. Cero en los bordes es la malla del trabajo de grado: ε₂ baja en línea recta a cero justo fuera del rango, y con una muestra que conduce eso deforma ε₁ y ε₂ cerca de los extremos.", "Smooth tails: constant σ₁ below the first point and an ω⁻³ decay above the last, with no oscillators or Drude. Zero at the edges is the thesis mesh: ε₂ falls linearly to zero just outside the range, and for a conducting sample that distorts ε₁ and ε₂ near the ends.", "平滑尾部：第一个数据点以下 σ₁ 恒定，最后一个数据点以上按 ω⁻³ 衰减，不用振子也不用 Drude。边界处为零是论文的网格：ε₂ 在范围外线性降为零；对导电样品，这会使两端附近的 ε₁ 和 ε₂ 变形。", "Caudas suaves: σ₁ constante abaixo do primeiro dado e queda ω⁻³ acima do último, sem osciladores nem Drude. Zero nas bordas é a malha do trabalho de grau: ε₂ cai linearmente a zero logo fora do intervalo e, numa amostra condutora, isso deforma ε₁ e ε₂ perto dos extremos.");
+    let edges_help = tx(lang, "Según la reflectividad: si el extremo bajo sigue en R > 0.95, o el extremo alto no es transparente, se usan colas (σ₁ constante abajo, caída ω⁻³ arriba). Si no, ε₂ baja a cero fuera del rango, que es la malla del trabajo de grado. Una cola de conductividad constante en un aislante infla ε₂ en las primeras anclas. No hay osciladores ni Drude.", "From the reflectivity: if the low end is still above R = 0.95, or the high end is not transparent, smooth tails are used (constant σ₁ below, ω⁻³ above). Otherwise ε₂ falls to zero outside the range, which is the thesis mesh. A constant-conductivity tail on an insulator inflates ε₂ on the first anchors. No oscillators and no Drude.", "按反射率：若低端 R 仍高于 0.95，或高端不透明，则用平滑尾部（下方 σ₁ 恒定，上方按 ω⁻³ 衰减）。否则 ε₂ 在范围外降为零，即论文的网格。绝缘体上的恒定电导尾部会抬高最初几个锚点的 ε₂。不用振子，也不用 Drude。", "Segundo a refletividade: se o extremo baixo segue com R > 0.95, ou o extremo alto não é transparente, usam-se caudas (σ₁ constante embaixo, queda ω⁻³ em cima). Se não, ε₂ cai a zero fora do intervalo, que é a malha do trabalho de grau. Uma cauda de condutividade constante num isolante infla ε₂ nas primeiras âncoras. Sem osciladores nem Drude.");
     let has_result = loaded.is_some() || !report_id.is_empty();
     let result = match loaded {
         Some(item) => {

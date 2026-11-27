@@ -1229,7 +1229,7 @@ function initLabSubmission() {
       temperature: String(data.get("temperature") || ""),
       mesh: String(data.get("mesh") || "auto"),
       solver: String(data.get("solver") || "auto"),
-      edges: String(data.get("edges") || "tails"),
+      edges: String(data.get("edges") || "auto"),
       lang: pageLang(),
     };
     const pointCount = text ? text.split(/\r?\n/).length : 0;

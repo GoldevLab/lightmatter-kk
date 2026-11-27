@@ -251,7 +251,7 @@ async fn main() -> std::io::Result<()> {
             background_color: "#07141b".into(),
             start_url: "/lab".into(),
             scope: "/".into(),
-            cache_version: "lm-54".into(),
+            cache_version: "lm-55".into(),
             display: "standalone".into(),
             orientation: "any".into(),
             lang: "es".into(),

@@ -95,15 +95,20 @@ impl Solver {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Extrapolation {
-    /// Sigue con colas suaves: σ₁ constante hacia ω → 0 y caída ω⁻³ por encima del rango.
+    /// Elige según la reflectividad. Un extremo bajo que sigue reflejando como un conductor
+    /// (R media > 0.95) usa colas: cortar ε₂ ahí deforma el borde. Si no, ε₂ baja a cero
+    /// fuera del rango, que es la malla del trabajo de grado. Una cola de σ₁ constante en un
+    /// aislante inventa conductividad y, con ε₂ ≥ 0, la vuelca en las primeras anclas.
     #[default]
+    Auto,
+    /// Sigue con colas suaves: σ₁ constante hacia ω → 0 y caída ω⁻³ por encima del rango.
     Tails,
     /// Baja en línea recta hasta cero en un nodo de borde, como la malla del trabajo de grado.
     Zero,
 }
 
 impl Extrapolation {
-    pub const ALL: [Extrapolation; 2] = [Extrapolation::Tails, Extrapolation::Zero];
+    pub const ALL: [Extrapolation; 3] = [Extrapolation::Auto, Extrapolation::Tails, Extrapolation::Zero];
 
     pub fn parse(raw: &str) -> Self {
         let raw = raw.trim();
@@ -112,6 +117,7 @@ impl Extrapolation {
 
     pub fn key(self) -> &'static str {
         match self {
+            Extrapolation::Auto => "auto",
             Extrapolation::Tails => "tails",
             Extrapolation::Zero => "zero",
         }

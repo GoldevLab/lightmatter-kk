@@ -6,7 +6,8 @@
 pub use crate::dense::{Extrapolation, MeshMode, Solver};
 use crate::dense;
 use crate::measure::{
-    find_peaks, guess_eps_inf, high_end_maximum, integral_and_centroid, nm_to_ev, optics, quantity, quantity_grad,
+    eps_inf_if_transparent, find_peaks, guess_eps_inf, high_end_maximum, high_end_reflectivity, integral_and_centroid,
+    nm_to_ev, optics, quantity, quantity_grad,
     roosbroeck_shockley, seed_eps2, tail_temperature, tauc_account, tauc_edge, Measure, Peak, Unit, EV_PER_CM,
 };
 
@@ -143,7 +144,33 @@ impl Default for FitOptions {
             eps_inf: None,
             mesh: MeshMode::Auto,
             solver: Solver::Auto,
-            edges: Extrapolation::Tails,
+            edges: Extrapolation::Auto,
+        }
+    }
+}
+
+/// El extremo bajo sigue reflejando como un conductor: R media de los primeros puntos > 0.95.
+/// Ahí ε₂ no puede cortarse a cero; la cola de σ₁ constante es la continuación que pide la medida.
+fn conducting_at_low_end(y: &[f64]) -> bool {
+    if y.len() < 8 {
+        return false;
+    }
+    let n = (y.len() / 50).clamp(8, 40);
+    y[..n].iter().sum::<f64>() / n as f64 > 0.95
+}
+
+/// `Auto` elige la extrapolación. `Tails` y `Zero` se respetan tal cual.
+fn resolve_edges(requested: Extrapolation, measure: Measure, y: &[f64]) -> Extrapolation {
+    match requested {
+        Extrapolation::Tails | Extrapolation::Zero => requested,
+        Extrapolation::Auto => {
+            if measure == Measure::R
+                && (conducting_at_low_end(y) || eps_inf_if_transparent(high_end_reflectivity(y)).is_none())
+            {
+                Extrapolation::Tails
+            } else {
+                Extrapolation::Zero
+            }
         }
     }
 }
@@ -1380,17 +1407,23 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
         Some(v) => (v, false, "escrito por ti".to_string()),
         None => match measure {
             Measure::Eps1 | Measure::N => (guess.unwrap_or(1.0), true, "ajustado junto con ε₂".to_string()),
-            Measure::R => {
-                let v = guess.unwrap_or(1.0);
-                // Con solo R, ε∞ y una absorción ancha cerca del extremo alto dan la misma medida:
-                // si ε∞ queda libre, el ajuste la lleva a donde el ruido o un error de escala
-                // quieran, e inventa esa absorción para compensar. Por eso no se ajusta: se toma
-                // de R en el extremo alto, que es suponer la muestra transparente ahí.
-                warnings.push(format!(
-                    "ε∞ vacío: se fija en {v:.3} a partir de R en el extremo alto (k≈0: n=(1+√R)/(1−√R), ε∞=n²). Con solo R, ε∞ no se puede ajustar junto con ε₂: una absorción ancha arriba da la misma medida. Si conoces n donde la muestra es transparente, escribe ε∞ = n²."
-                ));
-                (v, false, "estimado de R en el extremo alto".to_string())
-            }
+            Measure::R => match eps_inf_if_transparent(high_end_reflectivity(&y_data)) {
+                Some(v) => {
+                    // Con solo R, ε∞ y una absorción ancha cerca del extremo alto dan la misma medida.
+                    // No se ajusta: se toma de R donde la muestra sí es transparente (k ≈ 0).
+                    warnings.push(format!(
+                        "ε∞ vacío: se fija en {v:.3} a partir de R en el extremo alto (k≈0: n=(1+√R)/(1−√R), ε∞=n²). Con solo R, ε∞ no se ajusta junto con ε₂. Si conoces n donde la muestra es transparente, escribe ε∞ = n²."
+                    ));
+                    (v, false, "estimado de R en el extremo alto".to_string())
+                }
+                None => {
+                    warnings.push(
+                        "ε∞ vacío: el extremo alto refleja demasiado para leer n (k no es ≈ 0; n² saldría por encima de 25). No se inventa ese valor ni se recorta a 50: ε∞ se deja en 1. Si lo conoces, escríbelo."
+                            .into(),
+                    );
+                    (1.0, false, "1: el extremo alto no es transparente".to_string())
+                }
+            },
             Measure::K | Measure::Alpha | Measure::T => {
                 warnings.push(format!(
                     "ε∞ vacío: se usa 1. Con {sym} ese 1 no sale de la medida. ε₁, n, R y la pérdida dependen de él."
@@ -1409,9 +1442,17 @@ pub fn run_fit(input: &FitRequest) -> Result<FitReport, String> {
     let bump = 0.03_f64.min(0.008_f64.max(0.015 * 1.2_f64.min(ratio)));
     let w_lo = w_min * (1.0 - bump);
     let w_hi = w_max * (1.0 + bump);
-    let tails = measure != Measure::Eps2 && input.edges == Extrapolation::Tails;
+    let resolved = resolve_edges(input.edges, measure, &y_data);
+    // Con ε₂ medida no hay transformada que continuar: las colas no entran.
+    let tails = measure != Measure::Eps2 && resolved == Extrapolation::Tails;
     warnings.push(if tails {
-        "Fuera del rango medido, ε₂ no queda fijada por los datos. El modelo la continúa con colas suaves: σ₁ constante por debajo del primer ancla y una caída ω⁻³ por encima de la última. Esa extrapolación puede cambiar ε₁ dentro del rango; ε∞ recoge lo que absorba más arriba.".into()
+        if input.edges == Extrapolation::Auto {
+            "Fuera del rango, ε₂ no queda fijada por los datos. El extremo bajo refleja como un conductor, o el extremo alto no es transparente: se usan colas (σ₁ constante por debajo y caída ω⁻³ por encima). Cortar ε₂ a cero ahí deforma el borde.".into()
+        } else {
+            "Fuera del rango medido, ε₂ no queda fijada por los datos. El modelo la continúa con colas suaves: σ₁ constante por debajo del primer ancla y una caída ω⁻³ por encima de la última. Esa extrapolación puede cambiar ε₁ dentro del rango; ε∞ recoge lo que absorba más arriba.".into()
+        }
+    } else if input.edges == Extrapolation::Auto && measure != Measure::Eps2 {
+        "Fuera del rango, ε₂ no queda fijada por los datos. El extremo bajo no refleja como un conductor, así que ε₂ baja a cero en los nodos de borde (la malla del trabajo de grado). Una cola de σ₁ constante inventaría conductividad y, con ε₂ ≥ 0, la volcaría en las primeras anclas.".into()
     } else {
         "Fuera del rango medido, ε₂ no queda fijada por los datos. El modelo la lleva linealmente a cero en los nodos de borde; esa extrapolación puede cambiar ε₁ dentro del rango.".into()
     });
@@ -2972,6 +3013,30 @@ mod tests {
         assert!((n * n - k * k - 2.0).abs() < 1e-9);
         assert!((2.0 * n * k + 0.4).abs() < 1e-9);
         assert!((0.0..=1.0).contains(&r));
+    }
+
+    #[test]
+    #[test]
+    fn auto_edges_follow_the_reflectivity() {
+        // Aislante: R alta al principio (fonón) y ventana transparente al final.
+        let mut insulator = vec![0.16; 80];
+        for v in insulator.iter_mut().take(12) {
+            *v = 0.80;
+        }
+        assert_eq!(resolve_edges(Extrapolation::Auto, Measure::R, &insulator), Extrapolation::Zero);
+        let mut metal = vec![0.2; 80];
+        for v in metal.iter_mut().take(12) {
+            *v = 0.98;
+        }
+        assert!(conducting_at_low_end(&metal));
+        assert_eq!(resolve_edges(Extrapolation::Auto, Measure::R, &metal), Extrapolation::Tails);
+        // Una elección explícita no se cambia.
+        assert_eq!(resolve_edges(Extrapolation::Tails, Measure::R, &insulator), Extrapolation::Tails);
+        assert_eq!(resolve_edges(Extrapolation::Zero, Measure::R, &metal), Extrapolation::Zero);
+        // R alto en el extremo de arriba no es una ventana transparente: n² no se inventa.
+        assert!(eps_inf_if_transparent(0.77).is_none());
+        let dielectric = eps_inf_if_transparent(0.16).unwrap();
+        assert!((dielectric - 5.6).abs() < 0.3, "{dielectric}");
     }
 
     #[test]
