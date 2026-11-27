@@ -70,7 +70,7 @@ fn text_fit_from_json(raw: &str) -> TextFit {
         iter_max: iter,
         log_mesh: flag("log_mesh"),
         extended: flag("extended"),
-        drude_on: flag("drude"),
+        drude_on: false,
         eps_inf: text("eps_inf"),
         omega_p: text("omega_p"),
         gamma: text("gamma"),

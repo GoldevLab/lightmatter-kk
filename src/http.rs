@@ -206,7 +206,6 @@ pub fn fit_worker(
 pub async fn run_lab(mut form: Multipart) -> Response<Body> {
     let mut spectrum = String::new();
     let mut files: Vec<(String, String)> = Vec::new();
-    let mut drude_on = false;
     let mut log_mesh = false;
     let mut extended = false;
     let mut eps_inf = String::new();
@@ -244,7 +243,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         let value = String::from_utf8_lossy(&bytes).into_owned();
         match name.as_str() {
             "spectrum" => spectrum = value,
-            "drude" => drude_on = value == "1" || value == "on",
+            "drude" => {}
             "log_mesh" => log_mesh = value == "1" || value == "on",
             "extended" => extended = value == "1" || value == "on",
             "eps_inf" => eps_inf = value,
@@ -283,7 +282,7 @@ pub async fn run_lab(mut form: Multipart) -> Response<Body> {
         iter_max,
         log_mesh,
         extended,
-        drude_on,
+        drude_on: false,
         eps_inf,
         omega_p,
         gamma,

@@ -180,16 +180,6 @@ pub fn page(req: FlowRequest) -> View {
         "1"
     };
     // `checked="false"` el navegador lo trata como marcado. El atributo solo va si es verdad.
-    let drude_box = if form.drude {
-        view! { <input name="drude" type="checkbox" value="1" checked="" /> }
-    } else {
-        view! { <input name="drude" type="checkbox" value="1" /> }
-    };
-    let log_box = if form.log_mesh {
-        view! { <input name="log_mesh" type="checkbox" value="1" checked="" /> }
-    } else {
-        view! { <input name="log_mesh" type="checkbox" value="1" /> }
-    };
     let ext_box = if form.extended {
         view! { <input name="extended" type="checkbox" value="1" checked="" /> }
     } else {
@@ -223,7 +213,7 @@ pub fn page(req: FlowRequest) -> View {
     let solver_label = tx(lang, "Sistema lineal", "Linear system", "线性方程组", "Sistema linear");
     let solver_help = tx(lang, "Cómo se resuelve cada paso de Levenberg–Marquardt. Gauss–Jordan es el del trabajo de grado; Cholesky da el mismo paso con menos operaciones. Automático usa Gauss–Jordan hasta 2500 anclas y Cholesky por encima.", "How each Levenberg–Marquardt step is solved. Gauss–Jordan is the one in the thesis; Cholesky gives the same step with fewer operations. Automatic uses Gauss–Jordan up to 2500 anchors and Cholesky above.", "每一步 Levenberg–Marquardt 的解法。Gauss–Jordan 是论文中的方法；Cholesky 用更少的运算得到同样的步长。自动模式在 2500 个锚点以内用 Gauss–Jordan，以上用 Cholesky。", "Como se resolve cada passo de Levenberg–Marquardt. Gauss–Jordan é o do trabalho de grau; Cholesky dá o mesmo passo com menos operações. Automático usa Gauss–Jordan até 2500 âncoras e Cholesky acima.");
     let edges_label = tx(lang, "ε₂ fuera del rango", "ε₂ outside the range", "范围之外的 ε₂", "ε₂ fora do intervalo");
-    let edges_help = tx(lang, "Según la reflectividad: si el extremo bajo sigue en R > 0.95, o el extremo alto no es transparente, se usan colas (σ₁ constante abajo, caída ω⁻³ arriba). Si no, ε₂ baja a cero fuera del rango, que es la malla del trabajo de grado. Una cola de conductividad constante en un aislante infla ε₂ en las primeras anclas. No hay osciladores ni Drude.", "From the reflectivity: if the low end is still above R = 0.95, or the high end is not transparent, smooth tails are used (constant σ₁ below, ω⁻³ above). Otherwise ε₂ falls to zero outside the range, which is the thesis mesh. A constant-conductivity tail on an insulator inflates ε₂ on the first anchors. No oscillators and no Drude.", "按反射率：若低端 R 仍高于 0.95，或高端不透明，则用平滑尾部（下方 σ₁ 恒定，上方按 ω⁻³ 衰减）。否则 ε₂ 在范围外降为零，即论文的网格。绝缘体上的恒定电导尾部会抬高最初几个锚点的 ε₂。不用振子，也不用 Drude。", "Segundo a refletividade: se o extremo baixo segue com R > 0.95, ou o extremo alto não é transparente, usam-se caudas (σ₁ constante embaixo, queda ω⁻³ em cima). Se não, ε₂ cai a zero fora do intervalo, que é a malha do trabalho de grau. Uma cauda de condutividade constante num isolante infla ε₂ nas primeiras âncoras. Sem osciladores nem Drude.");
+    let edges_help = tx(lang, "Según la reflectividad: si el extremo bajo sigue en R > 0.95, o el extremo alto no es transparente, se usan colas (σ₁ constante abajo, caída ω⁻³ arriba). Si no, ε₂ baja a cero fuera del rango, que es la malla del trabajo de grado. Una cola de conductividad constante en un aislante infla ε₂ en las primeras anclas.", "From the reflectivity: if the low end is still above R = 0.95, or the high end is not transparent, smooth tails are used (constant σ₁ below, ω⁻³ above). Otherwise ε₂ falls to zero outside the range, which is the thesis mesh. A constant-conductivity tail on an insulator inflates ε₂ on the first anchors.", "按反射率：若低端 R 仍高于 0.95，或高端不透明，则用平滑尾部（下方 σ₁ 恒定，上方按 ω⁻³ 衰减）。否则 ε₂ 在范围外降为零，即论文的网格。绝缘体上的恒定电导尾部会抬高最初几个锚点的 ε₂。", "Segundo a refletividade: se o extremo baixo segue com R > 0.95, ou o extremo alto não é transparente, usam-se caudas (σ₁ constante embaixo, queda ω⁻³ em cima). Se não, ε₂ cai a zero fora do intervalo, que é a malha do trabalho de grau. Uma cauda de condutividade constante num isolante infla ε₂ nas primeiras âncoras.");
     let has_result = loaded.is_some() || !report_id.is_empty();
     let result = match loaded {
         Some(item) => {
@@ -259,13 +249,10 @@ pub fn page(req: FlowRequest) -> View {
     let graph = tx(lang, "Gráfica", "Plot", "图", "Gráfico");
     let preview_empty = tx(lang, "La curva de lo que cargues aparece aquí, sin esperar al ajuste.", "The curve of what you load appears here, before the fit.", "载入的曲线会出现在这里，不必等待拟合。", "A curva do que você carregar aparece aqui, sem esperar o ajuste.");
     let legend2 = tx(lang, "2 · Cómo ajustar", "2 · How to fit", "2 · 如何拟合", "2 · Como ajustar");
-    let drude = tx(lang, " Fondo Drude", " Drude background", " Drude 背景", " Fundo de Drude");
-    let log_mesh = tx(lang, " Eje ω en escala log", " ω axis on a log scale", " ω 轴用对数刻度", " Eixo ω em escala log");
-    let extended = tx(lang, " Dibujar fuera del rango", " Draw outside the range", " 画出范围之外", " Desenhar fora do intervalo");
-    let help3 = tx(lang, "Drude resta un fondo de electrones libres antes de ajustar ε₂; sin marcar, el análisis es solo la función variacional restringida por Kramers–Kronig. Todos los puntos entran en χ². Con ε₂ cada frecuencia medida es un ancla; con R las anclas van en los puntos medios entre datos. El eje ω pasa a log si el rango supera ×20. Los datos no fijan ε₂ fuera del rango, y lo que se suponga ahí puede cambiar ε₁ dentro.", "Drude subtracts a free-electron background before fitting ε₂; unticked, the analysis is only the Kramers–Kronig constrained variational function. Every point enters χ². For ε₂ each measured frequency is an anchor; for R the anchors sit at the midpoints between data. The ω axis becomes log if the range exceeds ×20. The data do not determine ε₂ outside the range, and what is assumed there can change ε₁ inside.", "Drude 在拟合 ε₂ 之前减去自由电子背景；不勾选时，分析只用受克拉默斯–克罗尼格约束的变分函数。所有点都进入 χ²。对 ε₂，每个测量频率都是一个锚点；对 R，锚点位于相邻数据的中点。若范围超过 ×20，ω 轴改为对数。数据不能确定范围之外的 ε₂，而那里的假设可能改变范围内的 ε₁。", "Drude subtrai um fundo de elétrons livres antes de ajustar ε₂; desmarcado, a análise é só a função variacional restrita por Kramers–Kronig. Todos os pontos entram no χ². Com ε₂ cada frequência medida é uma âncora; com R as âncoras ficam nos pontos médios entre dados. O eixo ω passa a log se o intervalo superar ×20. Os dados não determinam ε₂ fora do intervalo, e o que se supõe ali pode mudar ε₁ dentro.");
-    let eps_help = tx(lang, "ε₁ por encima de tu rango (absorción no medida a más alta frecuencia). Vacío = auto: con n o ε₁ se ajusta; con R se estima del extremo alto (k≈0) y se ajusta dentro de [1, 50]. Con α, k o T vacío usa 1 fijo. Prioridad: si conoces n en zona transparente, escribe ε∞ = n² (queda fijo). Cómo obtener n²: /learn#n2", "ε₁ above your range (unmeasured higher-frequency absorption). Blank = auto: with n or ε₁ it is fitted; with R it is estimated from the high-frequency end (k≈0) and fitted within [1, 50]. With α, k, or T blank uses fixed 1. Priority: if you know n in a transparent region, enter ε∞ = n² (held fixed). How to get n²: /learn#n2", "你的范围之上的 ε₁（更高频未测吸收）。留空 = auto：对 n 或 ε₁ 会拟合；对 R 先从高频端估计（k≈0）再在 [1, 50] 内拟合。对 α、k 或 T 留空则固定为 1。优先：若知道透明区的 n，填写 ε∞ = n²（固定）。如何得到 n²：/learn#n2", "ε₁ acima do seu intervalo (absorção não medida em frequência mais alta). Vazio = auto: com n ou ε₁ é ajustado; com R é estimado da ponta alta (k≈0) e ajustado em [1, 50]. Com α, k ou T o vazio usa 1 fixo. Prioridade: se conhece n na região transparente, escreva ε∞ = n² (fica fixo). Como obter n²: /learn#n2");
-    let wp_help = tx(lang, "Frecuencia de plasma del Drude.", "Drude plasma frequency.", "Drude 等离子体频率。", "Frequência de plasma de Drude.");
-    let gamma_help = tx(lang, "Ancho de amortiguamiento.", "Damping width.", "阻尼宽度。", "Largura de amortecimento.");
+    let extended = tx(lang, " Dibujar la extrapolación", " Draw the extrapolation", " 画出外推", " Desenhar a extrapolação");
+    let extended_help = tx(lang, "No cambia el ajuste. Añade una tabla desde 0,7 veces la ω mínima hasta 1,4 veces la máxima, con la ε₁ y la ε₂ que la cola ya usó dentro del rango. No son datos nuevos.", "It does not change the fit. It adds a table from 0.7 times the lowest ω to 1.4 times the highest, with the ε₁ and ε₂ the tail already used inside the range. They are not new data.", "不改变拟合。从最低 ω 的 0.7 倍到最高 ω 的 1.4 倍加一张表，列出尾部已经用在范围内的 ε₁ 和 ε₂。不是新数据。", "Não muda o ajuste. Acrescenta uma tabela de 0,7 vezes o ω mínimo até 1,4 vezes o máximo, com o ε₁ e o ε₂ que a cauda já usou dentro do intervalo. Não são dados novos.");
+    let help3 = tx(lang, "El análisis es la función variacional restringida por Kramers–Kronig: ε₂ es la suma de triángulos y ε₁ sale de su transformada. Todos los puntos entran en χ². Con ε₂ cada frecuencia medida es un ancla; con R las anclas van en los puntos medios entre datos. El eje ω pasa a log si el rango supera ×20. Los datos no fijan ε₂ fuera del rango, y lo que se suponga ahí puede cambiar ε₁ dentro.", "The analysis is the Kramers–Kronig constrained variational function: ε₂ is the sum of triangles and ε₁ comes from its transform. Every point enters χ². For ε₂ each measured frequency is an anchor; for R the anchors sit at the midpoints between data. The ω axis becomes log if the range exceeds ×20. The data do not determine ε₂ outside the range, and what is assumed there can change ε₁ inside.", "分析是受克拉默斯–克罗尼格约束的变分函数：ε₂ 是三角之和，ε₁ 来自它的变换。所有点都进入 χ²。对 ε₂，每个测量频率都是一个锚点；对 R，锚点位于相邻数据的中点。若范围超过 ×20，ω 轴改为对数。数据不能确定范围之外的 ε₂，而那里的假设可能改变范围内的 ε₁。", "A análise é a função variacional restrita por Kramers–Kronig: ε₂ é a soma de triângulos e ε₁ sai da sua transformada. Todos os pontos entram no χ². Com ε₂ cada frequência medida é uma âncora; com R as âncoras ficam nos pontos médios entre dados. O eixo ω passa a log se o intervalo superar ×20. Os dados não determinam ε₂ fora do intervalo, e o que se supõe ali pode mudar ε₁ dentro.");
+    let eps_help = tx(lang, "ε₁ por encima de tu rango (absorción no medida a más alta frecuencia). Vacío = auto. Con R se fija en n² del extremo alto si ahí la muestra es transparente (k≈0); si ese extremo refleja demasiado, se deja en 1 y el ajuste lo dice. Con n o ε₁ se ajusta. Con α, k o T vacío usa 1 fijo. Si conoces n donde es transparente, escribe ε∞ = n². Cómo obtener n²: /learn#n2", "ε₁ above your range (unmeasured higher-frequency absorption). Blank = auto. For R it is fixed at n² from the high-frequency end when the sample is transparent there (k≈0); if that end reflects too much, it is left at 1 and the fit says so. For n or ε₁ it is fitted. For α, k, or T blank uses fixed 1. If you know n where it is transparent, enter ε∞ = n². How to get n²: /learn#n2", "你的范围之上的 ε₁（更高频未测吸收）。留空 = auto。对 R，若高频端透明（k≈0）则固定为该处的 n²；若反射太强则留为 1，并由拟合说明。对 n 或 ε₁ 会拟合。对 α、k 或 T 留空则固定为 1。若知道透明处的 n，填写 ε∞ = n²。如何得到 n²：/learn#n2", "ε₁ acima do seu intervalo (absorção não medida em frequência mais alta). Vazio = auto. Com R fica fixo em n² da ponta alta se a amostra for transparente ali (k≈0); se essa ponta reflete demais, fica em 1 e o ajuste diz isso. Com n ou ε₁ é ajustado. Com α, k ou T o vazio usa 1 fixo. Se conhece n onde é transparente, escreva ε∞ = n². Como obter n²: /learn#n2");
     let steps = tx(lang, "Pasos", "Steps", "步数", "Passos");
     let steps_help = tx(lang, "Máximo: 2000. Es un tope: el ajuste para antes, cuando el residuo llega al ruido o deja de bajar.", "Maximum: 2000. It is a cap: the fit stops earlier, once the residual reaches the noise or stops falling.", "上限：2000。这只是上限：残差降到噪声或不再下降时，拟合会提前停止。", "Máximo: 2000. É um teto: o ajuste para antes, quando o resíduo chega ao ruído ou deixa de baixar.");
     let smooth = tx(lang, "Suavidad", "Smoothness", "平滑", "Suavidade");
@@ -317,28 +304,24 @@ pub fn page(req: FlowRequest) -> View {
                             </figure>
                         </div>
                     </fieldset>
-                    <fieldset>
-                        <legend>{legend2}</legend>
-                        <div class="checks">
-                            <label class="check">{drude_box}{drude}</label>
-                            <label class="check">{log_box}{log_mesh}</label>
-                            <label class="check">{ext_box}{extended}</label>
-                        </div>
+                    <details class="fit-options">
+                        <summary>{legend2}</summary>
                         <p class="help">{help3}</p>
-                        <div class="drude-fields" data-lm-unless="lum">
+                        <div class="option-fields" data-lm-unless="lum">
                             <label>{mesh_label}{mesh_select}<span class="help">{mesh_help}</span></label>
                             <label>{solver_label}{solver_select}<span class="help">{solver_help}</span></label>
                             <label>{edges_label}{edges_select}<span class="help">{edges_help}</span></label>
                         </div>
-                        <div class="drude-fields">
+                        <div class="option-fields">
                             <label>"ε∞"<input name="eps_inf" type="text" inputmode="decimal" placeholder={eps_inf_placeholder} value={form.eps_inf.clone()} /><span class="help">{eps_help}</span></label>
-                            <label>"ωₚ"<input name="omega_p" type="text" inputmode="decimal" placeholder="auto" value={form.omega_p.clone()} /><span class="help">{wp_help}</span></label>
-                            <label>"γ"<input name="gamma" type="text" inputmode="decimal" placeholder="auto" value={form.gamma.clone()} /><span class="help">{gamma_help}</span></label>
                             <label>{steps}<input name="iter" type="number" value={form.iter.clone()} min="1" max="2000" /><span class="help">{steps_help}</span></label>
                             <label>{smooth}<input name="smooth" type="number" value={form.smooth.clone()} min="0" max="1000000" step="any" /><span class="help">{smooth_help}</span></label>
                             <label>{neg}<input name="neg" type="number" value={form.neg.clone()} min="0" max="1000000" step="any" /><span class="help">{neg_help}</span></label>
                         </div>
-                    </fieldset>
+                        <div class="checks">
+                            <label class="check">{ext_box}{extended}<span class="help">{extended_help}</span></label>
+                        </div>
+                    </details>
                     <div class="hero-actions">
                         <button class="btn btn-primary" type="submit">{submit}</button>
                         <button class="btn btn-ghost" type="submit" name="execution" value="server" formaction="/lab/run">{submit_server}</button>

@@ -873,7 +873,6 @@ function fillJobConditions(dl, options, points, localMeta) {
     [jobText("smooth"), String(opts.smoothness ?? localMeta?.smooth ?? "—")],
     [jobText("neg"), String(opts.negativity ?? localMeta?.neg ?? "—")],
     [jobText("eps"), optionLabel(opts, "eps_inf", localMeta?.eps_inf || jobText("auto"))],
-    [jobText("drude"), (opts.drude_on ?? localMeta?.drude) ? jobText("on") : jobText("off")],
   ];
   dl.replaceChildren();
   for (const [k, v] of rows) {

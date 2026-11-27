@@ -178,8 +178,6 @@ fn conditions(out: &mut String, report: &FitReport, n: &mut u32, lang: Lang) {
         if let Some(d) = &report.drude {
             kv(out, "Drude ωₚ", &fmt(d.omega_p), false);
             kv(out, "Drude γ", &fmt(d.gamma), false);
-        } else {
-            kv(out, "Fondo Drude", "no", false);
         }
     } else {
         kv(out, "Temperatura de la muestra", &format!("{} K", fmt(o.temperature_k)), false);

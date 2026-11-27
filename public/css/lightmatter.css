@@ -229,9 +229,9 @@ legend {
   font-size: 0.72rem;
 }
 .help { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
-.checks, .drude-fields { display: flex; flex-wrap: wrap; gap: 0.8rem 1rem; }
+.checks, .option-fields { display: flex; flex-wrap: wrap; gap: 0.8rem 1rem; }
 .check { display: flex; align-items: center; gap: 0.4rem; color: var(--text); }
-.drude-fields label { min-width: 9rem; flex: 1; }
+.option-fields label { min-width: 9rem; flex: 1; }
 .measure-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.8rem 1rem; }
 .measure-row label[hidden] { display: none; }
 select {
